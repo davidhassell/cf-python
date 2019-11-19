@@ -1847,6 +1847,7 @@ necessary.
                             else:
                                 mpi_comm.Ssend(subarray, dest=dst_rank)
                             #--- End: if
+                            partition._subarray_removed = True
                         elif mpi_rank == dst_rank:
                             if partition._subarray_isMA:
                                 if partition._subarray_is_masked:
@@ -1869,7 +1870,9 @@ necessary.
                             # Put the subarray back into the partition
                             # only on the destination rank
                             partition._subarray = subarray
+                            partition._subarray_removed = False
                         #--- End: if
+                        partition._subarray_rank = dst_rank
                     #--- End: if
                 #--- End: for
             #--- End: def
