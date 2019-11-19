@@ -5455,6 +5455,34 @@ necessary.
                     _parallelise_collapse_subspace=_parallelise_collapse_subspace,
                     **kwargs)
 
+                if _parallelise_collapse_subspace:
+                    if mpi_rank == 0:
+                        partition._subarray_removed = False
+
+                        subarray = partition._subarray
+                        subarray_props = {}
+                        subarray_props['_subarray_dtype'] = subarray.dtype
+                        subarray_props['_subarray_shape'] = subarray.shape
+                        subarray_props['_subarray_size'] = subarray.size
+                        subarray_props['_subarray_isMA'] = numpy_ma_isMA(subarray)
+                        if subarray_props['_subarray_isMA']:
+                            subarray_props['_subarray_is_masked'] = subarray.mask is not numpy_ma_nomask
+                        else:
+                            subarray_props['_subarray_is_masked'] = False
+                        #--- End: if
+                    else:
+                        partition._subarray_removed = True
+                        subarray_props = None
+                    #--- End: if
+                    
+                    subarray_props = mpi_comm.bcast(subarray_props, root=0)
+
+                    partition._subarray_rank = 0
+                    for subarray_prop in subarray_props:
+                        setattr(partition, subarray_prop, subarray_props[subarray_prop])
+                    #--- End: for
+                #--- End: if
+
                 partition.close(keep_in_memory=keep_in_memory)
 
                 # Add each partition to a list of processed partitions
