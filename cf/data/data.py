@@ -5346,7 +5346,7 @@ necessary.
         # Initialise the output data array
         #-------------------------------------------------------------
         new = d[(Ellipsis,) + (0,)*n_collapse_axes]
-        
+
         new._auxiliary_mask = None
         for partition in new.partitions.matrix.flat:
             # Do this so as not to upset the ref count on the
@@ -5500,7 +5500,7 @@ necessary.
         # are distributed to every rank and processed_partitions now
         # contains all the processed partitions from every rank.
         processed_partitions = new._share_partitions(processed_partitions,
-                                                     parallelise=mpi_on)
+                                                     parallelise=_parallelise_collapse)
 
         # Put the processed partitions back in the partition matrix
         # according to each partitions _pmindex attribute set above.
@@ -5884,7 +5884,7 @@ dimensions.
             out = self._collapse_finalise(ffinalise, out, sub_samples,
                                           masked, Nmax, mtol, data, n_non_collapse_axes)
         #--- End: if
-        
+
         return out
     #--- End: def
 
