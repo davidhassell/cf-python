@@ -1791,7 +1791,7 @@ necessary.
             dst_ranks = {}
 
             for i, partition in enumerate(self.partitions.matrix.flat):
-                subarray_is_removed = getattr(partition, '_subarray_removed', False)
+                subarray_is_removed = partition.subarray is None # getattr(partition, '_subarray_removed', False)
                 
                 # Add a flag `_process_partition` to each partition defining
                 # whether this partition will be processed on this process
@@ -1847,7 +1847,7 @@ necessary.
                             else:
                                 mpi_comm.Ssend(subarray, dest=dst_rank)
                             #--- End: if
-                            partition._subarray_removed = True
+                            # partition._subarray_removed = True
                         elif mpi_rank == dst_rank:
                             if partition._subarray_isMA:
                                 if partition._subarray_is_masked:
@@ -1870,7 +1870,7 @@ necessary.
                             # Put the subarray back into the partition
                             # only on the destination rank
                             partition._subarray = subarray
-                            partition._subarray_removed = False
+                            # partition._subarray_removed = False
                         #--- End: if
                         partition._subarray_rank = dst_rank
                     #--- End: if
@@ -1934,7 +1934,7 @@ necessary.
                             # the partition
                             subarray = partition._subarray
                             partition._subarray = None
-                            partition._subarray_removed = True
+                            # partition._subarray_removed = True
                             partition._subarray_rank = mpi_rank
                             partition._subarray_dtype = subarray.dtype
                             partition._subarray_shape = subarray.shape
@@ -1945,12 +1945,12 @@ necessary.
                             else:
                                 partition._subarray_is_masked = False
                             #--- End: if
-                        else:
-                            # The partition's subarray is either not a
-                            # numpy array or is, for example, an array
-                            # of strings, so it will be pickled and
-                            # broadcast with the partition.
-                            partition._subarray_removed = False
+                        # else:
+                        #     # The partition's subarray is either not a
+                        #     # numpy array or is, for example, an array
+                        #     # of strings, so it will be pickled and
+                        #     # broadcast with the partition.
+                        #     partition._subarray_removed = False
                         #--- End: if
                     else:
                         partition = None
@@ -2014,11 +2014,11 @@ necessary.
                     # # Clean up temporary attribute
                     # del partition._subarray_removed
 
-                    if partition._subarray_removed:
+                    if partition.subarray is None: # partition._subarray_removed:
                         if mpi_rank == rank:
                             # Place the subarray back in the partition
                             partition._subarray = subarray
-                            partition._subarray_removed = False
+                            # partition._subarray_removed = False
 
                             # The result of broadcasting an object is
                             # different to the original object even on the
@@ -5460,7 +5460,7 @@ necessary.
 
                 if _parallelise_collapse_subspace:
                     if mpi_rank == 0:
-                        partition._subarray_removed = False
+                        # partition._subarray_removed = False
 
                         subarray = partition._subarray
                         subarray_props = {}
@@ -5474,7 +5474,7 @@ necessary.
                             subarray_props['_subarray_is_masked'] = False
                         #--- End: if
                     else:
-                        partition._subarray_removed = True
+                        # partition._subarray_removed = True
                         subarray_props = None
                     #--- End: if
                     
