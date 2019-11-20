@@ -5730,10 +5730,10 @@ dimensions.
                     if out is None:
                         # out is None, so will not be sent
                         out_is_none = True
-                        mpi_comm.send(out_is_none, dest=0)
+                        mpi_comm.ssend(out_is_none, dest=0)
                     else:
                         out_is_none = False
-                        mpi_comm.send(out_is_none, dest=0)
+                        mpi_comm.ssend(out_is_none, dest=0)
                         out_props = []
                         for item in out:
                             item_props = {}
@@ -5763,22 +5763,22 @@ dimensions.
                         # Send information about the properties of
                         # each item in out so that it can be received
                         # correctly.
-                        mpi_comm.send(out_props, dest=0)
+                        mpi_comm.ssend(out_props, dest=0)
 
                         # Send each item in out to process 0 in the
                         # appropriate way.
                         for item, item_props in zip(out, out_props):
                             if item_props['is_numpy_array']:
                                 if item_props['is_masked']:
-                                    mpi_comm.Send(item.data, dest=0)
-                                    mpi_comm.Send(item.mask, dest=0)
+                                    mpi_comm.Ssend(item.data, dest=0)
+                                    mpi_comm.Ssend(item.mask, dest=0)
                                 elif item_props['isMA']:
-                                    mpi_comm.Send(item.data, dest=0)
+                                    mpi_comm.Ssend(item.data, dest=0)
                                 else:
-                                    mpi_comm.Send(item, dest=0)
+                                    mpi_comm.Ssend(item, dest=0)
                                 #--- End: if
                             else:
-                                mpi_comm.send(item, dest=0)
+                                mpi_comm.ssend(item, dest=0)
                             #--- End: if
                         #--- End: for
                 elif mpi_rank == 0:
