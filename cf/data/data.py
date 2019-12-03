@@ -1872,6 +1872,12 @@ necessary.
                             # Put the subarray back into the partition
                             # only on the destination rank
                             partition.subarray = subarray
+
+                            # If memory is low on the destination node
+                            # push the partition to disk
+                            if FREE_MEMORY() < FM_THRESHOLD():
+                                partiiton.to_disk()
+                            #--- End: if
                         #--- End: if
                         partition._subarray_rank = dst_rank
                     #--- End: if
