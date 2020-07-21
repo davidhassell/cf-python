@@ -13972,7 +13972,7 @@ class Field(mixin.PropertiesData,
 
     :Returns:
 
-        `Field`
+        `{{class}}`
             The new field construct.
 
     **Examples:**

@@ -78,11 +78,11 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12): [14, ..., 56] km)
+    <{{repr}}Data(12): [14, ..., 56] km)
     >>> cf.Data(f)
-    <CF Data(12): [14, ..., 56] km)
+    <{{repr}}Data(12): [14, ..., 56] km)
     >>> cf.Data.asdata(f)
-    <CF Data(12): [14, ..., 56] km)
+    <{{repr}}Data(12): [14, ..., 56] km)
 
         '''
         data = self.get_data(None)
@@ -1086,7 +1086,7 @@ class PropertiesData(Properties):
     >>> c.isperiodic
     True
     >>> c.period(None)
-    <CF Data(): 360 degrees_east>
+    <{{repr}}Data(): 360 degrees_east>
     >>> c.isperiodic
     False
 
@@ -1317,7 +1317,7 @@ class PropertiesData(Properties):
     >>> m.dtype
     dtype('bool')
     >>> m.data
-    <CF Data(12, 73, 96): [[[True, ..., False]]] >
+    <{{repr}}Data(12, 73, 96): [[[True, ..., False]]] >
 
         '''
         if not self.has_data():
@@ -1676,9 +1676,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 64, 128): [[[236.512756, ..., 256.93371]]] K>
+    <{{repr}}Data(12, 64, 128): [[[236.512756, ..., 256.93371]]] K>
     >>> f.maximum()
-    <CF Data(): 311.343780 K>
+    <{{repr}}Data(): 311.343780 K>
 
         '''
         data = self.get_data(None)
@@ -1702,9 +1702,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.mean()
-    <CF Data(): 280.192227593 K>
+    <{{repr}}Data(): 280.192227593 K>
 
         '''
         data = self.get_data(None)
@@ -1730,9 +1730,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.mid_range()
-    <CF Data(): 255.08618927 K>
+    <{{repr}}Data(): 255.08618927 K>
 
         '''
         data = self.get_data(None)
@@ -1757,9 +1757,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.minimum()
-    <CF Data(): 198.828598022 K>
+    <{{repr}}Data(): 198.828598022 K>
 
         '''
         data = self.get_data(None)
@@ -1803,20 +1803,20 @@ class PropertiesData(Properties):
     >>> print(c.period(360))
     None
     >>> c.period()
-    <CF Data(): 360.0 'degrees_east'>
+    <{{repr}}Data(): 360.0 'degrees_east'>
     >>> import math
     >>> c.period(cf.Data(2*math.pi, 'radians'))
-    <CF Data(): 360.0 degrees_east>
+    <{{repr}}Data(): 360.0 degrees_east>
     >>> c.period()
-    <CF Data(): 6.28318530718 radians>
+    <{{repr}}Data(): 6.28318530718 radians>
     >>> c.period(None)
-    <CF Data:() 6.28318530718 radians>
+    <{{repr}}Data:() 6.28318530718 radians>
     >>> print(c.period())
     None
     >>> print(c.period(-360))
     None
     >>> c.period()
-    <CF Data(): 360.0 degrees_east>
+    <{{repr}}Data(): 360.0 degrees_east>
 
         '''
         old = self._custom.get('period')
@@ -1829,8 +1829,10 @@ class PropertiesData(Properties):
         value = value[0]
 
         if value is not None:
+
             value = Data.asdata(value)
             units = value.Units
+
             if not units:
                 value = value.override_units(self.Units)
             elif units != self.Units:
@@ -1877,9 +1879,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.range()
-    <CF Data(): 112.515182495 K>
+    <{{repr}}Data(): 112.515182495 K>
 
         '''
         data = self.get_data(None)
@@ -1903,9 +1905,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.sample_size()
-    <CF Data(): 98304.0>
+    <{{repr}}Data(): 98304.0>
 
         '''
         data = self.get_data(None)
@@ -1929,9 +1931,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.sd()
-    <CF Data(): 22.685052535 K>
+    <{{repr}}Data(): 22.685052535 K>
 
         '''
         data = self.get_data(None)
@@ -1957,9 +1959,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.sum()
-    <CF Data(): 27544016.7413 K>
+    <{{repr}}Data(): 27544016.7413 K>
 
         '''
         data = self.get_data(None)
@@ -2023,9 +2025,9 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
+    <{{repr}}Data(12, 73, 96): [[[236.512756348, ..., 256.93371582]]] K>
     >>> f.var()
-    <CF Data(): 514.611608515 K2>
+    <{{repr}}Data(): 514.611608515 K2>
 
         '''
         data = self.get_data(None)
@@ -2324,7 +2326,7 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(5): [0, ... 4] kg m-1 s-2>
+    <{{repr}}Data(5): [0, ... 4] kg m-1 s-2>
     >>> a = f.array
     >>> type(a)
     <type 'numpy.ndarray'>
@@ -2336,7 +2338,7 @@ class PropertiesData(Properties):
     >>> print(f.array)
     [0 1 2 3 4]
     >>> f.data
-    <CF Data(5): [0, ... 4] kg m-1 s-2>
+    <{{repr}}Data(5): [0, ... 4] kg m-1 s-2>
 
         '''
         data = self.get_data(None)
@@ -2357,7 +2359,7 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(5): [0, ... 4] kg m-1 s-2>
+    <{{repr}}Data(5): [0, ... 4] kg m-1 s-2>
     >>> a = f.array
     >>> type(a)
     <type 'numpy.ndarray'>
@@ -2369,7 +2371,7 @@ class PropertiesData(Properties):
     >>> print(f.array)
     [999 1 2 3 4]
     >>> f.data
-    <CF Data(5): [999, ... 4] kg m-1 s-2>
+    <{{repr}}Data(5): [999, ... 4] kg m-1 s-2>
 
         '''
         data = self.get_data(None)
@@ -3960,17 +3962,17 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]]>
+    <{{repr}}Data(1, 2): [[1, 2]]>
     >>> f.exp().data
-    <CF Data(1, 2): [[2.71828182846, 7.38905609893]]>
+    <{{repr}}Data(1, 2): [[2.71828182846, 7.38905609893]]>
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]] 2>
+    <{{repr}}Data(1, 2): [[1, 2]] 2>
     >>> f.exp().data
-    <CF Data(1, 2): [[7.38905609893, 54.5981500331]]>
+    <{{repr}}Data(1, 2): [[7.38905609893, 54.5981500331]]>
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]] kg m-1 s-2>
+    <{{repr}}Data(1, 2): [[1, 2]] kg m-1 s-2>
     >>> f.exp()
     ValueError: Can't take exponential of dimensional quantities: <Units: kg m-1 s-2>
 
@@ -4582,8 +4584,7 @@ class PropertiesData(Properties):
             The base of the logiarthm. By default a natural logiarithm
             is taken.
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
         i: deprecated at version 3.0.0
             Use *inplace* parameter instead.
@@ -4595,19 +4596,19 @@ class PropertiesData(Properties):
     **Examples:**
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]]>
+    <{{repr}}Data(1, 2): [[1, 2]]>
     >>> f.log().data
-    <CF Data(1, 2): [[0.0, 0.69314718056]] ln(re 1)>
+    <{{repr}}Data(1, 2): [[0.0, 0.69314718056]] ln(re 1)>
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]] 2>
+    <{{repr}}Data(1, 2): [[1, 2]] 2>
     >>> f.log().data
-    <CF Data(1, 2): [[0.0, 0.69314718056]] ln(re 2 1)>
+    <{{repr}}Data(1, 2): [[0.0, 0.69314718056]] ln(re 2 1)>
 
     >>> f.data
-    <CF Data(1, 2): [[1, 2]] kg s-1 m-2>
+    <{{repr}}Data(1, 2): [[1, 2]] kg s-1 m-2>
     >>> f.log().data
-    <CF Data(1, 2): [[0.0, 0.69314718056]] ln(re 1 m-2.kg.s-1)>
+    <{{repr}}Data(1, 2): [[0.0, 0.69314718056]] ln(re 1 m-2.kg.s-1)>
 
     >>> f.log(inplace=True)
     >>> f.Units
@@ -4945,31 +4946,30 @@ class PropertiesData(Properties):
     The units, calendar and fill value properties are, if set,
     inserted into the data.
 
-    .. versionadded:: 1.7.0
+    .. versionadded:: 3.0.0.
 
     .. seealso:: `array`, `data`, `del_data`, `has_data`, `set_data`
 
-    :Parameters:
+    :Parameter:
 
-        default: optional
-            Return the value of the *default* parameter if data have
-            not been set. If set to an `Exception` instance then it
-            will be raised instead.
+        {{default: optional}}
 
     :Returns:
 
+        `{{+Data}}`
             The data.
 
     **Examples:**
 
-    >>> d = cf.Data(range(10))
+    >>> f = {{package}}.{{class}}()
+    >>> d = {{package}}.{{+Data}}(range(10))
     >>> f.set_data(d)
     >>> f.has_data()
     True
     >>> f.get_data()
-    <CF Data(10): [0, ..., 9]>
+    <{{repr}}Data(10): [0, ..., 9]>
     >>> f.del_data()
-    <CF Data(10): [0, ..., 9]>
+    <{{repr}}Data(10): [0, ..., 9]>
     >>> f.has_data()
     False
     >>> print(f.get_data(None))

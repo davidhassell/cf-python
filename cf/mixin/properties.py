@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from . import Container
+
 from ..functions import (atol as cf_atol,
                          rtol as cf_rtol)
 
@@ -10,7 +12,7 @@ from ..functions import (_DEPRECATION_ERROR_METHOD,
                          _DEPRECATION_ERROR)
 
 
-class Properties:
+class Properties(Container):
     '''Mixin class for a container of descriptive properties.
 
     .. versionadded:: 3.0.0
@@ -141,7 +143,7 @@ class Properties:
     True
     >>> f.get_property('calendar')
     'proleptic_gregorian'
-    >>> f.del_property('calendar')
+    >>> f.derl_property('calendar')
 
         '''
         return self.get_property('calendar', default=AttributeError())
@@ -535,10 +537,7 @@ class Properties:
             *Parameter example:*
               ``prop='long_name'``
 
-        default: optional
-            Return the value of the *default* parameter if the
-            property does not exist. If set to an `Exception` instance
-            then it will be raised instead.
+        {{default: optional}}
 
     :Returns:
 
@@ -548,6 +547,7 @@ class Properties:
     **Examples:**
 
 
+    >>> f = {{package}}.{{class}}()
     >>> f.set_property('project', 'CMIP7')
     >>> f.has_property('project')
     True
@@ -597,6 +597,7 @@ class Properties:
 
     **Examples:**
 
+    >>> f = {{package}}.{{class}}()
     >>> f.set_property('project', 'CMIP7')
     >>> f.has_property('project')
     True
@@ -635,10 +636,7 @@ class Properties:
             *Parameter example:*
                ``prop='long_name'``
 
-        default: optional
-            Return the value of the *default* parameter if the
-            property does not exist. If set to an `Exception` instance
-            then it will be raised instead.
+        {{default: optional}}
 
     :Returns:
 
@@ -646,6 +644,7 @@ class Properties:
 
     **Examples:**
 
+    >>> f = {{package}}.{{class}}()
     >>> f.set_property('project', 'CMIP7')
     >>> f.has_property('project')
     True
@@ -1038,6 +1037,7 @@ class Properties:
 
     **Examples:**
 
+    >>> f = {{package}}.{{class}}()
     >>> f.set_property('project', 'CMIP7')
     >>> f.has_property('project')
     True

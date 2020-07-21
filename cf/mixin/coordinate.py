@@ -1,10 +1,14 @@
+import cfdm
+
+from . import Container
+
 from ..decorators import (_inplace_enabled,
                           _inplace_enabled_define_and_cleanup,)
 
 from ..data.data import Data
 
 
-class Coordinate():
+class Coordinate(Container):
     '''Mixin class for dimension or auxiliary coordinate constructs.
 
     .. versionadded:: 3.2.0

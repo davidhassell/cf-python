@@ -28,7 +28,7 @@ class create_fieldTest(unittest.TestCase):
         bounds[-2, 1] = 30
         bounds[-1, :] = [30, 36]
         dim0.set_bounds(cf.Bounds(data=bounds))
-
+        
         dim2 = cf.DimensionCoordinate(
             data=cf.Data([1.5]),
             bounds=cf.Bounds(data=cf.Data([[1, 2.]]))
@@ -166,14 +166,6 @@ class create_fieldTest(unittest.TestCase):
                 'grid_longitude: mean grid_latitude: max'):
             f.set_construct(cm)
 
-
-#        print(f.constructs.data_axes())
-#        print(repr(f.constructs))
-#        print(f.cell_measures)
-#        print(f.constructs)
-#
-#        f.dump()
-
         # Write the file, and read it in
         cf.write(f, self.filename, verbose=0, string=True)
 
@@ -184,7 +176,6 @@ class create_fieldTest(unittest.TestCase):
 
         x = g.dump(display=False)
         x = f.dump(display=False)
-
 
 # --- End: class
 
