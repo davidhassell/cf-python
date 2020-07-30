@@ -1,6 +1,8 @@
 .. currentmodule:: cf
 .. default-role:: obj
 
+.. _cf-DimensionCoordinate:
+
 cf.DimensionCoordinate
 ======================
 
@@ -558,7 +560,21 @@ for augmented assignments, modify the construct's data in-place.
    :template: method.rst
 
    ~cf.DimensionCoordinate.__invert__ 
- 
+
+Groups
+^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.DimensionCoordinate.nc_variable_groups
+   ~cf.DimensionCoordinate.nc_clear_variable_groups
+   ~cf.DimensionCoordinate.nc_set_variable_groups
+
 Special
 -------
 

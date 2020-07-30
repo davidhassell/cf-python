@@ -1,6 +1,8 @@
 .. currentmodule:: cf
 .. default-role:: obj
 
+.. _cf-CellMeasure:
+
 cf.CellMeasure
 ==============
 
@@ -559,7 +561,21 @@ for augmented assignments, modify the construct's data in-place.
    :template: method.rst
 
    ~cf.CellMeasure.__invert__ 
- 
+
+Groups
+^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.CellMeasure.nc_variable_groups
+   ~cf.CellMeasure.nc_clear_variable_groups
+   ~cf.CellMeasure.nc_set_variable_groups
+
 Special
 -------
 

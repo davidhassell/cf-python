@@ -1,6 +1,8 @@
 .. currentmodule:: cf
 .. default-role:: obj
 
+.. _cf-Field:
+   
 cf.Field
 ========
 
@@ -268,11 +270,13 @@ Metadata constructs
    ~cf.Field.cell_method
    ~cf.Field.coordinate
    ~cf.Field.coordinate_reference
+   ~cf.Field.del_coordinate_reference
    ~cf.Field.dimension_coordinate
    ~cf.Field.domain_ancillary
    ~cf.Field.domain_axis
    ~cf.Field.domain_axis_key
    ~cf.Field.domain_axis_position
+   ~cf.Field.del_domain_axis
    ~cf.Field.field_ancillary
    
 .. rubric:: Attributes
@@ -801,7 +805,28 @@ construct's data in-place.
    :template: method.rst
 
    ~cf.Field.__invert__ 
- 
+
+Groups
+^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.Field.nc_variable_groups
+   ~cf.Field.nc_set_variable_groups
+   ~cf.Field.nc_clear_variable_groups
+   ~cf.Field.nc_group_attributes
+   ~cf.Field.nc_set_group_attribute
+   ~cf.Field.nc_set_group_attributes
+   ~cf.Field.nc_clear_group_attributes
+   ~cf.Field.nc_geometry_variable_groups
+   ~cf.Field.nc_set_geometry_variable_groups
+   ~cf.Field.nc_clear_geometry_variable_groups
+
 .. _Field-Special:
 
 Special
@@ -952,4 +977,3 @@ Special
    'valid_min',
    'valid_range',
    'year']
-

@@ -10,8 +10,8 @@
 
 Version |release| for version |version| of the CF conventions.
 
-**Reading and writing**
------------------------
+Reading and writing
+-------------------
 
 .. autosummary::
    :nosignatures:
@@ -22,8 +22,8 @@ Version |release| for version |version| of the CF conventions.
    cf.write
    cf.load_stash2standard_name 
 
-**Aggregation**
----------------
+Aggregation
+-----------
 
 .. autosummary::
    :nosignatures:
@@ -34,8 +34,8 @@ Version |release| for version |version| of the CF conventions.
 
 .. _functions-mathematical-operations:
 
-**Mathematical operations**
----------------------------
+Mathematical operations
+-----------------------
 
 .. autosummary::
    :nosignatures:
@@ -47,9 +47,11 @@ Version |release| for version |version| of the CF conventions.
    cf.default_netCDF_fillvals
    cf.histogram
    cf.relative_vorticity
+   cf.ATOL
+   cf.RTOL
 
-**Condition constructors**
---------------------------
+Condition constructors
+----------------------
 
 .. rubric:: General conditions
    
@@ -103,8 +105,8 @@ Version |release| for version |version| of the CF conventions.
    cf.cellwi
    cf.cellwo
 
-**Date-time and time duration**
--------------------------------
+Date-time and time duration
+---------------------------
 
 .. autosummary::
    :nosignatures:
@@ -120,14 +122,29 @@ Version |release| for version |version| of the CF conventions.
    cf.m
    cf.s
 
-**Resource management**
------------------------
+Resource management
+-------------------
 
 .. autosummary::
    :nosignatures:
    :toctree: function/
    :template: function.rst
 
+   cf.configuration
+   cf.chunksize
+   cf.collapse_parallel_mode
+   cf.free_memory
+   cf.free_memory_factor
+   cf.fm_threshold
+   cf.of_fraction
+   cf.regrid_logging
+   cf.set_performance
+   cf.tempdir
+   cf.total_memory
+   cf.close_files
+   cf.close_one_file
+   cf.open_files
+   cf.open_files_threshold_exceeded
    cf.CHUNKSIZE
    cf.COLLAPSE_PARALLEL_MODE
    cf.FREE_MEMORY
@@ -139,13 +156,9 @@ Version |release| for version |version| of the CF conventions.
    cf.SET_PERFORMANCE
    cf.TEMPDIR
    cf.TOTAL_MEMORY
-   cf.close_files
-   cf.close_one_file
-   cf.open_files
-   cf.open_files_threshold_exceeded
 
-**Miscellaneous**
------------------
+Miscellaneous
+-------------
 
 .. autosummary::
    :nosignatures:
@@ -153,7 +166,6 @@ Version |release| for version |version| of the CF conventions.
    :template: function.rst
 
    cf.CF
-   cf.RELAXED_IDENTITIES
    cf.abspath
    cf.dirname
    cf.dump
@@ -163,8 +175,11 @@ Version |release| for version |version| of the CF conventions.
    cf.hash_array
    cf.implementation
    cf.inspect
+   cf.log_level
    cf.pathjoin
    cf.pickle
+   cf.relaxed_identities
    cf.relpath
    cf.unpickle
-   cf.log_level
+   cf.LOG_LEVEL
+   cf.RELAXED_IDENTITIES

@@ -1662,9 +1662,9 @@ When the units are changed, the data are automatically converted to
 the new units when next accessed.
 
 .. code-block:: python
-   :caption: *Changing the units automatically results converts the
-             data values.*
-	     
+   :caption: *Changing the units automatically results in conversion of
+             the data values.*
+
    >>> t.data
    <CF Data(1, 10, 9): [[[262.8, ..., 269.7]]] K>
    >>> t.Units = cf.Units('degreesC')
@@ -2854,7 +2854,7 @@ the corresponding axis, by specifying the coordinate value via the
 
 .. code-block:: python
    :caption: *Roll the data along the 'X' axis so that the first
-             element of the axis contains 200 degrees east, and
+             element of the axis contains -150 degrees east, and
              also -750 degrees east.*
 
    >>> print(q.anchor('X', -150))                         
@@ -3034,8 +3034,7 @@ Subspaces based on time dimensions may be defined with as
 date-time objects.
 
 .. code-block:: python
-   :caption: *Create a new field construct whose domain's time axis
-              contains a single cell for 2019-01-01. TODO*
+   :caption: *TODO*
 
    >>> a = cf.read('timeseries.nc')[0]
    >>> print (a)     
@@ -6523,7 +6522,6 @@ is straight forward with the `cf.load_stash2standard_name` function.
 
 .. include:: field_analysis.rst
 
-----
 
 .. _Controlling-output-messages:
 
@@ -6623,7 +6621,7 @@ sequence, as with Python indexing.
 
 The default value for `cf.log_level` is ``'WARNING'`` (``1``).
 However, whilst completing this tutorial, it may be instructive to set
-the log level` to a higher verbosity level such as `'INFO'` to gain
+the log level` to a higher verbosity level such as ``'INFO'`` to gain
 insight into the internal workings of cf calls.
 
 
@@ -6645,10 +6643,9 @@ turn, until the origin function/method completes.
 
 The *verbose* argument accepts the same levels as `cf.log_level`
 (including ``0`` for ``'DISABLE'``), as described in :ref:`the logging
-section <logging>`, however to keep the keyword simple, only the
-integer code is recognised and should be used, not the string
-name. For example, ``verbose=2`` should be set rather than
-``verbose='INFO'``.
+section <logging>`, namely either an integer or a corresponding string
+for example ``verbose=2`` or equivalently ``verbose='INFO'``
+(or ``verbose='info'`` since case is ignored).
 
 By default, *verbose* is set to `None`, in which case the value of the
 `cf.log_level` setting is used to determine which messages,

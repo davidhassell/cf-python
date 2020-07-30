@@ -1,8 +1,10 @@
 .. currentmodule:: cf
 .. default-role:: obj
 
+.. _cf-DomainAxis:
+
 cf.DomainAxis
-===============
+=============
 
 ----
 
@@ -147,6 +149,20 @@ construct’s data in-place.
    :template: method.rst
 
    ~cf.DomainAxis.__int__    
+
+Groups
+^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.DomainAxis.nc_dimension_groups
+   ~cf.DomainAxis.nc_clear_dimension_groups
+   ~cf.DomainAxis.nc_set_dimension_groups
 
 Special
 -------
