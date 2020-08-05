@@ -1613,12 +1613,9 @@ class PropertiesData(Properties):
 
     :Parameters:
 
+        {{inplace: `bool`, optional}}
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
-
-        i: deprecated at version 3.0.0
-            Use *inplace* parameter instead.
+        {{i: deprecated at version 3.0.0}}
 
     :Returns:
 

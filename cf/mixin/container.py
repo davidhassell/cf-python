@@ -51,9 +51,13 @@ class Container: #cfdm.core.abstract.Container):
         return {
             '{{repr}}': 'CF ',
             
-            '{{inplace: `bool`, optional}}':  '''inplace: `bool`, optional
+            '{{inplace: `bool`, optional}}':
+            '''inplace: `bool`, optional
             If True then do the operation in-place and return `None`.''',
 
+            '{{i: deprecated at version 3.0.0}}':
+            '''i: deprecated at version 3.0.0
+            Use the *inplace* parameter instead.''',
         }
 
 # --- End: class

@@ -1064,8 +1064,7 @@ class PropertiesDataBounds(PropertiesData):
             If False then do not alter any bounds. By default any bounds
             are also altered.
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
         i: deprecated at version 3.0.0
             Use *inplace* parameter instead.
