@@ -484,35 +484,44 @@ class PropertiesDataBounds(PropertiesData):
 
         return False
 
-    def _apply_superclass_data_oper(self, v, oper_name, *oper_args,
+    def _apply_superclass_data_oper(self, v, oper_name, oper_args=(),
                                     bounds=True, interior_ring=False,
                                     **oper_kwargs):
-        '''Define an operation that can be applied to the data array.
+        '''Define an operation that can be applied to the construct.
 
     .. versionadded:: 3.1.0
 
     :Parameters:
 
-        v: the data array to apply the operations to (possibly in-place)
+        v: `{{class}}`
+            The construct to apply the operations to (possibly
+            in-place)
 
-        oper_name: the string name for the desired operation, as it is
-            defined (its method name) under the PropertiesData class, e.g.
-            `sin` to apply PropertiesData.sin`.
+        oper_name: `str`
+            The string name for the desired operation, as it is
+            defined (its method name) under the PropertiesData class,
+            e.g.  ``'sin'`` to apply `PropertiesData.sin`.
 
             Note: there is no (easy) way to determine the name of a
-            function/method within itself, without e.g. inspecting the stack
-            (see rejected PEP 3130), so even though functions are named
-            identically to those called  (e.g. both `sin`) the same
-            name must be typed and passed into this method in each case.
+            function/method within itself, without e.g. inspecting the
+            stack (see rejected PEP 3130), so even though functions
+            are named identically to those called (e.g. both
+            ``'sin'``) the same name must be typed and passed into
+            this method in each case.
 
             TODO: is there a way to prevent/bypass the above?
 
-        oper_args, oper_kwargs: all of the arguments for `oper_name`.
+#        oper_args: sequence
+#            All of the positional arguments for *oper_name*. May be an
+#            empty sequence.
 
-        bounds: `bool`
+        oper_args, oper_kwargs: optional
+            All of the arguments for *oper_name*.
+
+        bounds: `bool`, optional
             Whether or not there are cell bounds (to consider).
 
-        interior_ring: `bool`
+        interior_ring: `bool`, optional
             Whether or not a geometry interior ring variable needs to
             be operated on.
 
@@ -521,7 +530,8 @@ class PropertiesDataBounds(PropertiesData):
         if v is None:  # from inplace operation in superclass method
             v = self
 
-        # Now okay to mutate oper_kwargs as no longer needed in original form
+        # Now okay to mutate oper_kwargs as no longer needed in
+        # original form
         oper_kwargs.pop('inplace', None)
         if bounds:
             bounds = v.get_bounds(None)
@@ -829,14 +839,13 @@ class PropertiesDataBounds(PropertiesData):
 
     :Parameters:
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
-        i: deprecated at version 3.0.0
-            Use *inplace* parameter instead.
+        {{i: deprecated at version 3.0.0}}
 
     :Returns:
 
+        `{{class}}`        
             The construct with masked elements.
 
     **Examples:**
@@ -1048,13 +1057,13 @@ class PropertiesDataBounds(PropertiesData):
 
         a_min:
             Minimum value. If `None`, clipping is not performed on
-            lower interval edge. Not more than one of `a_min` and
-            `a_max` may be `None`.
+            lower interval edge. Not more than one of *a_min8 and
+            *a_max* may be `None`.
 
         a_max:
             Maximum value. If `None`, clipping is not performed on
-            upper interval edge. Not more than one of `a_min` and
-            `a_max` may be `None`.
+            upper interval edge. Not more than one of *a_min* and
+            *a_max* may be `None`.
 
         units: `str` or `Units`
             Specify the units of *a_min* and *a_max*. By default the
@@ -1066,11 +1075,11 @@ class PropertiesDataBounds(PropertiesData):
 
         {{inplace: `bool`, optional}}
 
-        i: deprecated at version 3.0.0
-            Use *inplace* parameter instead.
+        {{i: deprecated at version 3.0.0}}
 
     :Returns:
 
+        `{{class}}`
             The construct with clipped data. If the operation was
             in-place then `None` is returned.
 
@@ -1081,8 +1090,9 @@ class PropertiesDataBounds(PropertiesData):
 
         '''
         return self._apply_superclass_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'clip', a_min,
-            a_max, bounds=bounds, inplace=inplace, i=i, units=units)
+            _inplace_enabled_define_and_cleanup(self), 'clip',
+            (a_min, a_max),
+            bounds=bounds, inplace=inplace, i=i, units=units)
 
     def close(self):
         '''Close all files referenced by the construct.
@@ -1263,7 +1273,8 @@ class PropertiesDataBounds(PropertiesData):
 
         '''
         return self._apply_superclass_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'cos', bounds=bounds)
+            _inplace_enabled_define_and_cleanup(self), 'cos',
+            bounds=bounds)
 
     def creation_commands(self, representative_data=False,
                           namespace='cf', indent=0, string=True,
@@ -1729,8 +1740,9 @@ class PropertiesDataBounds(PropertiesData):
         '''
         return self._apply_superclass_data_oper(
             _inplace_enabled_define_and_cleanup(self),
-            'convert_reference_time', inplace=inplace, i=i, units=units,
-            calendar_months=calendar_months, calendar_years=calendar_years)
+            'convert_reference_time', inplace=inplace, i=i,
+            units=units, calendar_months=calendar_months,
+            calendar_years=calendar_years)
 
     def get_property(self, prop, default=ValueError(), bounds=False):
         '''Get a CF property.
@@ -2049,7 +2061,7 @@ class PropertiesDataBounds(PropertiesData):
         '''
         return self._apply_superclass_data_oper(
             _inplace_enabled_define_and_cleanup(self),
-            'override_calendar', calendar, bounds=True,
+            'override_calendar', (calendar,), bounds=True,
             interior_ring=False, inplace=inplace, i=i)
 
     @_deprecated_kwarg_check('i')
@@ -2103,8 +2115,8 @@ class PropertiesDataBounds(PropertiesData):
         '''
         return self._apply_superclass_data_oper(
             _inplace_enabled_define_and_cleanup(self),
-            'override_units', units, bounds=True, interior_ring=False,
-            inplace=inplace, i=i)
+            'override_units', (units,), bounds=True,
+            interior_ring=False, inplace=inplace, i=i)
 
     def get_filenames(self):
         '''Return the name of the file or files containing the data.
@@ -3571,8 +3583,9 @@ class PropertiesDataBounds(PropertiesData):
 
         '''
         return self._apply_superclass_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'roll', iaxis,
-            shift, interior_ring=True, inplace=inplace, i=i)
+            _inplace_enabled_define_and_cleanup(self), 'roll',
+            (iaxis, shift),
+            interior_ring=True, inplace=inplace, i=i)
 
     # ----------------------------------------------------------------
     # Deprecated attributes and methods

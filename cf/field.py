@@ -15215,11 +15215,11 @@ class Field(mixin.PropertiesData,
             Select the axes to swap. Each axis is identified by its
             original integer position.
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
     :Returns:
 
+        `{{class}}`
             The field construct with data with swapped axis
             positions. If the operation was in-place then `None` is
             returned.

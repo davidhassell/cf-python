@@ -920,30 +920,36 @@ class PropertiesData(Properties):
 #
 #        raise ValueError(
 #            "ERROR: Can't get {0} when there is no data array".format(method))
+
     @staticmethod
-    def _apply_data_oper(
-            v, oper_name, *oper_args, delete_props=False, **oper_kwargs):
+    def _apply_data_oper( #self, 
+            v, oper_name, oper_args=(), delete_props=False, **oper_kwargs):
         '''Define a data array operation and delete some properties.
 
     :Parameters:
 
-        v: the data array to apply the operations to (possibly in-place)
+        v: `{{class}}`
+            The instance to apply the operations to (possibly
+            in-place)
 
-        oper_name: the string name for the desired operation, as it is
+        oper_name: `str`
+            The string name for the desired operation, as it is
             defined (its method name) under the Data class, e.g.
-            `sin` to apply `Data.sin`.
+            ``'sin'`` to apply `{{class}}.sin`.
 
             Note: there is no (easy) way to determine the name of a
-            function/method within itself, without e.g. inspecting the stack
-            (see rejected PEP 3130), so even though functions are named
-            identically to those call in Data (e.g. both `sin`) the same
-            name must be typed and passed into this method in each case.
+            function/method within itself, without e.g. inspecting the
+            stack (see rejected PEP 3130), so even though functions
+            are named identically to those call in Data (e.g. both
+            ``sin``) the same name must be typed and passed into this
+            method in each case.
 
             TODO: is there a way to prevent/bypass the above?
 
         oper_args, oper_kwargs: all of the arguments for *oper_name*.
 
-        delete_props: whether or not to delete name properties.
+        delete_props:  `bool`
+            Whether or not to delete name properties.
 
         '''
         # For explicitness on a per-method basis, apply inplace decorator
@@ -1982,11 +1988,11 @@ class PropertiesData(Properties):
             Select the axes to swap. Each axis is identified by its
             original integer position.
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
     :Returns:
 
+        `{{class}}`
             The construct with data with swapped axis positions. If
             the operation was in-place then `None` is returned.
 
@@ -2006,7 +2012,7 @@ class PropertiesData(Properties):
         '''
         return self._apply_data_oper(
             _inplace_enabled_define_and_cleanup(self), 'swapaxes',
-            axis0, axis1, inplace=inplace, delete_props=True)
+            (axis0, axis1), inplace=inplace, delete_props=True)
 
     def var(self):
         '''The unweighted sample variance of the data array.
@@ -2554,25 +2560,24 @@ class PropertiesData(Properties):
         a_min:
             Minimum value. If `None`, clipping is not performed on
             lower interval edge. Not more than one of `a_min` and
-            `a_max` may be `None`.
+            *a_max* may be `None`.
 
         a_max:
             Maximum value. If `None`, clipping is not performed on
-            upper interval edge. Not more than one of `a_min` and
-            `a_max` may be `None`.
+            upper interval edge. Not more than one of *a_min* and
+            *a_max* may be `None`.
 
         units: `str` or `Units`
             Specify the units of *a_min* and *a_max*. By default the
             same units as the data are assumed.
 
-        inplace: `bool`, optional
-            If True then do the operation in-place and return `None`.
+        {{inplace: `bool`, optional}}
 
-        i: deprecated at version 3.0.0
-            Use *inplace* parameter instead.
+        {{i: deprecated at version 3.0.0}}
 
     :Returns:
 
+        `{{class}}`
             The construct with clipped data. If the operation was
             in-place then `None` is returned.
 
@@ -2583,9 +2588,9 @@ class PropertiesData(Properties):
 
         '''
         return self._apply_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'clip', a_min,
-            a_max, inplace=inplace, i=i, units=units,
-            delete_props=True)
+            _inplace_enabled_define_and_cleanup(self), 'clip',
+            (a_min, a_max),
+            inplace=inplace, i=i, units=units)
 
     def close(self):
         '''Close all files referenced by the construct.
@@ -3478,8 +3483,8 @@ class PropertiesData(Properties):
 
         '''
         return self._apply_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'flatten', axes,
-            inplace=inplace)
+            _inplace_enabled_define_and_cleanup(self), 'flatten',
+            (axes,), inplace=inplace)
 
     @_deprecated_kwarg_check('i')
     @_inplace_enabled
@@ -3940,7 +3945,8 @@ class PropertiesData(Properties):
 
         '''
         return self._apply_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'flip', axes,
+            _inplace_enabled_define_and_cleanup(self), 'flip',
+            (axes,),
             inplace=inplace, i=i)
 
     @_deprecated_kwarg_check('i')
@@ -4625,7 +4631,8 @@ class PropertiesData(Properties):
 
         '''
         return self._apply_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'log', base,
+            _inplace_enabled_define_and_cleanup(self), 'log',
+            (base,),
             inplace=inplace, i=i, delete_props=True)
 
     @_deprecated_kwarg_check('i')
@@ -5386,8 +5393,8 @@ class PropertiesData(Properties):
 
         '''
         return self._apply_data_oper(
-            _inplace_enabled_define_and_cleanup(self), 'roll',  iaxis,
-            shift, inplace=inplace, i=i)
+            _inplace_enabled_define_and_cleanup(self), 'roll',
+            (iaxis, shift), inplace=inplace, i=i)
 
     def set_data(self, data, copy=True):
         '''Set the data.
