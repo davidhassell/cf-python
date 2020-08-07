@@ -908,22 +908,9 @@ class PropertiesData(Properties):
 
         return out
 
-#    def _hmmm(self, method):
-#        data = self.get_data(None)
-#        if data is not None:
-#            out = self.copy() #data=False)
-#            out.set_data(getattr(data, method)(), copy=False)
-#            out.del_property('standard_name', None)
-#            out.set_property('long_name', method)
-#            return out
-#        # --- End: if
-#
-#        raise ValueError(
-#            "ERROR: Can't get {0} when there is no data array".format(method))
-
-    @staticmethod
-    def _apply_data_oper( #self, 
-            v, oper_name, oper_args=(), delete_props=False, **oper_kwargs):
+    @classmethod
+    def _apply_data_oper(self, v, oper_name, oper_args=(),
+                         delete_props=False, **oper_kwargs):
         '''Define a data array operation and delete some properties.
 
     :Parameters:

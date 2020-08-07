@@ -12,12 +12,14 @@ from numpy.ma import is_masked  as numpy_ma_is_masked
 import cfdm
 
 from . import abstract
+from . import mixin
 
 from ..functions import parse_indices, get_subspace
 from ..constants import CONSTANTS
 
 
-class CachedArray(abstract.FileArray):
+class CachedArray(mixin.FileArray,
+                  abstract.Array):
     '''A indexable N-dimensional array supporting masked values.
 
     The array is stored on disk in a temporary file until it is

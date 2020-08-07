@@ -41,7 +41,7 @@ from ..constants import CONSTANTS
 #                          _shared_memory_array,FileArray)
 from .cachedarray import CachedArray
 
-from .abstract import FileArray
+#from .abstract import FileArray
 
 
 logger = logging.getLogger(__name__)
@@ -322,22 +322,23 @@ class Partition:
             _remove_temporary_files(_partition_file)
 
         else:
+#            try:
+#                if (FileArray is not None and isinstance(subarray, FileArray)):
             try:
-                if (FileArray is not None and isinstance(subarray, FileArray)):
-                    try:
-                        filename = subarray.get_filename()
-                    except:
-                        filename = None
-
-                    if self.file_counter.get(filename, 999) <= 0:
-                        # This partition contains a non-temporary file
-                        # which is not referenced by any other
-                        # partitions, so close the file.
-                        subarray.close()
+                fileame = subarray.get_filename()
             except:
-                # If we're here then it is likely that FileArray has been
-                # torn down, so just do nothing.
                 pass
+#                filename = None
+            else:
+                if self.file_counter.get(filename, 999) <= 0:
+                    # This partition contains a non-temporary file
+                    # which is not referenced by any other
+                    # partitions, so close the file.
+                    subarray.close()
+#            except:
+#                # If we're here then it is likely that FileArray has been
+#                # torn down, so just do nothing.
+#                pass
         # --- End: if
 
 #    def __getstate__(self):
@@ -407,8 +408,7 @@ class Partition:
             return
 
         try:
-            if (isinstance(subarray, FileArray) and
-                    not isinstance(subarray, CachedArray)):
+            if self.on_disk and not isinstance(subarray, CachedArray):
                 try:
                     filename = subarray.get_filename()
                 except:
@@ -418,9 +418,7 @@ class Partition:
                     return
 
                 file_counter = self.file_counter
-#                count = file_counter.get(filename, 0)
-#                file_counter[filename] = count + i
-#                if file_counter[filename] <= 0:
+                
                 count = file_counter.get(filename, 0) + i
                 if count <= 0:
                     # Remove the file from the dictionary if its count has
@@ -578,7 +576,8 @@ class Partition:
     False
 
         '''
-        return isinstance(self._subarray, FileArray)
+#        return isinstance(self._subarray, FileArray)
+        return hasattr(self._subarray, 'get_filename')
 
     @property
     def in_file(self):

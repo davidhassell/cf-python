@@ -170,8 +170,9 @@ class create_fieldTest(unittest.TestCase):
         cf.write(f, self.filename, verbose=0, string=True)
 
         g = cf.read(self.filename, squeeze=True, verbose=0)[0]
-
-        self.assertTrue(g.equals(f, verbose=0),
+        print (f)
+        print (g)
+        self.assertTrue(g.equals(f, verbose=-1),
                         "Field not equal to itself read back in")
 
         x = g.dump(display=False)

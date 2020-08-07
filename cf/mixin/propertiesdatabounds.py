@@ -588,6 +588,7 @@ class PropertiesDataBounds(PropertiesData):
             out.squeeze(-1, inplace=True)
             return out
         else:
+            # No bounds
             data = self.get_data(None)
             if data is not None:
                 return Data.zeros(self.shape, units=self.Units)

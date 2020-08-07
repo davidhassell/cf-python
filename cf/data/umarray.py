@@ -8,9 +8,11 @@ from .functions import _open_um_file, _close_um_file
 from ..umread_lib.umfile import Rec
 
 from . import abstract
+from . import mixin
 
 
-class UMArray(abstract.FileArray):
+class UMArray(mixin.FileArray,
+              abstract.Array):
     '''A sub-array stored in a PP or UM fields file.
 
     '''

@@ -1,12 +1,14 @@
 import cfdm
 
 from . import abstract
+from . import mixin
 
 from .functions import _open_netcdf_file, _close_netcdf_file
 
 
-class NetCDFArray(cfdm.NetCDFArray,
-                  abstract.FileArray):
+class NetCDFArray(mixin.FileArray,
+                  cfdm.NetCDFArray):
+                  
     '''A sub-array stored in a netCDF file.
     '''
     def __init__(self, filename=None, ncvar=None, varid=None,

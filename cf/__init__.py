@@ -101,7 +101,7 @@ try:
 except ImportError as error1:
     raise ImportError(_error0 + str(error1))
 
-__cf_version__ = cfdm.core.__cf_version__
+__cf_version__ = cfdm.__cf_version__
 
 from distutils.version import LooseVersion
 import importlib.util

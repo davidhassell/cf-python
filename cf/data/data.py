@@ -725,7 +725,9 @@ place.
     >>> d._set_partition_matrix(array)
 
         '''
-        if isinstance(array, CompressedArray):
+#        if isinstance(array, CompressedArray):
+        get_compression_type = getattr(array, 'get_compression_type', None)
+        if get_compression_type is not None and get_compression_type():
             self._set_CompressedArray(array,
                                       check_free_memory=check_free_memory)
             return
@@ -2133,7 +2135,7 @@ place.
         axis: int, optional
             The axis along which the difference is taken. By default
             the last axis is used. The *axis* argument is an integer
-            that selects the axis coresponding to the given position
+            that selects the axis corresponding to the given position
             in the list of axes of the data array.
 
         n: int, optional
@@ -2969,7 +2971,7 @@ place.
             # File format specific stuff
             # --------------------------------------------------------
             if isinstance(p_subarray, NetCDFArray):
-                # if isinstance(p_subarray.array, NetCDFFileArray):
+                # if isinstance(p_subarray.array, NetCDFArray):
                 # ----------------------------------------------------
                 # NetCDF File Array
                 # ----------------------------------------------------
@@ -3000,7 +3002,7 @@ place.
                 attrs['subarray'] = subarray
 
             elif isinstance(p_subarray, UMArray):
-                # elif isinstance(p_subarray.array, UMFileArray):
+                # elif isinstance(p_subarray.array, UMArray):
                 # ----------------------------------------------------
                 # UM File Array
                 # ----------------------------------------------------
