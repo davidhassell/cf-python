@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 class FieldDomain:
     """Mixin class for methods common to both field and domain constructs
-
+    
     .. versionadded:: 3.TODO.0
-
+    
     """
     # ----------------------------------------------------------------
     # Private methods
@@ -30,9 +30,9 @@ class FieldDomain:
     def _create_auxiliary_mask_component(self, mask_shape, ind,
                                          compress):
         """TODODASK
-
+        
         .. versionadded:: 3.TODO.0
-    
+        
         :Parameters:
     
             mask_shape: `tuple`
@@ -57,14 +57,16 @@ class FieldDomain:
             `Data`
 
         """
+        # TODODASK - np -> da
+        
         # Note that, for now, auxiliary_mask has to be numpy array
         # (rather than a cf.Data object) because we're going to index
         # it with fancy indexing which a cf.Data object might not
         # support - namely a non-monotonic list of integers.
         auxiliary_mask = np.ones(mask_shape, dtype=bool)
-
+        
         auxiliary_mask[tuple(ind)] = False
-
+        
         if compress:
             # For compressed indices, remove slices which only
             # contain masked points. (Note that we only expect to
@@ -79,8 +81,9 @@ class FieldDomain:
         return self._Data(auxiliary_mask)
 
     def _indices(self, mode, data_axes, **kwargs):
-        """Create indices that define a subspace of the field construct. TODODASK
-
+        """Create indices that define a subspace of the field
+        construct. TODODASK
+        
         The subspace is defined by identifying indices based on the
         metadata constructs.
     
@@ -258,24 +261,24 @@ class FieldDomain:
         ('mask', [<CF Data(1, 5, 9): [[[False, ..., False]]]>], slice(0, 1, 1), slice(3, 8, 1), slice(0, 9, 1))
         >>> t[indices]
         <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(5), grid_longitude(9)) K>
-
+        
         """
         compress = (mode == "compress")
         envelope = (mode == "envelope")
         full = (mode == "full")
-
+        
         logger.debug(
             f"{self.__class__.__name__}._indices:\n"
             f"  mode         = {mode!r}\n"
             f"  input kwargs = {kwargs!r}"
         )  # pragma: no cover
-
+        
         domain_axes = self.domain_axes
         constructs = self.constructs.filter_by_data()
-
+        
         # Initialize indices
         indices = {axis: slice(None) for axis in domain_axes}
-
+        
         parsed = {}
         unique_axes = set()
         n_axes = 0
@@ -288,7 +291,7 @@ class FieldDomain:
                 c = constructs.filter_by_identity(identity)
                 if len(c) != 1:
                     raise ValueError(
-                        "Can't find indices: Ambiguous axis or axes: "
+                        f"Can't find indices. Ambiguous axis or axes: "
                         f"{identity!r}"
                     )
 
@@ -376,7 +379,6 @@ class FieldDomain:
                     f"  {n_items} 1-d constructs: {constructs!r}\n"
                     f"  axis         = {axis!r}\n"
                     f"  value        = {value!r}"
-                    )
                 )  # pragma: no cover
 
                 if isinstance(value, (list, slice, tuple, np.ndarray)):
@@ -697,7 +699,10 @@ class FieldDomain:
         return indices
 
     def _roll_constructs(self, axis, shift):
-        """Roll the constructs in-place along a cyclic axis. TODODASK
+        """Roll the metadata constructs in-place along axes.
+
+        If a roll axis is spanned by a dimension coordinate construct
+        then it must be a cyclic dimension coordinate construct.
 
         .. versionadded:: 3.TODO.0
     
@@ -705,157 +710,95 @@ class FieldDomain:
     
         :Parameters:
     
-            axis:
-                The cyclic axes to be rolled, defined by that which
-                would be selected by passing the given axis
-                description to a call of the field construct's
-                `domain_axis` method. For example, for a value of
-                ``'X'``, the domain axis construct returned by
-                ``f.domain_axis('X')`` is selected. TODODASK
-    
-            shift: `int`
-                The number of places by which the selected cyclic axis
-                is to be rolled. TODODASK
-    
+            axis: (sequence of) `str`
+                The axis or axes along which elements are shifted,
+                defined by their domain axis identifiers.
+
+            shift: (sequence of) `int`
+                The number of places by which elements are shifted.
+                If a sequence, then *axis* must be a sequence of the
+                same size, and each of the given axes is shifted by
+                the corresponding number.  If an `int` while *axis* is
+                a sequence, then the same value is used for all given
+                axes.
+
         :Returns:
     
-            `None`
-    
+            `list`, `list`, `list`
+                The rolled axes, defined by their domain axis
+                identifiers and the shifts corresponding to each
+                axis. The corresponding positions of the axes in the
+                data also returned, unless there is no data in which
+                case this will be an empty list.
+
         **Examples:**
     
         TODODASK
 
         """
-        dim = self.dimension_coordinates.filter_by_axis(
-            "exact", axis
-        ).value(None)
-
-        if dim is not None and dim.period() is None:
-            raise ValueError(
-                f"Can't roll: {dim.identity()!r} axis has non-periodic "
-                "dimension coordinate construct"
-            )
-
-        if isinstance(axis, str):
-            axis = set(axis,)
-        else:
-            axis = set(axis)
-            
-        if isinstance(shift, int):
-            shift = (shift,)
-            
-        data_axes = self.constructs.data_axes()
-
-        for key, construct in self.constructs.filter_by_data().items():
-            construct_axes = data_axes.get(key, ())
-            roll_axes = axis.intersection(construct_axes)
-            if not roll_axes:
-                continue
-            
-            c_axes = [construct_axes.index(axis)
-                      for axis in roll_axes]
-            c_shifts = [shift[roll_axes.index(axis)]
-                        for axis in roll_axes]
-            construct.roll(axis=c_axes, shift=c_chifts, inplace=True)
-
-    def _parse_axes(self, axes, positions=False, ignore_size=None):
-        """TODODASK"""
-        try:
-            len(axes)
-        except TypeError:
-            axes = [axes]
-            
-        axes = [self.domain_axis(x, key=True) for x in axes]
-
-        if ignore_size:
-            domain_axes = self.domain_axes
-            axes = [a for a in axes
-                    if ignore_size == domain_axes[a].get_size()]
-        
-        if positions:
-            data_axes = self.get_data_axes(default=())
-            return axes, [data_axes.index(axis) for axis in axes]
-
-        return axes
-
-    @_deprecated_kwarg_check('i')
-    @_inplace_enabled(default=False)
-    def roll(self, axis, shift, inplace=False, i=False, **kwargs):
-        """Roll the field along a cyclic axis.
-
-        A unique axis is selected with the axes and kwargs parameters.
-     
-        .. versionadded:: 1.0
-     
-        .. seealso:: `anchor`, `axis`, `cyclic`, `iscyclic`, `period`
-     
-        :Parameters:
-     
-            axis:
-                The cyclic axis to be rolled, defined by that which
-                would be selected by passing the given axis
-                description to a call of the field construct's
-                `domain_axis` method. For example, for a value of
-                ``'X'``, the domain axis construct returned by
-                ``f.domain_axis('X')`` is selected. TODODASK - multiple axes
-     
-            shift: `int`
-                The number of places by which the selected cyclic axis
-                is to be rolled. TODODASK - multiple shifts
-     
-            {{inplace: `bool`, optional}}
-     
-            {{i: deprecated at version 3.0.0}}
-     
-            kwargs: deprecated at version 3.0.0
-     
-        :Returns:
-     
-            `Field`
-                The rolled field.
-     
-        **Examples:**
-     
-        Roll the data of the "X" axis one elements to the right:
-     
-        >>> f.roll('X', 1)
-     
-        Roll the data of the "X" axis three elements to the left:
-     
-        >>> f.roll('X', -3)
-
-        """
-        f = _inplace_enabled_define_and_cleanup(self)
-
         if axes is None:
             raise ValueError(
-                "Can't roll: Must specify at least one axis"
+                f"Can't roll {self.__class__.__name__}: "
+                "Must specify at least one axis"
             )
         
-        axes, iaxes = self._parse_axes(axes, positions=True)
+        axes, iaxes = self.parse_axes(axis)
         if not axes:
             raise ValueError(
-                "Can't roll: Must specify at least one axis"
+                f"Can't roll {self.__class__.__name__}: "
+                "Must specify at least one axis"
             )
                
         try:
             len(shift)
         except TypeError:
-            shift = (shift,)
+            if axes:
+                shift = [shift] * len(axes)
+                
+            shift = [shift]
             
-        # Roll the metadata constructs in-place
-        f._roll_constructs(axes, shift)
+        if len(shift) != len(axes):
+            raise ValueError(
+                f"Can't roll {self.__class__.__name__}: "
+                f"Must have the same number of shifts ({len(shift)}) "
+                f"as axes ({len(axes)})."
+            )
+        
+        dimension_coordinates = self.dimension_coordinates
+        if dimension_cooridnates:
+            for a in axes:
+                dim = dimension_coordinates.filter_by_axis(
+                    "exact", axis
+                ).value(None)
+                
+                if dim is not None and dim.period() is None:
+                    raise ValueError(
+                        f"Can't roll {self.__class__.__name__}: "
+                        f"{dim.identity()!r} axis has a non-periodic "
+                        "dimension coordinate construct"
+                    )
+        # --- End: if
+               
+        data_axes = self.constructs.data_axes()
+        for key, construct in self.constructs.filter_by_data().items():
+            construct_axes = data_axes.get(key, ())
 
-        # Roll the field data
-        super(Field, f).roll(iaxes, shift, inplace=True)
+            c_axes = []
+            c_shifts = []
+            for a, s in zip(axis, shift):
+                if a in construct_axes:
+                    c_axes.append(construct_axes.index(a))
+                    c_shifts.append(s)
+            # -- End: for
+            
+            construct.roll(axis=c_axes, shift=c_chifts, inplace=True)
 
-        return f
-
-
+        return axes, shift, iaxes
+           
     # ----------------------------------------------------------------
     # Methods
     # ----------------------------------------------------------------
-    @_deprecated_kwarg_check('i')
+    @_deprecated_kwarg_check("i")
     @_inplace_enabled(default=False)
     def anchor(self, axis, value, inplace=False, dry_run=False,
                i=False, **kwargs):
@@ -978,8 +921,12 @@ coordinate cell.
                 self, "anchor", kwargs
             )  # pragma: no cover
 
-        axis = self.domain_axis(axis, key=True)
+        axes, iaxes = self.parse_axes(axis)
+        if len(axes) != 1:
+            raise ValueError("TODODASK")
 
+        axis = axes[0]
+            
         if dry_run:
             f = self
         else:
@@ -1080,20 +1027,21 @@ coordinate cell.
         >>> f.autocyclic()
 
         """
-        dims = self.dimension_coordinates('X')
+        dims = self.dimension_coordinates("X")
 
         if len(dims) != 1:
             logger.debug(
-                "Not one 'X' dimension coordinate construct: {}".format(
-                    len(dims))
+                "Not just one 'X' dimension coordinate construct: "
+                f"{len(dims)}"
             )  # pragma: no cover
             return False
 
         key, dim = dict(dims).popitem()
         if not dim.Units.islongitude:
             logger.debug(0)
-            if dim.get_property('standard_name', None) not in (
-                    'longitude', 'grid_longitude'):
+            if dim.get_property("standard_name", None) not in (
+                    "longitude", "grid_longitude"
+            ):
                 self.cyclic(key, iscyclic=False)
                 logger.debug(1)  # pragma: no cover
                 return False
@@ -1113,7 +1061,7 @@ coordinate cell.
 
         bounds = bounds_data.array
 
-        period = self._Data(360.0, units='degrees')
+        period = self._Data(360.0, units="degrees")
 
         period.Units = bounds_data.Units
 
@@ -1245,7 +1193,7 @@ coordinate cell.
         if key is None:
             return self._default(
                 default,
-                "Can't identify construct to delete from {!r}".format(identity)
+                f"Can't identify construct to delete from {identity!r}"
             )
 
         return super().del_construct(key, default=default)
@@ -1325,7 +1273,8 @@ ancillary constructs.
             if key is None:
                 return self._default(
                     default,
-                    "Can't identify construct from {!r}".format(identity))
+                    f"Can't identify construct from {construct!r}"
+                )
 
             ref = self.del_construct(key)
 
@@ -1343,8 +1292,9 @@ ancillary constructs.
         if c_key is None:
             return self._default(
                 default,
-                "Can't identify construct from {!r}".format(construct))
-
+                f"Can't identify construct from {construct!r}"
+            )
+        
         for key, ref in tuple(self.coordinate_references.items()):
             if c_key in ref.coordinates():
                 self.del_coordinate_reference(key, construct=None,
@@ -1567,7 +1517,8 @@ ancillary constructs.
                 da_key = self.domain_axis(identity, key=True, default=None)
                 if da_key is not None:
                     c = self.auxiliary_coordinates.filter_by_axis(
-                        'exact', da_key)
+                        "exact", da_key
+                    )
         # --- End: if
 
         if key:
@@ -1750,7 +1701,7 @@ ancillary constructs.
             if not c:
                 da_key = self.domain_axis(identity, key=True, default=None)
                 if da_key is not None:
-                    c = self.cell_measures.filter_by_axis('exact', da_key)
+                    c = self.cell_measures.filter_by_axis("exact", da_key)
         # --- End: if
 
         if key:
@@ -1832,7 +1783,7 @@ ancillary constructs.
             if not c:
                 da_key = self.domain_axis(identity, key=True, default=None)
                 if da_key is not None:
-                    c = self.coordinates.filter_by_axis('exact', da_key)
+                    c = self.coordinates.filter_by_axis("exact", da_key)
         # --- End: if
 
         if key:
@@ -2077,7 +2028,8 @@ construct.
                 da_key = self.domain_axis(identity, key=True, default=None)
                 if da_key is not None:
                     c = self.dimension_coordinates.filter_by_axis(
-                        'exact', da_key)
+                        "exact", da_key
+                    )
         # --- End: if
 
         if key:
@@ -2085,7 +2037,7 @@ construct.
 
         return c.value(default=default)
 
-    @_deprecated_kwarg_check('axes')
+    @_deprecated_kwarg_check("axes")
     def direction(self, identity=None, axes=None, **kwargs):
         """Whether or not a domain axis is increasing.
 
@@ -2141,7 +2093,8 @@ construct.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'direction', kwargs)  # pragma: no cover
+                self, "direction", kwargs
+            )  # pragma: no cover
 
         axis = self.domain_axis(identity, key=True, default=None)
         if axis is None:
@@ -2258,7 +2211,7 @@ construct.
                 da_key = self.domain_axis(identity, key=True, default=None)
                 if da_key is not None:
                     c = self.domain_ancillaries.filter_by_axis(
-                        'exact', da_key)
+                        "exact", da_key)
         # --- End: if
 
         if key:
@@ -2347,7 +2300,8 @@ construct.
         if c_key is None:
             return self._default(
                 default,
-                "Can't identify construct from {!r}".format(construct))
+                f"Can't identify construct from {construct!r}"
+            )
 
         for cr_key, ref in tuple(self.coordinate_references.items()):
             if c_key in (
@@ -2552,6 +2506,36 @@ conditions.
         # --- End: for
 
         return False
+ 
+    def parse_axes(self, axes): #, ignore_size=None, remove_duplicates=False,
+        """TODODASK"""
+        try:
+            len(axes)
+        except TypeError:
+            axes = (axes,)
+            
+        axes = [self.domain_axis(x, key=True) for x in axes]
+
+#        if ignore_size is not None:
+#            domain_axes = self.domain_axes
+#            axes = [a for a in axes
+#                    if ignore_size != domain_axes[a].get_size()]
+#
+#        if remove_duplicates:
+#            set_axes = set(axes)
+#            if len(set_axes) < len(axes):
+#                axes = list(set_axes)
+#        # -- -End: if
+
+        try:
+            data_axes = self.get_data_axes(default=())
+        except AttributeError:
+            positions = []
+        else:
+            axes = [a for a in axes if a in data_axes]
+            positions = [data_axes.index(a) for a in axes]
+        
+        return axes, positions
 
     def replace_construct(self, identity, construct, copy=True):
         """Replace a metadata construct.
@@ -2616,20 +2600,20 @@ conditions.
         >>> f.replace_construct('X', new_X_construct)
 
         """
-        key = self.construct(identity, key=True, default=ValueError('TODO a'))
+        key = self.construct(identity, key=True, default=ValueError("TODO a"))
         c = self.constructs[key]
 
         set_axes = True
 
         if not isinstance(construct, c.__class__):
-            raise ValueError('TODO')
+            raise ValueError("TODO")
 
         axes = self.get_data_axes(key, None)
         if axes is not None:
-            shape0 = getattr(c, 'shape', None)
-            shape1 = getattr(construct, 'shape', None)
+            shape0 = getattr(c, "shape", None)
+            shape1 = getattr(construct, "shape", None)
             if shape0 != shape1:
-                raise ValueError('TODO')
+                raise ValueError("TODO")
         # --- End: if
 
         self.set_construct(construct, key=key, axes=axes, copy=copy)
@@ -2637,17 +2621,15 @@ conditions.
         return c
 
     def set_coordinate_reference(self, coordinate_reference, key=None,
-                                 field=None, strict=True):
+                                 parent=None, strict=True):
         """Set a coordinate reference construct.
 
         By default, this is equivalent to using the `set_construct`
-        method. If, however, the *field* parameter has been set then
-        it is assumed to be a field construct that contains the new
-        coordinate reference construct. In this case, existing
-        coordinate and domain ancillary constructs will be referenced
-        by the inserted coordinate reference construct, based on those
-        which are referenced from the other parent field construct
-        (given by the *field* parameter).
+        method. If, however, the *parent* parameter has been set to be
+        a field or domain construct that contains the new coordinate
+        reference construct then copies of its coordinate and domain
+        ancillary constructs will be referenced by the inserted
+        coordinate reference construct.
     
         .. versionadded:: 3.0.0
     
@@ -2668,9 +2650,8 @@ conditions.
                   ``key='coordinatereference1'``
     
             field: `Field`, optional
-
-                A parent field construct that contains the new
-                coordinate reference construct.
+                A parent field or domain construct that contains the
+                new coordinate reference construct.
     
             strict: `bool`, optional
                 If False then allow non-strict identities for
@@ -2729,7 +2710,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'aux', kwargs,
+                self, "aux", kwargs,
                 "Use methods of the 'auxiliary_coordinates' attribute instead."
             )  # pragma: no cover
 
@@ -2741,7 +2722,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'auxs', kwargs,
+                self, "auxs", kwargs,
                 "Use methods of the 'auxiliary_coordinates' attribute "
                 "instead."
             )  # pragma: no cover
@@ -2751,18 +2732,18 @@ conditions.
                 _DEPRECATION_ERROR_DICT()  # pragma: no cover
             elif isinstance(i, (list, tuple, set)):
                 _DEPRECATION_ERROR_SEQUENCE(i)  # pragma: no cover
-            elif isinstance(i, str) and ':' in i:
+            elif isinstance(i, str) and ":" in i:
                 error = True
-                if '=' in i:
-                    index0 = i.index('=')
-                    index1 = i.index(':')
+                if "=" in i:
+                    index0 = i.index("=")
+                    index1 = i.index(":")
                     error = index0 > index1
 
                 if error:
                     _DEPRECATION_ERROR(
-                        "The identity format {!r} has been deprecated at "
-                        "version 3.0.0. Try {!r} instead.".format(
-                            i, i.replace(':', '=', 1))
+                        f"The identity format {i!r} has been deprecated at "
+                        f"version 3.0.0. Try {i.replace(':', '=', 1)!r} "
+                        "instead."
                     )  # pragma: no cover
         # --- End: for
 
@@ -2774,7 +2755,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'axis', kwargs,
+                self, "axis", kwargs,
                 "Use methods of the 'domain_axes' attribute instead."
             )  # pragma: no cover
 
@@ -2787,7 +2768,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'coord', kwargs,
+                self, "coord", kwargs,
                 "Use methods of the 'coordinates' attribute instead."
             )  # pragma: no cover
 
@@ -2805,7 +2786,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'coords', kwargs,
+                self, "coords", kwargs,
                 "Use methods of the 'coordinates' attribute instead."
             )  # pragma: no cover
 
@@ -2814,18 +2795,18 @@ conditions.
                 _DEPRECATION_ERROR_DICT()  # pragma: no cover
             elif isinstance(i, (list, tuple, set)):
                 _DEPRECATION_ERROR_SEQUENCE(i)  # pragma: no cover
-            elif isinstance(i, str) and ':' in i:
+            elif isinstance(i, str) and ":" in i:
                 error = True
-                if '=' in i:
-                    index0 = i.index('=')
-                    index1 = i.index(':')
+                if "=" in i:
+                    index0 = i.index("=")
+                    index1 = i.index(":")
                     error = index0 > index1
 
                 if error:
                     _DEPRECATION_ERROR(
-                        "The identity format {!r} has been deprecated at "
-                        "version 3.0.0. Try {!r} instead.".format(
-                            i, i.replace(':', '=', 1))
+                        f"The identity format {i!r} has been deprecated at "
+                        f"version 3.0.0. Try {i.replace(':', '=', 1)!r} "
+                        "instead."
                     )  # pragma: no cover
         # --- End: for
 
@@ -2837,7 +2818,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'dim', kwargs,
+                self, "dim", kwargs,
                 "Use methods of the 'dimension_coordinates' attribute "
                 "instead."
             )  # pragma: no cover
@@ -2850,7 +2831,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'dims', kwargs,
+                self, "dims", kwargs,
                 "Use methods of the 'dimension_coordinates' attribute "
                 "instead."
             )  # pragma: no cover
@@ -2860,18 +2841,18 @@ conditions.
                 _DEPRECATION_ERROR_DICT()  # pragma: no cover
             elif isinstance(i, (list, tuple, set)):
                 _DEPRECATION_ERROR_SEQUENCE(i)  # pragma: no cover
-            elif isinstance(i, str) and ':' in i:
+            elif isinstance(i, str) and ":" in i:
                 error = True
-                if '=' in i:
-                    index0 = i.index('=')
-                    index1 = i.index(':')
+                if "=" in i:
+                    index0 = i.index("=")
+                    index1 = i.index(":")
                     error = index0 > index1
 
                 if error:
                     _DEPRECATION_ERROR(
-                        "The identity format {!r} has been deprecated at "
-                        "version 3.0.0. Try {!r} instead.".format(
-                            i, i.replace(':', '=', 1))
+                        f"The identity format {i!r} has been deprecated at "
+                        f"version 3.0.0. Try {i.replace(':', '=', 1)!r} "
+                        "instead."
                     )  # pragma: no cover
         # --- End: for
 
@@ -2883,7 +2864,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'domain_anc', kwargs,
+                self, "domain_anc", kwargs,
                 "Use methods of the 'domain_ancillaries' attribute "
                 "instead."
             )  # pragma: no cover
@@ -2896,7 +2877,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'domain_ancs', kwargs,
+                self, "domain_ancs", kwargs,
                 "Use methods of the 'domain_ancillaries' attribute "
                 "instead."
             )  # pragma: no cover
@@ -2906,18 +2887,18 @@ conditions.
                 _DEPRECATION_ERROR_DICT()  # pragma: no cover
             elif isinstance(i, (list, tuple, set)):
                 _DEPRECATION_ERROR_SEQUENCE(i)  # pragma: no cover
-            elif isinstance(i, str) and ':' in i:
+            elif isinstance(i, str) and ":" in i:
                 error = True
-                if '=' in i:
-                    index0 = i.index('=')
-                    index1 = i.index(':')
+                if "=" in i:
+                    index0 = i.index("=")
+                    index1 = i.index(":")
                     error = index0 > index1
 
                 if error:
                     _DEPRECATION_ERROR(
-                        "The identity format {!r} has been deprecated at "
-                        "version 3.0.0. Try {!r} instead.".format(
-                            i, i.replace(':', '=', 1))
+                        f"The identity format {i!r} has been deprecated at "
+                        f"version 3.0.0. Try {i.replace(':', '=', 1)!r} "
+                        "instead."
                     )  # pragma: no cover
         # --- End: for
 
@@ -2929,7 +2910,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'key', kwargs,
+                self, "key", kwargs,
                 "Use 'construct' method or 'construct_key' method instead."
             )  # pragma: no cover
 
@@ -2942,7 +2923,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'measure', kwargs,
+                self, "measure", kwargs,
                 "Use methods of the 'cell_measures' attribute instead"
             )  # pragma: no cover
 
@@ -2954,7 +2935,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'measures', kwargs,
+                self, "measures", kwargs,
                 "Use methods of the 'cell_measures' attribute instead"
             )  # pragma: no cover
 
@@ -2963,21 +2944,21 @@ conditions.
                 _DEPRECATION_ERROR_DICT()  # pragma: no cover
             elif isinstance(i, (list, tuple, set)):
                 _DEPRECATION_ERROR_SEQUENCE(i)  # pragma: no cover
-            elif isinstance(i, str) and ':' in i:
+            elif isinstance(i, str) and ":" in i:
                 error = True
-                if '=' in i:
-                    index0 = i.index('=')
-                    index1 = i.index(':')
+                if "=" in i:
+                    index0 = i.index("=")
+                    index1 = i.index(":")
                     error = index0 > index1
 
-                if error and i.startswith('measure:'):
+                if error and i.startswith("measure:"):
                     error = False
 
                 if error:
                     _DEPRECATION_ERROR(
-                        "The identity format {!r} has been deprecated at "
-                        "version 3.0.0. Try {!r} instead.".format(
-                            i, i.replace(':', '=', 1))
+                        f"The identity format {i!r} has been deprecated at "
+                        f"version 3.0.0. Try {i.replace(':', '=', 1)!r} "
+                        "instead."
                     )  # pragma: no cover
         # --- End: for
 
@@ -2989,7 +2970,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'ref', kwargs,
+                self, "ref", kwargs,
                 "Use methods of the 'coordinate_references' attribute "
                 "instead."
             )  # pragma: no cover
@@ -3002,7 +2983,7 @@ conditions.
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'refs', kwargs,
+                self, "refs", kwargs,
                 "Use methods of the 'coordinate_references' attribute "
                 "instead."
             )  # pragma: no cover

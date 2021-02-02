@@ -3836,7 +3836,7 @@ class Field(mixin.FieldDomain,
             if axes and set(axes).issubset(dst_axis_keys):
                 # This coordinate reference's coordinates span the X
                 # and/or Y axes
-                self.set_coordinate_reference(ref, field=dst, strict=True)
+                self.set_coordinate_reference(ref, parent=dst, strict=True)
 
     @classmethod
     def _regrid_use_bounds(cls, method):

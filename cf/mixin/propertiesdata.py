@@ -925,43 +925,51 @@ class PropertiesData(Properties):
 
     def _apply_data_oper(self, v, oper_name, oper_args=(),
                          delete_props=False, **oper_kwargs):
-        '''Define a data array operation and delete some properties.
+        """Define a data array operation and delete some properties.
 
-    :Parameters:
+        :Parameters:
+    
+            v:
+                The data array to apply the operations to (possibly
+                in-place).
+    
+            oper_name:
+                The string name for the desired operation, as it is
+                defined (its method name) under the Data class, e.g.
+                `sin` to apply `Data.sin`.
+    
+                Note: there is no (easy) way to determine the name of
+                a function/method within itself, without
+                e.g. inspecting the stack (see rejected PEP 3130), so
+                even though functions are named identically to those
+                call in Data (e.g. both `sin`) the same name must be
+                typed and passed into this method in each case.
+    
+                TODO: is there a way to prevent/bypass the above?
+    
+            oper_args, oper_kwargs:
+                All of the arguments for *oper_name*.
+    
+            delete_props:
+                Whether or not to delete name properties.
 
-        v: the data array to apply the operations to (possibly in-place)
-
-        oper_name: the string name for the desired operation, as it is
-            defined (its method name) under the Data class, e.g.
-            `sin` to apply `Data.sin`.
-
-            Note: there is no (easy) way to determine the name of a
-            function/method within itself, without e.g. inspecting the stack
-            (see rejected PEP 3130), so even though functions are named
-            identically to those call in Data (e.g. both `sin`) the same
-            name must be typed and passed into this method in each case.
-
-            TODO: is there a way to prevent/bypass the above?
-
-        oper_args, oper_kwargs: all of the arguments for *oper_name*.
-
-        delete_props: whether or not to delete name properties.
-
-        '''
-        # For explicitness on a per-method basis, apply inplace decorator
-        # to individual methods calling this method, rather than decorating
-        # only this and devolving the logic for inplace operations.
-        if not oper_kwargs.get('inplace'):
-            # Default for getattr below (preventing duplicate inplace kwarg)
-            oper_kwargs['inplace'] = True
+        """
+        # For explicitness on a per-method basis, apply inplace
+        # decorator to individual methods calling this method, rather
+        # than decorating only this and devolving the logic for
+        # inplace operations.
+        if not oper_kwargs.get("inplace"):
+            # Default for getattr below (preventing duplicate inplace
+            # kwarg)
+            oper_kwargs["inplace"] = True
 
         data = v.get_data(None)
         if data is not None:
             getattr(data, oper_name)(*oper_args, **oper_kwargs)
 
         if delete_props:
-            v.del_property('standard_name', None)
-            v.del_property('long_name', None)
+            v.del_property("standard_name", None)
+            v.del_property("long_name", None)
 
         return v
 
