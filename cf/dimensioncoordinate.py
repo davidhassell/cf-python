@@ -79,14 +79,14 @@ class DimensionCoordinate(mixin.Coordinate,
         the same units as the data.
 
         """
-        period = period.array
+#        period = period.array # TODODASK
         
         if self.direction():
             i = -1
         else:
             i = 0
 
-        mx = self.data[i].array
+        mx = self.data[i] #.array
             
         return ((mx // period) * period).squeeze()
 
