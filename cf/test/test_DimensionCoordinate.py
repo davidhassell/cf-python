@@ -121,9 +121,6 @@ class DimensionCoordinateTest(unittest.TestCase):
         _ = x.roll(0, 3, inplace=True)
         self.assertIsNone(x.roll(0, 0, inplace=True))
 
-        _ = x._centre(360)
-        _ = x.flip()._centre(360)
-
         # Test roll on coordinate without bounds:
         g = f.copy()
         g.dimension_coordinate('X').del_bounds()

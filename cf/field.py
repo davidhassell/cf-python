@@ -574,20 +574,17 @@ class Field(mixin.FieldDomain,
             value = self._conform_for_assignment(value)
 
         try:
-            value = value.get_data(
-                ValueError(
-                    f"Can't assign to a {self.__class__.__name__!r} "
-                    f"from a {value.__class__.__name__!r} with no data"
-                )
-            )
-        except AttributeError:
+            arg = indices[0]
+        except (IndexError, TypeError):
             pass
+        else:
+            if isinstance(arg, str) and arg == 'mask':
+                # Remove any auxiliary masks
+                indices = indices[2:]
 
-        if isinstance(indices[0], str) and indices[0] == 'mask':
-            # Remove any auxiliary masks
-            indices = indices[2:]
-
-        self.data[indices] = value
+        super().__setitem__(indices, value)
+            
+#        self.data[indices] = value
 
     def analyse_items(self, relaxed_identities=None):
         '''Analyse a domain.
@@ -6129,7 +6126,8 @@ class Field(mixin.FieldDomain,
         """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
-                self, 'cyclic', kwargs)  # pragma: no cover
+                self, "cyclic", kwargs
+            )  # pragma: no cover
 
         data = self.get_data(None)
         if data is None:
@@ -6146,7 +6144,7 @@ class Field(mixin.FieldDomain,
         try:
             data.cyclic(data_axes.index(axis), iscyclic)
         except ValueError:
-            pass
+            pass # TODODASK - why is it OK to pass, here?
 
         if iscyclic:
             dim = self.dimension_coordinate(axis, default=None)
@@ -6155,7 +6153,8 @@ class Field(mixin.FieldDomain,
                     dim.period(period)
                 elif dim.period() is None:
                     raise ValueError(
-                        "A cyclic dimension coordinate must have a period")
+                        "A cyclic dimension coordinate must have a period"
+                    )
         # --- End: if
 
         return old

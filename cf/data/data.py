@@ -6773,13 +6773,11 @@ dimensions.
         If the `hardmask` attribute is `True`, i.e. there is a hard
         mask, then unmasking an entry will silently not occur. This
         feature prevents overwriting the mask. To allow the unmasking
-        of an entries when the data has a hard mask, the mask must
-        first to be softened using the `soften_mask` method, that
-        changes the `hardmask` attribute to `False`. The mask can be
+        of entries when the data has a hard mask, the mask must first
+        to be softened using the `soften_mask` method, that changes
+        the `hardmask` attribute to `False`. The mask can be
         re-hardened with `harden_mask` method.
 
-        The following operations
-        
         .. seealso:: `harden_mask`, `soften_mask`, `where`
 
         **Examples:**
