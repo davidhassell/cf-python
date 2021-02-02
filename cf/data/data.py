@@ -1118,14 +1118,19 @@ place.
 
         d = self
 
+        if isinstance(indices[0], str) and indices[0] == 'mask':
+            auxiliary_mask = indices[1]
+            indices = indices[2:]
+        else:
+            auxiliary_mask = None
+
+        indices, roll = parse_indices(d.shape, indices, cyclic=True,
+                                      numpy_indexing=False)
+
         # TODODASK - sort out the "numpy" environment
         
         # TODODASK - multiple list indices
         
-        indices, roll = parse_indices(d.shape, indices, cyclic=True,
-                                      numpy_indexing=False)
-
-
         axes = d._axes
         cyclic_axes = d._cyclic
 
@@ -1134,23 +1139,24 @@ place.
             # 3) has been requested on a cyclic axis (and we're not
             # using numpy indexing), then we roll that axis by two
             # points and apply the slice(0, 5) instead.
-            roll_axes = tuple(roll.keys())
-            shifts = tuple(roll.values())
-                
-            if set(roll_axes).intersection(cyclic_axes):                
+            if cyclic_axes.intersection([axes[i] for i in roll]):
                 raise IndexError(
                     "Can't take a cyclic slice of a non-cyclic axis"
                 )
                 
-            d = d.roll(axis=roll_axes, shift=shifts)
-
-        new = d.copy(array=False)
+            d = d.roll(axis=tuple(roll.keys()),
+                       shift=tuple(roll.values()))
 
         # Get the subspaced dask array 
+        new = d.copy(data=False)
         dx = d._get_dask()
         dx = dx[tuple(indices)]
         new._set_dask(dx)
 
+        # Apply any auxiliary masks
+        for mask in auxiliary_masks:
+            new.where(mask, cf_masked, inplace=True)
+        
         # Cyclic axes which have been reduced in size are no longer
         # cyclic
         if cyclic_axes:
