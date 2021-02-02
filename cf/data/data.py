@@ -1146,9 +1146,11 @@ place.
                 
             d = d.roll(axis=tuple(roll.keys()),
                        shift=tuple(roll.values()))
-
-        # Get the subspaced dask array 
-        new = d.copy(data=False)
+            new = d
+        else:
+            new = d.copy(data=False)
+            
+        # Get the subspaced dask array
         dx = d._get_dask()
         dx = dx[tuple(indices)]
         new._set_dask(dx)
