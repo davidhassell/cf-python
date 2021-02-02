@@ -439,20 +439,20 @@ class Field(mixin.FieldDomain,
         shape = data.shape
 
         # Parse the index
-        if not isinstance(indices, tuple):
-            indices = (indices,)
-
-        if isinstance(indices[0], str) and indices[0] == 'mask':
-            auxiliary_mask = indices[:2]
-            indices2 = indices[2:]
+        auxiliary_mask = ()
+        indices2 = indices
+        try:
+            arg = indices[0]
+        except (IndexError, TypeError):
+            pass
         else:
-            auxiliary_mask = None
-            indices2 = indices
+            if isinstance(arg, str) and arg == 'mask':
+                auxiliary_mask = list(indices[:2])
+                indices2 = indices[2:]
 
         indices, roll = parse_indices(shape, indices2, cyclic=True)
 
         if auxiliary_mask:
-            auxiliary_mask = list(auxiliary_mask)
             findices = auxiliary_mask + indices
         else:
             findices = indices
@@ -577,7 +577,7 @@ class Field(mixin.FieldDomain,
             value = value.get_data(
                 ValueError(
                     f"Can't assign to a {self.__class__.__name__!r} "
-                    f"from a {value.__class__.__name__!r} with no data}"
+                    f"from a {value.__class__.__name__!r} with no data"
                 )
             )
         except AttributeError:
@@ -6064,69 +6064,69 @@ class Field(mixin.FieldDomain,
 
     def cyclic(self, identity=None, iscyclic=True, period=None,
                **kwargs):
-        '''Set the cyclicity of an axis.
+        """Set the cyclicity of an axis.
 
-    .. versionadded:: 1.0
+        .. versionadded:: 1.0
+    
+        .. seealso:: `autocyclic`, `domain_axis`, `iscyclic`, `period`
+    
+        :Parameters:
+    
+            identity:
+               Select the domain axis construct by one of:
+    
+                  * An identity or key of a 1-d coordinate construct that
+                    whose data spans the domain axis construct.
+    
+                  * A domain axis construct identity or key.
+    
+                  * The position of the domain axis construct in the field
+                    construct's data.
+    
+                The *identity* parameter selects the domain axis as
+                returned by this call of the field construct's
+                `domain_axis` method: ``f.domain_axis(identity)``.
+    
+            iscyclic: `bool`, optional
+                If False then the axis is set to be non-cyclic. By
+                default the selected axis is set to be cyclic.
+    
+            period: optional
+                The period for a dimension coordinate construct which
+                spans the selected axis. May be any numeric scalar object
+                that can be converted to a `Data` object (which includes
+                numpy array and `Data` objects). The absolute value of
+                *period* is used. If *period* has units then they must be
+                compatible with those of the dimension coordinates,
+                otherwise it is assumed to have the same units as the
+                dimension coordinates.
+    
+            axes: deprecated at version 3.0.0
+                Use the *identity* parameter instead.
+    
+            kwargs: deprecated at version 3.0.0
+    
+        :Returns:
+    
+            `set`
+                The construct keys of the domain axes which were cyclic
+                prior to the new setting, or the current cyclic domain
+                axes if no axis was specified.
+    
+        **Examples:**
+    
+        >>> f.cyclic()
+        set()
+        >>> f.cyclic('X', period=360)
+        set()
+        >>> f.cyclic()
+        {'domainaxis2'}
+        >>> f.cyclic('X', iscyclic=False)
+        {'domainaxis2'}
+        >>> f.cyclic()
+        set()
 
-    .. seealso:: `autocyclic`, `domain_axis`, `iscyclic`, `period`
-
-    :Parameters:
-
-        identity:
-           Select the domain axis construct by one of:
-
-              * An identity or key of a 1-d coordinate construct that
-                whose data spans the domain axis construct.
-
-              * A domain axis construct identity or key.
-
-              * The position of the domain axis construct in the field
-                construct's data.
-
-            The *identity* parameter selects the domain axis as
-            returned by this call of the field construct's
-            `domain_axis` method: ``f.domain_axis(identity)``.
-
-        iscyclic: `bool`, optional
-            If False then the axis is set to be non-cyclic. By
-            default the selected axis is set to be cyclic.
-
-        period: optional
-            The period for a dimension coordinate construct which
-            spans the selected axis. May be any numeric scalar object
-            that can be converted to a `Data` object (which includes
-            numpy array and `Data` objects). The absolute value of
-            *period* is used. If *period* has units then they must be
-            compatible with those of the dimension coordinates,
-            otherwise it is assumed to have the same units as the
-            dimension coordinates.
-
-        axes: deprecated at version 3.0.0
-            Use the *identity* parameter instead.
-
-        kwargs: deprecated at version 3.0.0
-
-    :Returns:
-
-        `set`
-            The construct keys of the domain axes which were cyclic
-            prior to the new setting, or the current cyclic domain
-            axes if no axis was specified.
-
-    **Examples:**
-
-    >>> f.cyclic()
-    set()
-    >>> f.cyclic('X', period=360)
-    set()
-    >>> f.cyclic()
-    {'domainaxis2'}
-    >>> f.cyclic('X', iscyclic=False)
-    {'domainaxis2'}
-    >>> f.cyclic()
-    set()
-
-        '''
+        """
         if kwargs:
             _DEPRECATION_ERROR_KWARGS(
                 self, 'cyclic', kwargs)  # pragma: no cover
@@ -13643,7 +13643,7 @@ class Field(mixin.FieldDomain,
         if sorted(axes) != sorted(data_axes):
             raise ValueError(
                 f"Can't transpose { self.__class__.__name__}: "
-                f"New axis order doesn't match the data: {axes!r}".
+                f"New axis order doesn't match the data: {axes!r}"
             )
         
         # Transpose the field's data array
@@ -15604,7 +15604,7 @@ class Field(mixin.FieldDomain,
         f = _inplace_enabled_define_and_cleanup(self)
         
         # Roll the metadata constructs in-place
-        axes, shift, iaxes = f._roll_constructs(axes, shift)
+        axes, shift, iaxes = f._roll_constructs(axis, shift)
 
         # Roll the field data
         super(Field, f).roll(iaxes, shift, inplace=True)

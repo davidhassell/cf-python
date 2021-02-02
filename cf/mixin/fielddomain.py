@@ -761,9 +761,9 @@ class FieldDomain:
             len(shift)
         except TypeError:
             if axes:
-                shift = [shift] * len(axes)
+                shift = (shift,) * len(axes)
 
-            shift = [shift]
+            shift = (shift,)
 
         if len(shift) != len(axes):
             raise ValueError(
@@ -790,7 +790,7 @@ class FieldDomain:
 
             c_axes = []
             c_shifts = []
-            for a, s in zip(axis, shift):
+            for a, s in zip(axes, shift):
                 if a in construct_axes:
                     c_axes.append(construct_axes.index(a))
                     c_shifts.append(s)
@@ -1073,7 +1073,7 @@ class FieldDomain:
             self.cyclic(key, iscyclic=False)
             logger.debug(4)  # pragma: no cover
             return False
-
+        
         self.cyclic(key, iscyclic=True, period=period)
         logger.debug(5)  # pragma: no cover
 

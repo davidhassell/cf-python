@@ -1833,12 +1833,11 @@ class PropertiesData(Properties):
         old = self._custom.get('period')
         if old is not None:
             old = old.copy()
-
+            
         if not value:
             return old
 
         value = value[0]
-
         if value is not None:
             value = Data.asdata(value)
             units = value.Units
@@ -1867,7 +1866,7 @@ class PropertiesData(Properties):
 #                )
         # --- End: if
 
-        self._custom['period'] = value
+        self._custom["period"] = value
 
         return old
 

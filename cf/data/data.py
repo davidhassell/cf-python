@@ -1117,12 +1117,16 @@ place.
             return self.copy()
 
         d = self
-
-        if isinstance(indices[0], str) and indices[0] == 'mask':
-            auxiliary_mask = indices[1]
-            indices = indices[2:]
+        
+        auxiliary_mask = ()
+        try:
+            arg = indices[0]
+        except (IndexError, TypeError):
+            pass
         else:
-            auxiliary_mask = None
+            if isinstance(arg, str) and arg == 'mask':
+                auxiliary_mask = indices[1]
+                indices = indices[2:]
 
         indices, roll = parse_indices(d.shape, indices, cyclic=True,
                                       numpy_indexing=False)
@@ -1148,15 +1152,15 @@ place.
                        shift=tuple(roll.values()))
             new = d
         else:
-            new = d.copy(data=False)
+            new = d.copy(array=False)
             
         # Get the subspaced dask array
         dx = d._get_dask()
         dx = dx[tuple(indices)]
         new._set_dask(dx)
 
-        # Apply any auxiliary masks
-        for mask in auxiliary_masks:
+        # Apply any auxiliary mask
+        for mask in auxiliary_mask:
             new.where(mask, cf_masked, inplace=True)
         
         # Cyclic axes which have been reduced in size are no longer
@@ -6726,7 +6730,7 @@ dimensions.
     @dtype.setter
     def dtype(self, value):
         dx = self._get_dask()
-        
+
         # Only change the datatype if it's different
         if dx.dtype != value:
             dx = dx.astype(value)

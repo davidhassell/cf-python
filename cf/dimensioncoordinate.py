@@ -75,16 +75,19 @@ class DimensionCoordinate(mixin.Coordinate,
         return super().__repr__().replace('<', '<CF ', 1)
 
     def _centre(self, period):
-        '''It assumed, but not checked, that the period has been set.
+        """It assumed, but not checked, that the period has been set and has
+        the same units as the data.
 
-    .. seealso:: `roll`
-
-        '''
+        """
+        period = period.array
+        
         if self.direction():
-            mx = self.data[-1]
+            i = -1
         else:
-            mx = self.data[0]
+            i = 0
 
+        mx = self.data[i].array
+            
         return ((mx // period) * period).squeeze()
 
     def _infer_direction(self):
@@ -123,7 +126,7 @@ class DimensionCoordinate(mixin.Coordinate,
         data = self.get_data(None)
         if data is not None:
             # Infer the direction from the data
-            if data._size > 1:
+            if data.size > 1:
                 data = data[0:2].array
                 return bool(data.item(0,) < data.item(1,))
         # --- End: if
@@ -769,41 +772,49 @@ class DimensionCoordinate(mixin.Coordinate,
     @_deprecated_kwarg_check('i')
     @_inplace_enabled(default=False)
     def roll(self, axis, shift, inplace=False, i=False):
-        '''TODO `{{class}}`
-
-        '''
-        if self.size <= 1:
-            if inplace:
-                return
-            else:
-                return self.copy()
-        # --- End: if
-
-        shift %= self.size
-
-#        period = self._custom.get('period')
-        period = self.period()
-
-        if not shift:
-            # Null roll
-            if inplace:
-                return
-            else:
-                return self.copy()
-        elif period is None:
-            raise ValueError(
-                "Can't roll {} when no period has been set".format(
-                    self.__class__.__name__))
-
-        direction = self.direction()
-
-        centre = self._centre(period)
-
-        if axis not in [0, -1]:
-            raise ValueError(
-                "Can't roll axis {} when there is only one axis".format(axis))
-
+        """TODODASK `{{class}}`"""
         c = _inplace_enabled_define_and_cleanup(self)
+        if c.size <= 1:
+            return c
+#
+#        try:
+#            len(axis)
+#        except TypeError:
+#            pass
+#        else:
+#            axis = axis[0]
+#        
+#        if axis not in (0, -1):
+#            raise ValueError(
+#                f"Can't roll {self.__class__.__name__}. "
+#                "Axis {axis} doesn't exist"
+#            )
+#        
+#        try:
+#            len(shift)
+#        except TypeError:
+#            pass
+#        else:
+#            shift = shift[0]
+#        
+#        shift %= c.size
+#
+#        if not shift:
+#            # Null roll
+#            return c
+#
+        period = c.period()
+        print ('period=', period)
+        if period is None:
+            raise ValueError(
+                "Can't roll {self.__class__.__name__}. "
+                "No period has been set"
+            )
+
+        direction = c.direction()
+
+        centre = c._centre(period)
+
         super(DimensionCoordinate, c).roll(axis, shift, inplace=True)
 
         c.dtype = numpy_result_type(c.dtype, period.dtype)
@@ -837,7 +848,7 @@ class DimensionCoordinate(mixin.Coordinate,
                     b -= period
         # --- End: if
 
-        c._custom['direction'] = direction
+        c._custom["direction"] = direction
 
         return c
 
