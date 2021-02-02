@@ -1175,31 +1175,31 @@ place.
     def __setitem__(self, indices, value):
         """Implement indexed assignment.
 
-    x.__setitem__(indices, y) <==> x[indices]=y
-
-    Assignment to data array elements defined by indices.
-
-    Elements of a data array may be changed by assigning values to a
-    subspace. See `__getitem__` for details on how to define subspace
-    of the data array.
-
-    **Missing data**
-
-    The treatment of missing data elements during assignment to a
-    subspace depends on the value of the `hardmask` attribute. If it
-    is True then masked elements will not be unmasked, otherwise masked
-    elements may be set to any value.
-
-    In either case, unmasked elements may be set, (including missing
-    data).
-
-    Unmasked elements may be set to missing data by assignment to the
-    `cf.masked` constant or by assignment to a value which contains
-    masked elements.
-
-    .. seealso:: `cf.masked`, `hardmask`, `where`
-
-    **Examples:**
+        x.__setitem__(indices, y) <==> x[indices]=y
+    
+        Assignment to data array elements defined by indices.
+    
+        Elements of a data array may be changed by assigning values to
+        a subspace. See `__getitem__` for details on how to define
+        subspace of the data array.
+    
+        **Missing data**
+    
+        The treatment of missing data elements during assignment to a
+        subspace depends on the value of the `hardmask` attribute. If
+        it is True then masked elements will not be unmasked,
+        otherwise masked elements may be set to any value.
+    
+        In either case, unmasked elements may be set, (including
+        missing data).
+    
+        Unmasked elements may be set to missing data by assignment to
+        the `cf.masked` constant or by assignment to a value which
+        contains masked elements.
+    
+        .. seealso:: `cf.masked`, `hardmask`, `where`
+    
+        **Examples:**
 
         """
         # TODODASK - sort out the "numpy" environment
@@ -1216,12 +1216,14 @@ place.
             # by two points and assign to slice(0, 5) instead. The
             # axis is then unrolled by two points afer the assignment
             # has been made.
-            roll_axes = []
-            shifts = []
-            for axis, shift in roll.items():
-                roll_axes.append(axis)
-                shifts.append(shift)
+            axes = self._axes
+            if self._cyclic.intersection([axes[i] for i in roll]):
+                raise IndexError(
+                    "Can't do a cyclic assignment to a non-cyclic axis"
+                )
 
+            roll_axes = tuple(roll.keys())
+            shifts = tuple(roll.values())
             self.roll(axis=roll_axes, shift=shifts, inplace=True)
 
         # TODODASK: multiple lists
