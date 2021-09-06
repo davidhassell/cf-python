@@ -365,6 +365,49 @@ def dask_compatible(a):
 
     """
     try:
-        return a.data._get_data()
+        return a.data._get_dask()
     except AttributeError:
         return a
+
+    
+def conform_units(value, units):
+    """Conform the units 
+
+    If *value* has units defined by its `Units` attribute then
+
+    * if the value units are equal to *units*, *value* is returned
+      unchanged;
+    * if the value units are equivalent, to *units*, a copy of *value*
+      with the same units as data* is returned;
+    * if the value units are not equivalent to *units*, an exception
+      is raised.
+    
+    In all other cases, an exception is raised.
+
+    .. versionadded:: TODODASK
+
+    :Parameters:
+
+        value: data-like
+
+        units: `Units`
+
+    **Examples:**
+
+    """  
+    try:
+        value_units = value.Units
+    except AttributeError:
+        pass
+    else:
+        if value_units.equivalent(units):
+            if value_units != units:
+                value = value.copy()
+                value.Units = units
+        elif value_units and units:
+            raise ValueError(
+                f"Units {value_units!r} are incompatible with units {units!r}"
+            )
+
+    return value
+            

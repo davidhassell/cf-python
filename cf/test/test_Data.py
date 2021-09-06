@@ -824,7 +824,7 @@ class DataTest(unittest.TestCase):
         if self.test_only and inspect.stack()[0][3] not in self.test_only:
             return
 
-    def test_Data___setitem__(self):
+    def test_Data__setitem__(self):
         if self.test_only and inspect.stack()[0][3] not in self.test_only:
             return
 
