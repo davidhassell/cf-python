@@ -2637,6 +2637,29 @@ class FieldTest(unittest.TestCase):
         # TODO: add loop to check get same shape and close enough data
         # for every possible axis combo (see also test_Data_percentile).
 
+    def test_Field_gradient_xy(self):
+        f = cf.example_field(0)
+
+        f[...] = 99
+        for one_sided in (True, False):
+            for c in f.gradient_xy(one_sided_at_boundary=one_sided):
+                self.assertTrue(np.allclose(c.array, 0))
+
+    def test_Field_laplacian_xy(self):
+        f = cf.example_field(0)
+
+        for one_sided in (True, False):
+            laplace1 = f.laplacian_xy(one_sided_at_boundary=one_sided)
+            laplace2 = cf.divergence_xy(
+                *f.gradient_xy(one_sided_at_boundary=one_sided),
+                one_sided_at_boundary=one_sided,
+            )
+
+            laplace1.del_property("long_name")
+            laplace2.del_property("long_name")
+
+            self.assertTrue(laplace1.equals(laplace2))
+
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())

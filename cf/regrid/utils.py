@@ -318,8 +318,8 @@ def get_cartesian_coords(f, name, axes):
     :Returns:
 
         `list`, `list`
-            A list of the keys of the dimension coordinates; and a
-            list of the dimension coordinates retrieved.
+            A list of the keys of the domain axes; and a list of the
+            dimension coordinates retrieved.
 
     """
     axis_keys = []

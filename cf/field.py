@@ -4591,7 +4591,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 By default *radius* is ``'earth'`` which means that if
                 and only if the radius can not found from the datums
                 of any coordinate reference constructs, then the
-                default radius taken as 6371229 metres.
+                default radius is taken as 6371229 metres.
 
             great_circle: `bool`, optional
                 If True then allow, if required, the derivation of i)
@@ -4665,7 +4665,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 including `numpy` and `Data` objects. The units of the
                 radius are assumed to be metres, unless specified by a
                 `Data` object. If the special value ``'earth'`` is
-                given then the default radius taken as 6371229
+                given then the default radius is taken as 6371229
                 metres. If *default* is `None` an exception will be
                 raised if no unique datum can be found in the
                 coordinate reference constructs.
@@ -5141,7 +5141,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 By default *radius* is ``'earth'`` which means that if
                 and only if the radius can not found from the datums
                 of any coordinate reference constructs, then the
-                default radius taken as 6371229 metres.
+                default radius is taken as 6371229 metres.
 
             components: `bool`, optional
                 If True then a dictionary of orthogonal weights components
@@ -6330,7 +6330,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 By default *radius* is ``'earth'`` which means that if
                 and only if the radius can not found from the datums
                 of any coordinate reference constructs, then the
-                default radius taken as 6371229 metres.
+                default radius is taken as 6371229 metres.
 
             great_circle: `bool`, optional
                 If True then allow, if required, the derivation of i) area
@@ -7427,7 +7427,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 By default *radius* is ``'earth'`` which means that if
                 and only if the radius can not found from the datums
                 of any coordinate reference constructs, then the
-                default radius taken as 6371229 metres.
+                default radius is taken as 6371229 metres.
 
                 .. versionadded:: 3.0.2
 
@@ -11054,6 +11054,169 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         # may be None)
         return indices
 
+    @_inplace_enabled(default=False)
+    def laplacian_xy(
+        self,
+        wrap=None,
+        one_sided_at_boundary=False,
+        radius="earth",
+        inplace=False,
+    ):
+        """Calculate the Laplacian in X-Y coordinates.
+
+        The Laplacian is the divergence of the gradient of a scalar
+        quantity. The Laplacian is calculated when the field has
+        dimension coordinates of X and Y, in either cartesian (plane
+        projection) or spherical polar coordinate systems.
+
+        The Laplacian is calculated using centred finite differences
+        apart from at the boundaries (see the *one_sided_at_boundary*
+        parameter). If missing values are present then missing values
+        will be returned at all points where a centred finite
+        difference could not be calculated.
+
+        :Parameters:
+
+            wrap: `bool`, optional
+                Whether the X axis is cyclic or not. By default this
+                is auto-detected. It the X axis is cyclic then centred
+                differences at one X boundary will always use values
+                from the other, regardless of the setting of
+                *one_sided_at_boundary*.
+
+            one_sided_at_boundary: `bool`, optional
+                If True, and the field is not cyclic, then one-sided
+                finite differences are calculated at the non-cyclic
+                boundaries. By default missing values are set at
+                non-cyclic boundaries.
+
+            radius: optional
+                Specify the radius used for calculating the areas of
+                cells defined in spherical polar coordinates. The
+                radius is that which would be returned by this call of
+                the field construct's `~cf.Field.radius` method:
+                ``f.radius(radius)``. See the `cf.Field.radius` for
+                details.
+
+                By default *radius* is ``'earth'`` which means that if
+                and only if the radius can not found from the datums
+                of any coordinate reference constructs, then the
+                default radius is taken as 6371229 metres.
+
+            {{inplace: `bool`, optional}}
+
+        :Returns:
+
+            `Field` or `None`
+                The X-Y Laplacian of the field, or `None` if the
+                operation was in-place.
+
+        """
+        from numpy import pi
+
+        f = _inplace_enabled_define_and_cleanup(self)
+
+        identity = f.identity()
+        x_key, x = f.dimension_coordinate("X", item=True, default=(None, None))
+        y_key, y = f.dimension_coordinate("Y", item=True, default=(None, None))
+
+        if x is None:
+            raise ValueError(
+                f"No unique {name} dimension coordinate "
+                f"matches key {key!r}."
+            )
+
+        if y is None:
+            raise ValueError(
+                f"No unique {name} dimension coordinate "
+                f"matches key {key!r}."
+            )
+
+        x_units = x.Units
+        y_units = y.Units
+
+        # Check for latitude-longitude
+        latlon = (x_units.islongitude and y_units.islatitude) or (
+            x_units.units == "degrees" and y_units.units == "degrees"
+        )
+
+        # Check for cyclicity
+        if wrap is None:
+            if latlon:
+                wrap = f.iscyclic(x_key)
+            else:
+                wrap = False
+
+        if latlon:
+            # Set latitude and longitude units to radians
+            radians = Units("radians")
+            x.Units = radians
+            y.Units = radians
+
+            # Get theta as a field that will broadcast to f, and
+            # adjust it's values so that theta=0 is at the north pole.
+            theta = pi / 2 - f.convert(y_key, full_domain=True)
+
+            sin_theta = theta.sin()
+
+            r = f.radius(radius)
+            r2_sin_theta = sin_theta * r * r
+
+            df_by_dtheta = f.derivative(
+                y_key, one_sided_at_boundary=one_sided_at_boundary
+            )
+
+            d2f_by_dphi2 = f.derivative(
+                x_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            ).derivative(
+                x_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            )
+
+            term2 = (df_by_dtheta * sin_theta).derivative(
+                y_key, one_sided_at_boundary=one_sided_at_boundary
+            ) / r2_sin_theta
+
+            term3 = d2f_by_dphi2 / (r2_sin_theta * sin_theta)
+
+            f = term2 + term3
+
+            # Reset latitude and longitude coordinate units
+            f.dimension_coordinate("X").Units = x_units
+            f.dimension_coordinate("Y").Units = y_units
+
+        else:
+            d2f_by_dx2 = f.derivative(
+                x_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            ).derivative(
+                x_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            )
+
+            d2f_by_dy2 = f.derivative(
+                y_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            ).derivative(
+                y_key,
+                wrap=wrap,
+                one_sided_at_boundary=one_sided_at_boundary,
+            )
+
+            f = d2f_by_dy2 + d2f_by_dx2
+
+        # Set the standard name and long name
+        f.set_property("long_name", f"X-Y Laplacian of {identity}")
+        f.del_property("standard_name", None)
+
+        return f
+
     @_inplace_enabled(default=True)
     def set_data(
         self, data, axes=None, set_axes=True, copy=True, inplace=True
@@ -11855,7 +12018,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 By default *radius* is ``'earth'`` which means that if
                 and only if the radius can not found from the datums
                 of any coordinate reference constructs, then the
-                default radius taken as 6371229 metres.
+                default radius is taken as 6371229 metres.
 
             great_circle: `bool`, optional
                 If True then allow, if required, the derivation of i)
@@ -16717,6 +16880,144 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             f.long_name = f"derivative of {long_name}"
 
         return f
+
+    def gradient_xy(
+        self,
+        wrap=None,
+        one_sided_at_boundary=False,
+        radius="earth",
+    ):
+        """Calculate the (X, Y) gradient vector.
+
+        The gradient vector is calculated when the field has dimension
+        coordinates of X and Y, in either cartesian (plane projection)
+        or spherical polar coordinate systems.
+
+        The gradient vector components are calculated using centred
+        finite differences apart from at the boundaries (see the
+        *one_sided_at_boundary* parameter). If missing values are
+        present then missing values will be returned at all points
+        where a centred finite difference could not be calculated.
+
+        :Parameters:
+
+            wrap: `bool`, optional
+                Whether the X axis is cyclic or not. By default this
+                is auto-detected. It the X axis is cyclic then centred
+                differences at one X boundary will always use values
+                from the other, regardless of the setting of
+                *one_sided_at_boundary*.
+
+            one_sided_at_boundary: `bool`, optional
+                If True, and the field is not cyclic, then one-sided
+                finite differences are calculated at the non-cyclic
+                boundaries. By default missing values are set at
+                non-cyclic boundaries.
+
+            radius: optional
+                Specify the radius used for calculating the areas of
+                cells defined in spherical polar coordinates. The
+                radius is that which would be returned by this call of
+                the field construct's `~cf.Field.radius` method:
+                ``f.radius(radius)``. See the `cf.Field.radius` for
+                details.
+
+                By default *radius* is ``'earth'`` which means that if
+                and only if the radius can not found from the datums
+                of any coordinate reference constructs, then the
+                default radius is taken as 6371229 metres.
+
+        :Returns:
+
+            `FieldList`
+                The X-Y gradient vector of the field.
+
+        """
+        from numpy import pi
+
+        f = self.copy()
+        identity = f.identity()
+
+        x_key, x_coord = f.dimension_coordinate(
+            "X", item=True, default=(None, None)
+        )
+        y_key, y_coord = f.dimension_coordinate(
+            "Y", item=True, default=(None, None)
+        )
+
+        if x_coord is None:
+            raise ValueError(
+                f"No unique {name} dimension coordinate "
+                f"matches key {key!r}."
+            )
+
+        if y_coord is None:
+            raise ValueError(
+                f"No unique {name} dimension coordinate "
+                f"matches key {key!r}."
+            )
+
+        x_units = x_coord.Units
+        y_units = y_coord.Units
+
+        # Check for latitude-longitude
+        latlon = (x_units.islongitude and y_units.islatitude) or (
+            x_units.units == "degrees" and y_units.units == "degrees"
+        )
+
+        # Check for cyclicity
+        if wrap is None:
+            if latlon:
+                wrap = f.iscyclic(x_key)
+            else:
+                wrap = False
+
+        if latlon:
+            # Set latitude and longitude units to radians
+            radians = Units("radians")
+            x_coord.Units = radians
+            y_coord.Units = radians
+
+            # Get theta as a field that will broadcast to f, and
+            # adjust it's values so that theta=0 is at the north pole.
+            theta = pi / 2 - f.convert(y_key, full_domain=True)
+
+            r = f.radius(radius)
+
+            Y = (
+                f.derivative(
+                    y_key, one_sided_at_boundary=one_sided_at_boundary
+                )
+                / r
+            )
+
+            X = f.derivative(
+                x_key, wrap=wrap, one_sided_at_boundary=one_sided_at_boundary
+            ) / (theta.sin() * r)
+
+            # Reset latitude and longitude coordinate units
+            X.dimension_coordinate("X").Units = x_units
+            X.dimension_coordinate("Y").Units = y_units
+
+            Y.dimension_coordinate("X").Units = x_units
+            Y.dimension_coordinate("Y").Units = y_units
+
+        else:
+            Y = f.derivative(
+                y_key, one_sided_at_boundary=one_sided_at_boundary
+            )
+
+            X = f.derivative(
+                x_key, wrap=wrap, one_sided_at_boundary=one_sided_at_boundary
+            )
+
+        # Set the standard name and long name
+        X.set_property("long_name", f"X gradient of {identity}")
+        Y.set_property("long_name", f"Y gradient of {identity}")
+        X.del_property("standard_name", None)
+        Y.del_property("standard_name", None)
+
+        return FieldList((X, Y))
 
     # ----------------------------------------------------------------
     # Aliases
