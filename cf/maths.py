@@ -378,7 +378,7 @@ def histogram(*digitized):
     return f.bin("sample_size", digitized=digitized)
 
 
-def divergence_xy(
+def div_xy(
     x,
     y,
     wrap=None,

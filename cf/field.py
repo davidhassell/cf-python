@@ -16821,13 +16821,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 "Use the 'wrap' keyword instead",
             )  # pragma: no cover
 
-        #        try:
-        #            scipy_convolve1d
-        #        except NameError:
-        #            raise ImportError(
-        #                "Must install scipy to use the derivative method.")
-
         # Retrieve the axis
+        axis_in = axis
         axis = self.domain_axis(axis, key=True, default=None)
         if axis is None:
             raise ValueError("Invalid axis specifier")
@@ -16859,10 +16854,23 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         )
 
         # Find the finite difference of the axis
-        d = coord.data.convolution_filter(
-            window=[1, 0, -1], axis=0, mode=mode, cval=numpy_nan
-        )
-
+        d = None
+        if wrap and f.iscyclic(axis):
+            period = coord.period()
+            if period is not None:
+                # Fix for periodic corodinates
+                data = coord.data
+                d2 = self._Data.empty((data.size + 2,), units=coord.Units)
+                d2[1:-1] = data
+                d2[0] = data[-1] - period
+                d2[-1] = data[0] + period
+                d = d2.convolution_filter(window=[1, 0, -1], axis=0, mode="constant")[1:-1]
+                
+        if d is None:
+            d = coord.data.convolution_filter(
+                window=[1, 0, -1], axis=0, mode=mode, cval=numpy_nan
+            )
+        print (d.array)
         # Reshape the finite difference of the axis for broadcasting
         for _ in range(self.ndim - 1 - axis_index):
             d.insert_dimension(position=1, inplace=True)
@@ -16871,17 +16879,12 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         f.data /= d
 
         # Update the standard name and long name
-        standard_name = f.get_property("standard_name", None)
-        long_name = f.get_property("long_name", None)
-        if standard_name is not None:
-            del f.standard_name
-            f.long_name = f"derivative of {standard_name}"
-        elif long_name is not None:
-            f.long_name = f"derivative of {long_name}"
+        f.set_property("long_name", f"{axis_in} derivative of {f.identity()}")
+        f.del_property("standard_name", None)
 
         return f
 
-    def gradient_xy(
+    def grad_xy(
         self,
         wrap=None,
         one_sided_at_boundary=False,
