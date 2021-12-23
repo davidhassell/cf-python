@@ -2638,14 +2638,72 @@ class FieldTest(unittest.TestCase):
 
         # Create idealised data with known result of all ones when
         # radius=1
-        add some y variation
-        f[...] = np.array([0, 0, 0, 1/4, 1/4, 3/4, 3/4, 6/4]) * np.pi**2
+        #        add some y variation
+        f[...] = (
+            np.array([0, 0, 0, 1 / 4, 1 / 4, 3 / 4, 3 / 4, 6 / 4]) * np.pi ** 2
+        )
 
         f.laplacian_xy(radius=1, wrap=False).array
 
         l = f.laplacian_xy(radius=1, wrap=False)
         self.assertTrue(np.allclose(l.array, 1, rtol=0, atol=1e-8))
         self.assertTrue(np.allclose(l.array.sum(), 4, rtol=0, atol=1e-8))
+
+    def test_Field_grad_xy(self):
+        f = cf.example_field(0)
+
+     
+        # Spherical polar coordinates
+        r = f.radius("earth")
+        for wrap in (None, True, False):
+            for one_sided in (True, False):
+                (x, y) = f.grad_xy(
+                    radius=r, wrap=wrap, one_sided_at_boundary=one_sided
+                )
+                del x.long_name
+                del y.long_name
+
+                theta = 90 - f.convert("Y", full_domain=True)
+                theta.Units = cf.Units("radians")
+                x0 = f.derivative(
+                    "X", wrap=wrap, one_sided_at_boundary=one_sided
+                ) / (theta.sin() * r)
+                y0 = f.derivative("Y", one_sided_at_boundary=one_sided) / r
+
+                # Check the data
+                self.assertTrue((x.data == x0.data).all())
+                self.assertTrue((y.data == y0.data).all())
+
+                # Check the metadata
+                x0.set_data(x.data)
+                y0.set_data(y.data)
+                self.assertTrue(x.equals(x0))
+                self.assertTrue(y.equals(y0))
+
+        # Cartesian coordinates
+        dim_x = f.dimension_coordinate("X")
+        dim_y = f.dimension_coordinate("Y")
+        dim_x.override_units("m", inplace=True)
+        dim_y.override_units("m", inplace=True)
+        dim_x.standard_name = "projection_x_coordinate"
+        dim_y.standard_name = "projection_y_coordinate"
+        f.cyclic('X', iscyclic=False)
+    
+        for wrap in (None, True, False):
+            for one_sided in (True, False):
+                (x, y) = f.grad_xy(wrap=wrap, one_sided_at_boundary=one_sided)
+                del x.long_name
+                del y.long_name
+
+                x0 = f.derivative(
+                    "X", wrap=wrap, one_sided_at_boundary=one_sided
+                )
+                y0 = f.derivative("Y", one_sided_at_boundary=one_sided)
+                del x0.long_name
+                del y0.long_name
+                
+                self.assertTrue(x.equals(x0))
+                self.assertTrue(y.equals(y0))
 
 
 if __name__ == "__main__":

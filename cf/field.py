@@ -4817,19 +4817,17 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         if x is None:
             raise ValueError(
-                f"No unique {name} dimension coordinate "
-                f"matches key {key!r}."
+                f"Field has no unique 'X' dimension coordinate"
             )
 
         if y is None:
             raise ValueError(
-                f"No unique {name} dimension coordinate "
-                f"matches key {key!r}."
+                f"Field has no unique 'X' dimension coordinate"
             )
 
         x_units = x.Units
         y_units = y.Units
-        print (99999999999)
+        
         # Check for latitude-longitude
         latlon = (x_units.islongitude and y_units.islatitude) or (
             x_units.units == "degrees" and y_units.units == "degrees"
@@ -4841,9 +4839,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         if latlon:
             # Set latitude and longitude units to radians
-            radians = Units("radians")
-            x.Units = radians
-            y.Units = radians
+            x.Units = _units_radians
+            y.Units = _units_radians
 
             # Get theta as a field that will broadcast to f, and
             # adjust it's values so that theta=0 is at the north pole.
@@ -13606,6 +13603,138 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             )
 
         return axes
+    
+    def grad_xy(
+        self,
+        wrap=None,
+        one_sided_at_boundary=False,
+        radius="earth",
+    ):
+        """Calculate the (X, Y) gradient vector.
+
+        The gradient vector is calculated when the field has dimension
+        coordinates of X and Y, in either cartesian (plane projection)
+        or spherical polar coordinate systems.
+
+        The gradient vector components are calculated using centred
+        finite differences apart from at the boundaries (see the
+        *one_sided_at_boundary* parameter). If missing values are
+        present then missing values will be returned at all points
+        where a centred finite difference could not be calculated.
+
+        :Parameters:
+
+            wrap: `bool`, optional
+                Whether the X axis is cyclic or not. By default this
+                is auto-detected. It the X axis is cyclic then centred
+                differences at one X boundary will always use values
+                from the other, regardless of the setting of
+                *one_sided_at_boundary*.
+
+            one_sided_at_boundary: `bool`, optional
+                If True, and the field is not cyclic or *wrap* is
+                True, then one-sided finite differences are calculated
+                at the non-cyclic boundaries. By default missing
+                values are set at non-cyclic boundaries.
+
+            radius: optional
+                Specify the radius used for calculating the areas of
+                cells defined in spherical polar coordinates. The
+                radius is that which would be returned by this call of
+                the field construct's `~cf.Field.radius` method:
+                ``f.radius(radius)``. See the `cf.Field.radius` for
+                details.
+
+                By default *radius* is ``'earth'`` which means that if
+                and only if the radius can not found from the datums
+                of any coordinate reference constructs, then the
+                default radius is taken as 6371229 metres.
+
+        :Returns:
+
+            `FieldList`
+                The X-Y gradient vector of the field.
+
+        """
+        from numpy import pi
+
+        f = self.copy()
+        identity = f.identity()
+
+        x_key, x_coord = f.dimension_coordinate(
+            "X", item=True, default=(None, None)
+        )
+        y_key, y_coord = f.dimension_coordinate(
+            "Y", item=True, default=(None, None)
+        )
+
+        if x_coord is None:
+            raise ValueError(
+                f"Field has no unique 'X' dimension coordinate"
+            )
+
+        if y_coord is None:
+            raise ValueError(
+                f"Field has no unique 'X' dimension coordinate"
+            )
+
+        x_units = x_coord.Units
+        y_units = y_coord.Units
+
+        # Check for latitude-longitude
+        latlon = (x_units.islongitude and y_units.islatitude) or (
+            x_units.units == "degrees" and y_units.units == "degrees"
+        )
+
+        # Check for cyclicity
+        if wrap is None:
+            if latlon:
+                wrap = f.iscyclic(x_key)
+            else:
+                wrap = False
+
+        if latlon:
+            # Set latitude and longitude units to radians
+            x_coord.Units = _units_radians
+            y_coord.Units = _units_radians
+
+            # Get theta as a field that will broadcast to f, and
+            # adjust it's values so that theta=0 is at the north pole.
+            theta = pi / 2 - f.convert(y_key, full_domain=True)
+
+            r = f.radius(radius)
+
+            X = f.derivative(
+                x_key, wrap=wrap, one_sided_at_boundary=one_sided_at_boundary
+            ) / (theta.sin() * r)
+
+            Y = f.derivative(
+                    y_key, one_sided_at_boundary=one_sided_at_boundary
+            ) / r
+            
+            # Reset latitude and longitude coordinate units
+            X.dimension_coordinate("X").Units = x_units
+            X.dimension_coordinate("Y").Units = y_units
+
+            Y.dimension_coordinate("X").Units = x_units
+            Y.dimension_coordinate("Y").Units = y_units
+
+        else:
+            X = f.derivative(
+                x_key, wrap=wrap, one_sided_at_boundary=one_sided_at_boundary
+            )
+
+            Y = f.derivative(
+                y_key, one_sided_at_boundary=one_sided_at_boundary
+            )
+
+        # Set the standard name and long name
+        X.set_property("long_name", f"X gradient of {identity}")
+        Y.set_property("long_name", f"Y gradient of {identity}")
+        X.del_property("standard_name", None)
+        Y.del_property("standard_name", None)
+
+        return FieldList((X, Y))
 
     @_inplace_enabled(default=False)
     @_manage_log_level_via_verbosity
