@@ -2633,6 +2633,20 @@ class FieldTest(unittest.TestCase):
         # TODO: add loop to check get same shape and close enough data
         # for every possible axis combo (see also test_Data_percentile).
 
+    def test_Field_laplacian_xy(self):
+        f = cf.example_field(0)
+
+        # Create idealised data with known result of all ones when
+        # radius=1
+        add some y variation
+        f[...] = np.array([0, 0, 0, 1/4, 1/4, 3/4, 3/4, 6/4]) * np.pi**2
+
+        f.laplacian_xy(radius=1, wrap=False).array
+
+        l = f.laplacian_xy(radius=1, wrap=False)
+        self.assertTrue(np.allclose(l.array, 1, rtol=0, atol=1e-8))
+        self.assertTrue(np.allclose(l.array.sum(), 4, rtol=0, atol=1e-8))
+
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())
