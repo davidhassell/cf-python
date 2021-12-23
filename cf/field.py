@@ -11085,10 +11085,10 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 *one_sided_at_boundary*.
 
             one_sided_at_boundary: `bool`, optional
-                If True, and the field is not cyclic, then one-sided
-                finite differences are calculated at the non-cyclic
-                boundaries. By default missing values are set at
-                non-cyclic boundaries.
+                If True, and the field is not cyclic or *wrap* is
+                True, then one-sided finite differences are calculated
+                at the non-cyclic boundaries. By default missing
+                values are set at non-cyclic boundaries.
 
             radius: optional
                 Specify the radius used for calculating the areas of
@@ -16772,12 +16772,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
     ):
         """Return the derivative along the specified axis.
 
-        The derivative is calculated by centred finite differences along
-        the specified axis.
-
-        If the axis is cyclic then the boundary is wrapped around,
-        otherwise missing values are used at the boundary unless one-sided
-        finite differences are requested.
+        The derivative is calculated using centred finite differences
+        apart from at the boundaries (see the *one_sided_at_boundary*
+        parameter). If missing values are present then missing values
+        will be returned at all points where a centred finite
+        difference could not be calculated.
 
         :Parameters:
 
@@ -16795,20 +16794,22 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 autodetected.
 
             one_sided_at_boundary: `bool`, optional
-                If True then one-sided finite differences are used at the
-                boundary, otherwise missing values are used.
+                If True, and the field is not cyclic or *wrap* is
+                True, then one-sided finite differences are calculated
+                at the non-cyclic boundaries. By default missing
+                values are set at non-cyclic boundaries.
 
             {{inplace: `bool`, optional}}
-                If True then do the operation in-place and return `None`.
 
             {{i: deprecated at version 3.0.0}}
 
         :Returns:
 
             `Field` or `None`
-                TODO , or `None` if the operation was in-place.
+                The derivative of the field along the specified axis,
+                or `None` if the operation was in-place.
 
-        **Examples:**
+        **Examples**
 
         TODO
 
@@ -16825,16 +16826,19 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         axis_in = axis
         axis = self.domain_axis(axis, key=True, default=None)
         if axis is None:
-            raise ValueError("Invalid axis specifier")
+            raise ValueError(f"Invalid axis specifier: {axis_in}")
 
         coord = self.dimension_coordinate(filter_by_axis=(axis,), default=None)
         if coord is None:
-            raise ValueError("Axis specified is not unique.")
+            raise ValueError(
+                f"No dimension coordinates for axis defined by {axis_in}"
+            )
 
         # Get the axis index
         axis_index = self.get_data_axes().index(axis)
 
-        # Automatically detect the cyclicity of the axis if cyclic is None
+        # Automatically detect the cyclicity of the axis if cyclic is
+        # None
         if wrap is None:
             wrap = self.iscyclic(axis)
 
@@ -16848,30 +16852,40 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         f = _inplace_enabled_define_and_cleanup(self)
 
-        # Find the finite difference of the field
+        # Find the differences of the data
         f.convolution_filter(
             [1, 0, -1], axis=axis, mode=mode, update_bounds=False, inplace=True
         )
 
-        # Find the finite difference of the axis
+        # Find the differences of the coordinates
         d = None
         if wrap and f.iscyclic(axis):
             period = coord.period()
             if period is not None:
-                # Fix for periodic corodinates
-                data = coord.data
-                d2 = self._Data.empty((data.size + 2,), units=coord.Units)
-                d2[1:-1] = data
-                d2[0] = data[-1] - period
-                d2[-1] = data[0] + period
-                d = d2.convolution_filter(window=[1, 0, -1], axis=0, mode="constant")[1:-1]
-                
+                # Fix the boundary differences for cyclic periodic
+                # coordinates. Need to add extend the coordinates to
+                # include a dummy value at each end that maintains
+                # strict monotonicity.
+                c_data = coord.data
+                d2 = self._Data.empty((c_data.size + 2,), units=c_data.Units)
+                if not coord.direction:
+                    period = -period
+
+                d2[1:-1] = c_data
+                d2[0] = c_data[-1] - period
+                d2[-1] = c_data[0] + period
+
+                d = d2.convolution_filter(
+                    window=[1, 0, -1], axis=0, mode="constant"
+                )[1:-1]
+
         if d is None:
             d = coord.data.convolution_filter(
                 window=[1, 0, -1], axis=0, mode=mode, cval=numpy_nan
             )
-        print (d.array)
-        # Reshape the finite difference of the axis for broadcasting
+        print(d.array)
+        # Reshape the coordinate differences so that they broadcast to
+        # the data
         for _ in range(self.ndim - 1 - axis_index):
             d.insert_dimension(position=1, inplace=True)
 
