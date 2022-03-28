@@ -10592,55 +10592,51 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
                 partition.array
                 partition.close()
 
+    @daskified(_DASKIFIED_VERBOSE)
     def to_memory(self, regardless=False, parallelise=False):
-        """Store each partition's data in memory in place if the master
-        array is smaller than the chunk size.
+        """Persist the underlaying array values into memory.
 
-        There is no change to partitions with data that are already in memory.
+        ``d.to_memory()`` is equivalent to ``d.persist()``. See
+        `persist` for details.
+
+        **Performance**
+
+        `to_memory` causes all delayed operations to be computed.
+
+        .. seealso:: `persist`
 
         :Parameters:
 
-            regardless: `bool`, optional
-                If True then store all partitions' data in memory
-                regardless of the size of the master array. By default
-                only store all partitions' data in memory if the master
-                array is smaller than the chunk size.
+            regardless: deprecated at version TODODASK
 
-            parallelise: `bool`, optional
-                If True than only move those partitions to memory that are
-                flagged for processing on this rank.
+            parallelise: deprecated at version TODODASK
 
         :Returns:
 
             `None`
 
-        **Examples:**
-
-        >>> d.to_memory()
-        >>> d.to_memory(regardless=True)
-
         """
-        print("TODODASK - ???")
-        config = self.partition_configuration(readonly=True)
-        fm_threshold = cf_fm_threshold()
+        if regardless:
+            _DEPRECATION_ERROR_KWARGS(
+                self,
+                "to_memory",
+                {"regardless": regardless},
+                message="",
+                version="TODODASK",
+                removed_at="5.0.0",
+            )  # pragma: no cover
 
-        # If parallelise is False then all partitions are flagged for
-        # processing on this rank, otherwise only a subset are
-        self._flag_partitions_for_processing(parallelise)
+        if parallelise:
+            _DEPRECATION_ERROR_KWARGS(
+                self,
+                "to_memory",
+                {"parallelise": parallelise},
+                message="",
+                version="TODODASK",
+                removed_at="5.0.0",
+            )  # pragma: no cover
 
-        for partition in self.partitions.matrix.flat:
-            if partition._process_partition:
-                # Only move the partition to memory if it is flagged
-                # for processing
-                partition.open(config)
-                if (
-                    partition.on_disk
-                    and partition.nbytes <= free_memory() - fm_threshold
-                ):
-                    partition.array
-
-                partition.close()
-        # --- End: for
+        self.persist(inplace=True)
 
     @property
     def in_memory(self):
