@@ -1335,10 +1335,15 @@ class DataTest(unittest.TestCase):
         self.assertEqual(d[[0, 1], [2]].shape, (2, 1))
 
         # Ancillary masks
-        #
-        # TODODASK: Test __getitem__ with ancillary masks. Can only do
-        #           this when cf.Data.where has been daskified
-
+        e = d[("mask", (0,))]
+        self.assertEqual(e.count(), 6)
+        e = d[("mask", (1,))]
+        self.assertEqual(e.count(), 6)
+        e = d[("mask", ([0, 1, 0],))]
+        self.assertEqual(e.count(), 4)
+        e = d[("mask", ([0, 1, 0],), slice(0, 1))]
+        self.assertEqual(e.count(), 2)
+      
     def test_Data__setitem__(self):
         if self.test_only and inspect.stack()[0][3] not in self.test_only:
             return
