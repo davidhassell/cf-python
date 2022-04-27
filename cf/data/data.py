@@ -9875,6 +9875,7 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         d._set_dask(da.round(dx, decimals=decimals), reset_mask_hardness=False)
         return d
 
+    @daskified(_DASKIFIED_VERBOSE)
     def stats(
         self,
         all=False,
