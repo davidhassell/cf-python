@@ -9903,12 +9903,12 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         calculated. But this selection may be edited, and other metrics
         are available.
 
-        .. seealso:: `minimum`, `mean`, `median`, `maximum`, `range`,
-                     `mid_range`, `standard_deviation`,
-                     `root_mean_square`, `sample_size`,
-                     `minimum_absolute_value`, `maximum_absolute_value`,
-                     `mean_absolute_value`, `mean_of_upper_decile`, `sum`,
-                     `sum_of_squares`, `variance`
+        .. seealso:: `min`, `mean`, `median`, `max`, `range`,
+                     `mid_range`, `std`, `root_mean_square`,
+                     `sample_size`, `minimum_absolute_value`,
+                     `maximum_absolute_value`, `mean_absolute_value`,
+                     `mean_of_upper_decile`, `sum`, `sum_of_squares`,
+                     `var`
 
         :Parameters:
 
@@ -9980,61 +9980,49 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
 
         **Examples**
 
-        >>> d = cf.Data([[0, 1, 2], [3, -99, 5]], mask=[[0, 0, 0], [0, 1, 0]])
+        >>> d = cf.Data([[0, 1, 2], [3, -99, 5]], 'm', mask=[[0, 0, 0], [0, 1, 0]])
         >>> print(d.array)
         [[0  1  2]
          [3 --  5]]
         >>> d.stats()
-        {'minimum': <CF Data(): 0>,
-         'mean': <CF Data(): 2.2>,
-         'median': <CF Data(): 2.0>,
-         'maximum': <CF Data(): 5>,
-         'range': <CF Data(): 5>,
-         'mid_range': <CF Data(): 2.5>,
-         'standard_deviation': <CF Data(): 1.7204650534085253>,
-         'root_mean_square': <CF Data(): 2.792848008753788>,
+        {'minimum': <CF Data(): 0 m>,
+         'mean': <CF Data(): 2.2 m>,
+         'median': <CF Data(): 2.0 m>,
+         'maximum': <CF Data(): 5 m>,
+         'range': <CF Data(): 5 m>,
+         'mid_range': <CF Data(): 2.5 m>,
+         'standard_deviation': <CF Data(): 1.7204650534085253 m>,
+         'root_mean_square': <CF Data(): 2.792848008753788 m>,
          'sample_size': 5}
         >>> d.stats(all=True)
-        {'minimum': <CF Data(): 0>,
-         'mean': <CF Data(): 2.2>,
-         'median': <CF Data(): 2.0>,
-         'maximum': <CF Data(): 5>,
-         'range': <CF Data(): 5>,
-         'mid_range': <CF Data(): 2.5>,
-         'standard_deviation': <CF Data(): 1.7204650534085253>,
-         'root_mean_square': <CF Data(): 2.792848008753788>,
-         'minimum_absolute_value': <CF Data(): 0>,
-         'maximum_absolute_value': <CF Data(): 5>,
-         'mean_absolute_value': <CF Data(): 2.2>,
-         'mean_of_upper_decile': <CF Data(): 5.0>,
-         'sum': <CF Data(): 11>,
-         'sum_of_squares': <CF Data(): 39>,
-         'variance': <CF Data(): 2.96>,
+        {'minimum': <CF Data(): 0 m>,
+         'mean': <CF Data(): 2.2 m>,
+         'median': <CF Data(): 2.0 m>,
+         'maximum': <CF Data(): 5 m>,
+         'range': <CF Data(): 5 m>,
+         'mid_range': <CF Data(): 2.5 m>,
+         'standard_deviation': <CF Data(): 1.7204650534085253 m>,
+         'root_mean_square': <CF Data(): 2.792848008753788 m>,
+         'minimum_absolute_value': <CF Data(): 0 m>,
+         'maximum_absolute_value': <CF Data(): 5 m>,
+         'mean_absolute_value': <CF Data(): 2.2 m>,
+         'mean_of_upper_decile': <CF Data(): 5.0 m>,
+         'sum': <CF Data(): 11 m>,
+         'sum_of_squares': <CF Data(): 39 m2>,
+         'variance': <CF Data(): 2.96 m2>,
          'sample_size': 5}
         >>> d.stats(mean_of_upper_decile=True, range=False)
-        {'minimum': <CF Data(): 0>,
-         'mean': <CF Data(): 2.2>,
-         'median': <CF Data(): 2.0>,
-         'maximum': <CF Data(): 5>,
-         'mid_range': <CF Data(): 2.5>,
-         'standard_deviation': <CF Data(): 1.7204650534085253>,
-         'root_mean_square': <CF Data(): 2.792848008753788>,
-         'mean_of_upper_decile': <CF Data(): 5.0>,
+        {'minimum': <CF Data(): 0 m>,
+         'mean': <CF Data(): 2.2 m>,
+         'median': <CF Data(): 2.0 m>,
+         'maximum': <CF Data(): 5 m>,
+         'mid_range': <CF Data(): 2.5 m>,
+         'standard_deviation': <CF Data(): 1.7204650534085253 m>,
+         'root_mean_square': <CF Data(): 2.792848008753788 m>,
+         'mean_of_upper_decile': <CF Data(): 5.0 m>,
          'sample_size': 5}
 
         """
-        no_weights = (
-            "minimum",
-            "median",
-            "maximum",
-            "range",
-            "mid_range",
-            "minimum_absolute_value",
-            "maximum_absolute_value",
-            "sum",
-            "sum_of_squares",
-        )
-
         out = {}
         for stat in (
             "minimum",
@@ -10055,10 +10043,11 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         ):
             if all or locals()[stat]:
                 func = getattr(self, stat)
-                if stat in no_weights:
-                    value = func(squeeze=True)
-                else:
+                try:
                     value = func(squeeze=True, weights=weights)
+                except TypeError:
+                    # Collapse doesn't support weights
+                    value = func(squeeze=True)
 
                 out[stat] = value
 
