@@ -136,66 +136,18 @@ _DEFAULT_HARDMASK = True
 
 
 class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
-    """An N-dimensional data array with units and masked values.
+    """An N-dimensional data array with units.
 
-    * Contains an N-dimensional, indexable and broadcastable array with
-      many similarities to a `numpy` array.
+    * Contains an N-dimensional, indexable, assignable and
+      broadcastable array with many similarities to a `numpy` array.
 
     * Contains the units of the array elements.
 
     * Supports masked arrays, regardless of whether or not it was
       initialised with a masked array.
 
-    * Stores and operates on data arrays which are larger than the
-      available memory.
-
-    **Indexing**
-
-    A data array is indexable in a similar way to numpy array:
-
-    >>> d.shape
-    (12, 19, 73, 96)
-    >>> d[...].shape
-    (12, 19, 73, 96)
-    >>> d[slice(0, 9), 10:0:-2, :, :].shape
-    (9, 5, 73, 96)
-
-    There are three extensions to the numpy indexing functionality:
-
-    * Size 1 dimensions are never removed by indexing.
-
-      An integer index i takes the i-th element but does not reduce the
-      rank of the output array by one:
-
-      >>> d.shape
-      (12, 19, 73, 96)
-      >>> d[0, ...].shape
-      (1, 19, 73, 96)
-      >>> d[:, 3, slice(10, 0, -2), 95].shape
-      (12, 1, 5, 1)
-
-      Size 1 dimensions may be removed with the `squeeze` method.
-
-    * The indices for each axis work independently.
-
-      When more than one dimension's slice is a 1-d boolean sequence or
-      1-d sequence of integers, then these indices work independently
-      along each dimension (similar to the way vector subscripts work in
-      Fortran), rather than by their elements:
-
-      >>> d.shape
-      (12, 19, 73, 96)
-      >>> d[0, :, [0, 1], [0, 13, 27]].shape
-      (1, 19, 2, 3)
-
-    * Boolean indices may be any object which exposes the numpy array
-      interface.
-
-      >>> d.shape
-      (12, 19, 73, 96)
-      >>> d[..., d[0, 0, 0]>d[0, 0, 0].min()]
-
-    **Cyclic axes**
+    * Has cyclic axis support for indexing and selected operations:
+      indexed subspacing and assignment.
 
     """
 
@@ -849,24 +801,37 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
 
         d.__getitem__(indices) <==> d[indices]
 
-        Indexing follows rules that are very similar to the numpy indexing
-        rules, the only differences being:
+        Indexing follows rules that are very similar to the numpy
+        indexing rules, the main differences being:
 
-        * An integer index i takes the i-th element but does not reduce
-          the rank by one.
+        * By default, an integer index i takes the i-th element but
+          does not reduce the rank by one (see
+          `__keepdims_indexing__`).
 
-        * When two or more dimensions' indices are sequences of integers
-          then these indices work independently along each dimension
-          (similar to the way vector subscripts work in Fortran). This is
-          the same behaviour as indexing on a `netCDF4.Variable` object.
+        * By default, when two or more dimensions' indices are
+          sequences of integers then these indices work independently
+          along each dimension (similar to the way vector subscripts
+          work in Fortran). This is the same behaviour as indexing on
+          a `netCDF4.Variable` object (see `__orthogonal_indexing__`).
+
+        * Cyclic slices are possible. An axis is considered to be
+          cyclic if it has been designated so by the `cyclic`
+          method. For such as axis the elements in index positions
+          ``0`` and ``-1`` are physically adjacent to each other, as
+          could be the case, for instance for an axis representing
+          longitudes in spherical polar coordinates. A cyclic axis may
+          be sliced across the join of the first and last elements by
+          using a slice syntax that has a negative "start" position
+          and positive" stop position. See the examples below.
 
         **Performance**
 
         If the shape of the data is unknown then it is calculated
-        immediately by exectuting all delayed operations.
+        immediately by executing all delayed operations defined prior
+        to this subspacing.
 
         . seealso:: `__setitem__`, `__keepdims_indexing__`,
-                    `__orthogonal_indexing__`
+                    `__orthogonal_indexing__`, `cyclic`
 
         :Returns:
 
@@ -876,7 +841,7 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         **Examples**
 
         >>> import numpy
-        >>> d = Data(numpy.arange(100, 190).reshape(1, 10, 9))
+        >>> d = cf.Data(numpy.arange(100, 190).reshape(1, 10, 9))
         >>> d.shape
         (1, 10, 9)
         >>> d[:, :, 1].shape
@@ -889,6 +854,27 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         (1, 2, 2)
         >>> d[0, :, -2].shape
         (1, 10, 1)
+
+        Cyclic slices:
+
+        >>> d = cf.Data([[0, 1, 2, 3, 4, 5]])
+        >>> d[-2:3]
+        Traceback (most recent call last):
+            ...
+        IndexError: Can't take a cyclic slice of a non-cyclic axis
+        >>> d.cyclic(1)
+        set()
+        >>> d.cyclic()
+        {1}
+        >>> e = d[:, -2:3]
+        >>> e.shape
+        (1, 5)
+        >>> print(e.array)
+        [[4 5 0 1 2]]
+        >>> print(d[:, -2:3:2].array)
+        [[4 0 2]]
+        >>> print(d[:, -1:1].array)
+        [[5 0]]
 
         """
         if indices is Ellipsis:
@@ -1037,36 +1023,43 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         Assignment to data array elements defined by indices.
 
         Elements of a data array may be changed by assigning values to
-        a subspace. See `__getitem__` for details on how to define
-        subspace of the data array.
+        a subspace.
 
-        .. note:: Currently at most one dimension's assignment index
-                  may be a 1-d array of integers or booleans. This is
-                  is different to `__getitem__`, which by default
-                  applies 'orthogonal indexing' when multiple indices
-                  of 1-d array of integers or booleans are present.
+        Indexing follows rules that are very similar to the numpy
+        indexing rules, the main differences being:
+
+        * At most one dimension's indices may be a sequence of
+          integers or booleans.
+
+        * Cyclic assignments are possible. An axis is considered to be
+          cyclic if it has been designated so by the `cyclic`
+          method. For such as axis the elements in index positions
+          ``0`` and ``-1`` are physically adjacent to each other, as
+          could be the case, for instance for an axis representing
+          longitudes in spherical polar coordinates. A cyclic axis may
+          be assigned across the join of the first and last elements
+          by using a slice syntax that has a negative "start" position
+          and positive" stop position. See the examples below.
 
         **Missing data**
 
-        The treatment of missing data elements during assignment to a
-        subspace depends on the value of the `hardmask` attribute. If
-        it is True then masked elements will not be unmasked,
+        The treatment of missing data elements during assignment
+        depends on the value of the `hardmask` attribute. If it is
+        True then existing masked elements will not be unmasked,
         otherwise masked elements may be set to any value.
 
-        In either case, unmasked elements may be set, (including
-        missing data).
-
-        Unmasked elements may be set to missing data by assignment to
-        the `cf.masked` constant or by assignment to a value which
-        contains masked elements.
+        Existing unmasked elements may be set to missing data by
+        assignment to the `numpy.ma.masked` or `cf.masked` constants,
+        or by assignment to an array which contains masked elements.
 
         **Performance**
 
         If the shape of the data is unknown then it is calculated
-        immediately by executing all delayed operations.
+        immediately by executing all delayed operations defined prior
+        to this assignment.
 
-        .. seealso:: `__getitem__`, `__orthogonal_indexing__`,
-        `cf.masked`, `hardmask`, `where`
+        .. seealso:: `__getitem__`, `cf.masked`, `cyclic`, `hardmask`,
+                    `where`
 
         **Examples**
 
@@ -1091,12 +1084,12 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
             #           for multiple list/1-d array indices
             #           (cfdm.Data._set_subspace) won't work when the
             #           1-d array is a dask array because it may need
-            #           to be computed at __setitem__ runtime, which
-            #           is not desirable. Until this can be fixed,
-            #           it's easiest to disallow this case, that was
-            #           allowed pre-dask.
+            #           to be computed at __setitem__ definition time,
+            #           which is not desirable. Until this can be
+            #           fixed, it's easiest to disallow this case,
+            #           that was allowed pre-dask.
 
-        # Roll axes with cyclic slices
+        # Roll axes with cyclic slices to enable a cyclic assignment
         if roll:
             # For example, if assigning to slice(-2, 3) has been
             # requested on a cyclic axis (and we're not using numpy
@@ -1116,11 +1109,11 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
         # Make sure that the units of value are the same as self
         value = conform_units(value, self.Units)
 
-        # Do the assignment
-
         # Missing values could be affected, so make sure that the mask
-        # hardness has been applied.
+        # hardness has been applied prior to the assignment.
         dx = self.to_dask_array(apply_mask_hardness=True)
+
+        # Do the assignment
         dx[indices] = value
 
         # Unroll any axes that were rolled to enable a cyclic
@@ -1141,9 +1134,9 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
     @property
     @daskified(_DASKIFIED_VERBOSE)
     def __orthogonal_indexing__(self):
-        """Flag to indicate that orthogonal indexing is supported.
+        """Flag to indicate whether orthogonal indexing is supported.
 
-        Always True, indicating that 'orthogonal indexing' is
+        If set to True (the default) then 'orthogonal indexing' is
         applied. This means that when indices are 1-d arrays or lists
         then they subspace along each dimension independently. This
         behaviour is similar to Fortran, but different to `numpy`.
@@ -1158,6 +1151,8 @@ class Data(Container, cfdm.Data, DataClassDeprecationsMixin):
 
         >>> d = cf.Data([[1, 2, 3],
         ...              [4, 5, 6]])
+        >>> d.__orthogonal_indexing__
+        True
         >>> e = d[[0], [0, 2]]
         >>> e.shape
         (1, 2)
