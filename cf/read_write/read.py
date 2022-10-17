@@ -480,7 +480,7 @@ def read(
                                           without an atmosphere hybrid
                                           height dimension coordinate
                                           construct.
-
+                                        
                                           .. note:: A current
                                              limitation is that if
                                              pseudolevels and
@@ -488,15 +488,18 @@ def read(
                                              coordinates are defined
                                              by same the lookup
                                              headers then the height
-                                             *can't be determined
-                                             automatcally*. In this
+                                             **can't be determined
+                                             automatically**. In this
                                              case the height may be
                                              found after reading as
                                              the maximum value of the
                                              bounds of the domain
                                              ancillary construct
                                              containing the 'a'
-                                             formula term.
+                                             formula term. The file
+                                             can then be re-read with
+                                             this height as a *um*
+                                             parameter.
             ============================  =====================================
 
             If format is specified as ``'PP'`` then the word size and
