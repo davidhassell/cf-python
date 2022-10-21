@@ -280,8 +280,10 @@ class Rec:
         if file:
             self.file = file
 
+            
+            
     @classmethod
-    def from_file_and_offsets(cls, file, hdr_offset, data_offset, disk_length):
+    def from_file_and_offsets(cls, file, hdr_offset, data_offset=None, disk_length=None):
         """Instantiate a `Rec` object from the `File` object and the
         header and data offsets.
 
@@ -313,6 +315,12 @@ class Rec:
             file.fd, hdr_offset, file.byte_ordering, file.word_size
         )
 
+        if data_offset is None:
+            pass
+        
+        if disk_length is None:
+            pass
+            
         return cls(
             int_hdr, real_hdr, hdr_offset, data_offset, disk_length, file=file
         )
