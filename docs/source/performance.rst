@@ -14,6 +14,18 @@ Version |release| for version |version| of the CF conventions.
    :local:
    :backlinks: entry
 
+Dask is a flexible library for parallel computing of arrays in Python
+that offers dynamic task scheduling optimized for computation.
+
+Dask is lazily evaluated, which means that the result from an
+operation, or a stack of operations applied sequentially, isn't
+computed until you ask for it.
+
+This means that cf operations return in near-instantaneous time, but
+using the `!retirving` array to retrieve the computed result of all
+applied operations could take a more significant amount of time,
+depeninding on the nature of the calculations, or if dat needs to be
+read from disk.
 
 **Lazy operations**
 -------------------
