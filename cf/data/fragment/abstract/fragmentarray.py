@@ -15,6 +15,7 @@ class FragmentArray(FileArray):
         self,
         filename=None,
         address=None,
+#            fill_value=None,
         dtype=None,
         shape=None,
         aggregated_units=False,
@@ -76,6 +77,11 @@ class FragmentArray(FileArray):
             except AttributeError:
                 address = None
 
+#            try:
+#                fill_value = source._get_component("fill_value", None)
+#            except AttributeError:
+#                fill_value = None
+
             try:
                 dtype = source._get_component("dtype", None)
             except AttributeError:
@@ -105,7 +111,15 @@ class FragmentArray(FileArray):
             except AttributeError:
                 array = None
 
-        self._set_component("filename", filename, copy=False)
+        if filename is not None:
+            self._set_component("filename", filename, copy=False)
+
+#        if fill_value is not None:
+#            if filename is not None:
+#                raise  ValueError("both can't be set TODOCFADOCS")
+#            
+#            self._set_component("fill_value", fill_value, copy=False)
+            
         self._set_component("address", address, copy=False)
         self._set_component("dtype", dtype, copy=False)
         self._set_component("shape", shape, copy=False)
@@ -362,6 +376,36 @@ class FragmentArray(FileArray):
 
         """
         return self._get_component("array")
+
+#    def get_fill_value(self, default=ValueError()):
+#        """TODOCFADOCS The calendar of the aggregated array.
+#
+#        .. versionadded:: TODOCFAVER
+#
+#        :Parameters:
+#
+#            default: optional
+#                Return the value of the *default* parameter if the
+#                TODOCFADOCS has not been set. If set to an `Exception`
+#                instance then it will be raised instead.
+#
+#        :Returns:
+#            
+#                The fill value.
+#
+#        """
+#        fill_value = self._get_component("fill_value", None)
+#        if fill_value is None:
+#            if default is None:
+#                return
+#
+#            return self._default(
+#                default,
+#                f"{self.__class__.__name__} 'fill_value' has not "
+#                "been set",
+#            )
+#
+#        return fill_value
 
     def get_units(self, default=ValueError()):
         """The units of the netCDF variable.

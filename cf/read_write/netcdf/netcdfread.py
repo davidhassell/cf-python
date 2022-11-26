@@ -5,10 +5,11 @@ import numpy as np
 """
 TODOCFA: remove aggregation_* properties from constructs
 
-TODOCFA: Create auxiliary coordinates from non-standardized terms
+TODOCFA: Create auxiliary coordinates from non-standardized/recognised
+         terms
 
-TODOCFA: Reference instruction variables (and/or set as
-         "do_not_create_field")
+TODOCFA: Reference instruction variables (so that they don't become
+         fields), or adding to "do_not_create_field" set.
 
 TODOCFA: Create auxiliary coordinates from non-standardized terms
 
@@ -556,3 +557,64 @@ class NetCDFRead(cfdm.read_write.netcdf.NetCDFRead):
         array = self.implementation.initialise_CFANetCDFArray(**kwargs)
 
         return array, kwargs
+
+    def _custom_auxiliary_coordinates(self, parent, ncvar):
+        """TODOCFADOCS"""
+        if nor self._is_cfa_variable(ncvar):
+            return
+
+        aggregated_data = self.implementation.del_property(
+            parent, "aggregated_data", None
+        )
+        parsed_aggregated_data = self._parse_x(ncvar, aggregated_data)
+        cfa_compliant = self._check_aggregated_data(
+            ncvar, aggregated_data, parsed_aggregated_data)
+        )
+        if not cfa_compliant:            
+            return
+
+        for x in parse_aggregated_data:            
+            term, ncvar = list(x.items())[0]
+            ncvar = ncvar[0]
+
+            # Skip standardised termss (location, file, address,
+            # format)
+
+            # Turn nonstandardised term (e.g. tracking_id) into
+            # auxiliary coordinates
+
+            # Cna't use self._create_auxiliary_coordinate() for this
+            # because there's no corresponding netCDF variable. Need
+            # to create a construct, add a property (long_name = term,
+            # I guess) and set_data:
+            #
+            # by self._create_Data()
+            
+        from CFAPython import CFAFileFormat
+        from CFAPython.CFADataset import CFADataset
+        from CFAPython.CFAExceptions import CFAException
+        from dask import compute, delayed
+        
+        cfa = CFADataset(filename, CFAFileFormat.CFANetCDF, "r")
+        try:
+            var = cfa.getVar(ncvar)
+        except CFAException:
+            raise ValueError(
+                f"CFA variable {ncvar} not found in file {filename}"
+            )
+
+#        shape = tuple([d.len for d in var.getDims()])
+#        fragment_shape = tuple(var.getFragDef())
+
+        frag_loc = (0,) * len(var.getDims())
+        fragment = var.getFrag(frag_loc=frag_loc)
+
+        filename = fragment.file
+        fmt = fragment.format
+        address = fragment.address
+
+        del cfa
+        
+
+        
+        

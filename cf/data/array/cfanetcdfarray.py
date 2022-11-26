@@ -40,7 +40,8 @@ class CFANetCDFArray(NetCDFArray):
         dtype=None,
         mask=True,
         units=False,
-        calendar=False,
+            calendar=False,
+            fill_value=None,
         instructions=None,
         source=None,
         copy=True,
@@ -126,6 +127,11 @@ class CFANetCDFArray(NetCDFArray):
                 fragment_shape = None
 
             try:
+                fill_value = source.get_fill_value()
+            except AttributeError:
+                fill_value = None
+
+            try:
                 instructions = source._get_component("instructions")
             except AttributeError:
                 instructions = None
@@ -187,6 +193,8 @@ class CFANetCDFArray(NetCDFArray):
         self._set_component("aggregated_data", aggregated_data, copy=False)
         self._set_component("instructions", instructions, copy=False)
 
+        self._set_component("fill_value", fill_value, copy=copy)
+
     def __dask_tokenize__(self):
         """Used by `dask.base.tokenize`.
 
@@ -241,6 +249,16 @@ class CFANetCDFArray(NetCDFArray):
         fmt = fragment.format
         address = fragment.address
 
+        fill_value = self.get_fill_value()
+        if fill_value is not None:                             
+            aggregated_data[frag_loc] = {
+                "format": "fill_value",
+                "location": fragment.location,
+            }
+            return
+
+        This is all confused!!!!!
+        
         if address is not None:
             if filename is None:
                 # This fragment is in the CFA-netCDF file
@@ -249,13 +267,25 @@ class CFANetCDFArray(NetCDFArray):
             else:
                 # This fragment is in its own file
                 filename = abspath(fragment.file)
-
-        aggregated_data[frag_loc] = {
-            "file": filename,
-            "address": address,
-            "format": fmt,
-            "location": fragment.location,
-        }
+                
+            fill_value = self.get_fill_value()
+        elif filename is None:
+            fill_value = np.ma.masked
+        else:            
+            fill_value = self.get_fill_value()
+            
+        if fill_value is None:             
+            aggregated_data[frag_loc] = {
+                "file": filename,
+                "address": address,
+                "format": fmt,
+                "location": fragment.location,
+            }
+        else:                     
+            aggregated_data[frag_loc] = {
+                "format": "fill_value",
+                "location": fragment.location,
+            }
 
     def _subarray_shapes(self, shapes):
         """Create the subarray shapes.
@@ -551,6 +581,18 @@ class CFANetCDFArray(NetCDFArray):
 
         return aggregated_data
 
+    def get_fill_value(self):
+        """Return the data array fill values TODOCFADOCS.
+
+        .. versionadded:: TODOCFAVER
+
+        :Returns:
+
+            TODOCFADOCS
+
+        """
+        return self._get_component("fill_value", None)
+
     def get_FragmentArray(self, fragment_format):
         """Return a Fragment class.
 
@@ -670,20 +712,38 @@ class CFANetCDFArray(NetCDFArray):
         ) in zip(*self._subarrays(chunks)):
             d = aggregated_data[fragment_location]
 
-            FragmentArray = get_FragmentArray(d["format"])
+            fmt = d["format"]
+            FragmentArray = get_FragmentArray(fmt)
 
-            fragment_array = FragmentArray(
-                filename=d["file"],
-                address=d["address"],
-                dtype=dtype,
-                shape=fragment_shape,
-                aggregated_units=units,
-                aggregated_calendar=calendar,
-            )
+            if fmt == "fill_Value":
+                fill_value = self.get_fill_value()
+                if fill_value is np.ma.masked:
+                    value = fill_value
+                else:
+                    value = fill_value[fragment_location]
+                    
+                fragment_array = FragmentArray(
+                    fill_value=value,
+                    dtype=dtype,
+                    shape=fragment_shape,
+                    aggregated_units=units,
+                    aggregated_calendar=calendar,
+                )
+            else:                
+                fragment_array = FragmentArray(
+                    filename=d["file"],
+                    address= d["address"],
+                    dtype=dtype,
+                    shape=fragment_shape,
+                    aggregated_units=units,
+                    aggregated_calendar=calendar,
+                )
 
+            array = tokenize(fragment_array)                
+            dsk[array] = fragment_array
             dsk[name + chunk_location] = (
                 getter,
-                fragment_array,
+                array,
                 f_indices,
                 False,
                 False,
