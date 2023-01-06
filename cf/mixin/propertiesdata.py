@@ -2,9 +2,7 @@ import logging
 from functools import partial as functools_partial
 from itertools import chain
 
-from numpy import array as numpy_array
-from numpy import result_type as numpy_result_type
-from numpy import vectorize as numpy_vectorize
+import numpy as np
 
 from ..cfdatetime import dt
 from ..data import Data
@@ -595,7 +593,7 @@ class PropertiesData(Properties):
         if isinstance(y, self.__class__):
             y = y.data
         elif y is None:
-            y = Data(numpy_array(None, dtype=object))
+            y = Data(np.array(None, dtype=object))
 
         if not inplace:
             new = self.copy()  # data=False) TODO
@@ -1360,7 +1358,7 @@ class PropertiesData(Properties):
     @add_offset.setter
     def add_offset(self, value):
         self.set_property("add_offset", value)
-        self.dtype = numpy_result_type(self.dtype, numpy_array(value).dtype)
+        self.dtype = np.result_type(self.dtype, np.array(value).dtype)
 
     @add_offset.deleter
     def add_offset(self):
@@ -3275,10 +3273,11 @@ class PropertiesData(Properties):
                 )
                 v.Units = units0
 
+                #dch
         # Not LAMAed!
         v.set_data(
             Data(
-                numpy_vectorize(
+                np.vectorize(
                     functools_partial(
                         _convert_reftime_units,
                         units=units0._units_since_reftime,

@@ -3,9 +3,8 @@ from collections import namedtuple
 from operator import itemgetter
 
 from cfdm import is_log_level_debug, is_log_level_detail, is_log_level_info
-from numpy import argsort as numpy_argsort
-from numpy import dtype as numpy_dtype
-from numpy import sort as numpy_sort
+
+import numpy as np
 
 from .auxiliarycoordinate import AuxiliaryCoordinate
 from .data.data import Data
@@ -26,7 +25,7 @@ from .units import Units
 logger = logging.getLogger(__name__)
 
 
-_dtype_float = numpy_dtype(float)
+_dtype_float = np.dtype(float)
 
 # # --------------------------------------------------------------------
 # # Global properties, as defined in Appendix A of the CF conventions.
@@ -2145,7 +2144,7 @@ def _create_hash_and_first_values(
                 # ... or which doesn't have a dimension coordinate but
                 # does have one or more 1-d auxiliary coordinates
                 aux = m_axis_identity["keys"][0]
-                sort_indices = numpy_argsort(field.constructs[aux].array)
+                sort_indices = np.argsort(field.constructs[aux].array)
                 m_sort_keys[axis] = aux
                 null_sort = False
 
@@ -2588,8 +2587,8 @@ def _get_hfl(
 
         if create_flb:
             # Record the bounds of the first and last (sorted) cells
-            first = numpy_sort(array[0, ...])
-            last = numpy_sort(array[-1, ...])
+            first = np.sort(array[0, ...])
+            last = np.sort(array[-1, ...])
             hfl_cache.flb[key] = (first, last)
 
     if first_and_last_values or first_and_last_bounds:
