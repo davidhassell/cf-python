@@ -103,19 +103,18 @@ details.
 ---------
 
 To install cf with all of its :ref:`required <Required>` and
-:ref:`optional <Optional>` dependencies, and the `cf-plot
-visualisation package <http://ajheaps.github.io/cf-plot>`_, run
+:ref:`optional <Optional>` dependencies:
 
 .. code-block:: console
    :caption: *Install with conda.*
 
-   $ conda install -c conda-forge cf-python cf-plot udunits2
-   $ conda install -c conda-forge mpich esmpy
+   $ conda install -c conda-forge cf-python udunits2
+   $ conda install -c conda-forge cf-plot  # Optional: For visualisation
+   $ conda install -c conda-forge mpich esmpy=8.2.0  # Optional: For regridding
 
-The second of the two ``conda`` commands is required for
-:ref:`regridding <Regridding>` to work. (Note, however, that the
-installation of ``esmpy`` does not work for Anaconda version
-``2019.10``.)
+The second and third ``conda`` commands are optional, but are required
+respectively for :ref:`visualisation <Visualisation>` and
+:ref:`regridding <Regridding>` to work.
 
 Note that :ref:`some environment variables might also need setting
 <UNIDATA-UDUNITS-2-library>` in order for the Udunits library to work
@@ -201,7 +200,7 @@ Required
 * `netCDF4 <https://pypi.org/project/netcdf4/>`_, 1.5.4 or newer.
 
 * `cftime <https://pypi.org/project/cftime/>`_, version 1.6.0 or newer
-  (note that this package may be installed with netCDF4).
+  (this package is installed with netCDF4).
 
 * `cfdm <https://pypi.org/project/cfdm/>`_, version 1.10.0.0 or up to,
   but not including, 1.10.1.0.
@@ -243,14 +242,23 @@ Some further dependencies that enable further functionality are
 optional. This to facilitate cf-python being installed in restricted
 environments for which these features are not required.
 
-.. rubric:: Regridding
+.. rubric:: Visualisation
 
-* `ESMF <https://earthsystemmodeling.org/esmpy/>`_, version
-  8.0.0 or newer. This is easily installed via conda with
+* `cf-plot <https://ajheaps.github.io/cf-plot>`_, version 3.1.30 or
+  newer. This is easily installed via conda with
 
   .. code-block:: console
 
-     $ conda install -c conda-forge mpich esmpy
+     $ conda install -c conda-forge cf-plot
+
+.. rubric:: Regridding
+
+* `ESMF <https://earthsystemmodeling.org/esmpy/>`_, version
+  8.0.0 or up to 8.2.0. This is easily installed via conda with
+
+  .. code-block:: console
+
+     $ conda install -c conda-forge mpich esmpy=8.2.0
 
   or may be installed from source.
 

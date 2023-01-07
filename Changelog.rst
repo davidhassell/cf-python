@@ -17,6 +17,7 @@ version 3.14.0
   `DimensionCoordinate.create_bounds`
   (https://github.com/NCAS-CMS/cf-python/issues/514)
 * Changed dependency: ``1.10.0.1<=cfdm<1.10.1.0``
+* Changed optional dependency: ``8.0.0<=ESMF<=8.2.0``
 * New dependency: ``dask>=2022.6.0``
 
 ----

@@ -535,10 +535,12 @@ files <External-variables-with-cfa>`.
 
 ----
 
-**Visualization**
+.. _Visualisation:
+
+**Visualisation**
 -----------------
 
-Powerful, flexible, and very simple to produce visualizations of field
+Powerful, flexible, and very simple to produce visualisations of field
 constructs are available with the `cfplot` package (that needs to be
 installed separately to cf, see http://ajheaps.github.io/cf-plot for
 details).
