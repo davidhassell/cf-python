@@ -3643,6 +3643,29 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
             )
             data0.cyclic(axes=axis, iscyclic=False)
 
+        # Preserve cached elements from the concatenated Data
+        # instances
+        cached_elements = {}
+        d = processed_data[0]
+        try:
+            cached_elements['first_element'] = d._custom["first_element"]
+        except KeyError:
+            pass
+        
+        try:
+            cached_elements['second_element'] = d._custom["second_element"]
+        except KeyError:
+            pass
+
+        d = processed_data[-1]
+        try:
+            cached_elements['last_element'] = d._custom["last_element"]
+        except KeyError:
+            pass
+
+        if cached_elements:
+            data0._set_cached_elements(cached_elements)
+           
         return data0
 
     def _unary_operation(self, operation):

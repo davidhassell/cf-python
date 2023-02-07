@@ -1173,6 +1173,16 @@ class DataTest(unittest.TestCase):
         self.assertEqual(f.shape, f_np.shape)
         self.assertTrue((f.array == f_np).all())
 
+        # Test preservation of cached elements
+        d = cf.Data([[1, 2, 3]])
+        e = cf.Data([[4, 5, 6]])
+        repr(d)  # Generate cached elements
+        repr(e)  # Generate cached elements
+        f = cf.Data.concatenate([d, e], axis=0)
+        self.assertEqual(f._custom['first_element'], 1)
+        self.assertEqual(f._custom['second_element'], 2)
+        self.assertEqual(f._custom['last_element'], 6)
+        
     def test_Data__contains__(self):
         """Test containment checking against Data."""
         d = cf.Data([[0, 1, 2], [3, 4, 5]], units="m", chunks=2)
