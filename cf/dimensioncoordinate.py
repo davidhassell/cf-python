@@ -630,6 +630,9 @@ class DimensionCoordinate(
 
                 for c, b in zip(self.datetime_array, bounds):
                     b[...] = cellsize_bounds(c, direction=direction)
+
+                if flt:
+                    bounds = Data(bounds, units=self.Units) - cellsize * flt
         else:
             if bound is None:
                 # ----------------------------------------------------

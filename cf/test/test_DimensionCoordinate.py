@@ -589,13 +589,26 @@ class DimensionCoordinateTest(unittest.TestCase):
         self.assertTrue((b.array == np.array([[-27, 4], [4, 35]])).all())
 
         # Cell bounds defined by calendar years:
-
         d = cf.DimensionCoordinate(
             data=cf.Data(["1984-06-01", "1985-06-01"], dt=True)
         )
         b = d.create_bounds(cellsize=cf.Y(month=12))
         self.assertTrue((b.array == np.array([[-183, 183], [183, 548]])).all())
 
+        # Timeduration cellsize and flt:
+        d = cf.DimensionCoordinate(data=cf.Data([0.5, 1, 1.5], units='day since 2000-1-1'))
+        cellsize = cf.h(6)
+        b = d.create_bounds(cellsize=cellsize, flt=0)
+        b = d.create_bounds(cellsize=cellsize, flt=0.25)
+        b = d.create_bounds(cellsize=cellsize, flt=0.5)
+        b = d.create_bounds(cellsize=cellsize, flt=0.75)
+        b = d.create_bounds(cellsize=cellsize, flt=1)
+        
+
+        
+
+
+        
     def test_DimensiconCoordinate_persist(self):
         """Test the `persist` DimensionCoordinate method."""
         d = cf.DimensionCoordinate()
