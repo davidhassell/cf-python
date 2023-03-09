@@ -4781,10 +4781,12 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
             d = self
 
         dx = d.to_dask_array()
+
         dx = convert_to_datetime(dx, d.Units)
+        print (8882)
 
         a = dx.compute()
-
+        print (8883)
         if np.ma.isMA(a):
             if self.hardmask:
                 a.harden_mask()
@@ -10919,7 +10921,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
             # a named keyword of da.full
             dtype = getattr(fill_value, "dtype", None)
             if dtype is None:
-                dtype = np.array(fill_value).dtype
+                dtype = np.array(fill_value).dtype                
 
         dx = da.full(shape, fill_value, dtype=dtype, chunks=chunks)
         return cls(dx, units=units, calendar=calendar)

@@ -444,6 +444,7 @@ def rt2dt(array, units_in, units_out=None, dummy1=None):
      cftime.DatetimeGregorian(2001, 11, 16, 12, 0, 0, 0, has_year_zero=False)]
 
     """
+    print (111)
     ndim = np.ndim(array)
     if not ndim and np.ma.is_masked(array):
         # num2date has issues with scalar masked arrays with a True
@@ -452,11 +453,23 @@ def rt2dt(array, units_in, units_out=None, dummy1=None):
 
     units = units_in.units
     calendar = getattr(units_in, "calendar", "standard")
+    print (1112, repr(array[0:2]))
 
+
+    if np.ma.isMA(array):
+        mask = array.mask
+        array = array.data
+    else:
+        mask = None
+    
     array = cftime.num2date(
         array, units, calendar, only_use_cftime_datetimes=True
     )
 
+    if mask is not None:
+        array = np.ma.array(array, mask=mask)
+    print (1113)
+ 
     if not isinstance(array, np.ndarray):
         array = np.array(array, dtype=object)
 
