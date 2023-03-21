@@ -14192,6 +14192,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         use_dst_mask=False,
         fracfield=False,
         axis_order=None,
+        src_axes=None,
+        dst_axes=None,
         ignore_degenerate=True,
         return_operator=False,
         check_coordinates=False,
@@ -14301,14 +14303,16 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 .. versionadded:: 3.14.0
 
-            axes: optional
+            axes: `sequence`, optional
                 Define the axes to be regridded for the source grid
-                and, if *dst* is a `Field` or `Domain`, the
+                and, if *dst* is a `Field` or a `Domain`, the
                 destination grid. The *axes* parameter is a
                 convenience that may be used to replace *src_axes* and
                 *dst_axes* when they would contain identical
                 sequences. It may also be used in place of *src_axes*
-                if *dst_axes* is not required.
+                if *dst_axes* is not required, i.e. if *dst* is a
+                `RegridOperator` or a sequence of
+                `DimensionCoordinate`.
 
             {{ignore_degenerate: `bool`, optional}}
 
@@ -14407,6 +14411,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             use_src_mask=use_src_mask,
             use_dst_mask=use_dst_mask,
             axes=axes,
+            src_axes=src_axes,
+            dst_axes=dst_axes,
             ignore_degenerate=ignore_degenerate,
             return_operator=return_operator,
             check_coordinates=check_coordinates,

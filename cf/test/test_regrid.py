@@ -697,6 +697,29 @@ class RegridTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 src.regridc(dst, method=method, axes=axes)
 
+    @unittest.skipUnless(ESMF_imported, "Requires ESMF package.")
+    def test_Field_regridc_axes(self):
+        """Cartesian axes parameters."""
+
+        dst = self.dst
+        src = self.src
+        axes = ["Y"]
+
+        x = src.regridc(dst, method="linear", axes=axes)
+        y = src.regridc(dst, method="linear", src_axes=axes, dst_axes=axes)
+        self.assertTrue(x.equals(y))
+
+        with self.assertRaises(ValueError):
+            src.regridc(dst, method="linear")
+
+        with self.assertRaises(ValueError):
+            src.regridc(dst, method="linear", dst_axes=axes)
+
+        with self.assertRaises(ValueError):
+            src.regridc(
+                dst, method="linear", src_axes=axes, dst_axes=["Y", "X"]
+            )
+
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())

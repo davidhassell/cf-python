@@ -270,28 +270,28 @@ def regrid(
     elif not create_regrid_operator:
         n_axes = len(dst_axes)
     elif coord_sys == "Cartesian":
-        if isinstance(axes, str):
-            axes = (axes,)
+        if axes is None:
+            if src_axes is None:
+                raise ValueError(
+                    "Must set the 'src_axes' parameter if the 'axes' "
+                    "parameter is unset"
+                )
 
-        n_axes = len(axes)
+            n_axes = len(src_axes)
+        else:
+            if src_axes is not None:
+                raise ValueError(
+                    "Can't set both the 'axes' and 'src_axes' parameters"
+                )
 
-        if src_axes is None:
+            if dst_axes is not None:
+                raise ValueError(
+                    "Can't set both the 'axes' and 'dst_axes' parameters"
+                )
+
             src_axes = axes
-        elif axes is not None:
-            raise ValueError(
-                "Can't set both the 'axes' and 'src_axes' parameters"
-            )
-        elif isinstance(src_axes, str):
-            src_axes = (src_axes,)
-
-        if dst_axes is None:
             dst_axes = axes
-        elif axes is not None:
-            raise ValueError(
-                "Can't set both the 'axes' and 'dst_axes' parameters"
-            )
-        elif isinstance(dst_axes, str):
-            dst_axes = (dst_axes,)
+            n_axes = len(axes)
 
     if n_axes != 2 and method in ("conservative_2nd", "patch"):
         raise ValueError(
@@ -352,6 +352,13 @@ def regrid(
     src_grid = get_grid(
         coord_sys, src, "source", method, src_cyclic, axes=src_axes
     )
+
+    if len(src_grid.axes) != len(dst_grid.axes):
+        raise ValueError(
+            "The number of source grid regridding axes must equals that "
+            "of the destination grid: "
+            f"{len(src_grid.axes)} != {len(dst_grid.axes)}"
+        )
 
     conform_coordinate_units(src_grid, dst_grid)
 
@@ -531,13 +538,13 @@ def spherical_coords_to_domain(
             the destination grid.
 
         dst_axes: `dict` or `None`
-            When *d* contains 2-d latitude and longitude coordinates
+            When *dst* contains 2-d latitude and longitude coordinates
             then the X and Y dimensions must be identified with the
             *dst_axes* dictionary, with keys ``'X'`` and ``'Y'``. The
             dictionary values identify a unique domain axis by its
             position in the 2-d coordinates' data arrays, i.e. the
-            dictionary values must be ``0`` and ``1``. Ignored if *d*
-            contains 1-d coordinates.
+            dictionary values must be ``0`` and ``1``. Ignored if
+            *dst* contains 1-d coordinates.
 
         cyclic: `bool` or `None`
             Specifies whether or not the destination grid longitude
