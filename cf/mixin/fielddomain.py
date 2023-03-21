@@ -2588,6 +2588,83 @@ class FieldDomain:
         return self.coordinate_references(*identities, **filter_kwargs)
 
 
+    def latitude_longitude_2d_coordinates(self):
+        """TODO
+
+        :Returns:
+
+            `{{class}}` or `None`
+                TODO
+
+        """
+        for ref in self.coordinate_references(todict=True).values():
+            if ref.identity() == "grid_mapping_name:rotated_latitude_longitude":
+                break
+
+            ref = None
+            
+        if ref is None:
+            raise ValueError("TODO")
+
+        cc = ref.coordinate_conversion
+        pi_over_180 = np.pi / 180.0
+        
+        # Make sure rotated_lon and pole_lon is in [0, 360)
+        pole_lat = cc.grid_north_pole_latitude
+        pole_lon = cc.grid_north_pole_longitude % 360.0
+
+        # Convert everything to radians
+        pole_lon *= pi_over_180
+        pole_lat *= pi_over_180
+
+        cos_pole_lat = np.cos(pole_lat)
+        sin_pole_lat = np.sin(pole_lat)
+
+        # Create appropriate copies of the input rotated arrays
+        rot_lon = rotated_lon.copy()
+        rot_lat = rotated_lat.view()
+
+        # Make sure rotated longitudes are between -180 and 180
+        rot_lon %= 360.0
+        rot_lon = np.where(rot_lon < 180.0, rot_lon, rot_lon - 360)
+
+        # Create 2-d arrays of rotated latitudes and longitudes in radians
+        nlat = rot_lat.size
+        nlon = rot_lon.size
+        rot_lon = np.resize(np.deg2rad(rot_lon), (nlat, nlon))
+        rot_lat = np.resize(np.deg2rad(rot_lat), (nlon, nlat))
+        rot_lat = np.transpose(rot_lat, axes=(1, 0))
+
+        # Find unrotated latitudes
+        CPART = np.cos(rot_lon) * np.cos(rot_lat)
+        sin_rot_lat = np.sin(rot_lat)
+        x = cos_pole_lat * CPART + sin_pole_lat * sin_rot_lat
+        x = np.clip(x, -1.0, 1.0)
+        unrotated_lat = np.arcsin(x)
+
+        # Find unrotated longitudes
+        x = -cos_pole_lat * sin_rot_lat + sin_pole_lat * CPART
+        x /= np.cos(unrotated_lat)
+        # dch /0 or overflow here? surely lat could be ~+-pi/2? if so,
+        # does x ~ cos(lat)?
+        x = np.clip(x, -1.0, 1.0)
+        unrotated_lon = -np.arccos(x)
+
+        unrotated_lon = np.where(rot_lon > 0.0, -unrotated_lon, unrotated_lon)
+        if pole_lon >= self.atol:
+            SOCK = pole_lon - np.pi
+        else:
+            SOCK = 0
+        unrotated_lon += SOCK
+
+        # Convert unrotated latitudes and longitudes to degrees
+        unrotated_lat = np.rad2deg(unrotated_lat)
+        unrotated_lon = np.rad2deg(unrotated_lon)
+
+        # Return unrotated latitudes and longitudes
+        return (unrotated_lat, unrotated_lon)
+
+
 def _create_ancillary_mask_component(mask_shape, ind, compress):
     """Create an ancillary mask component.
 
@@ -2651,3 +2728,4 @@ def _create_ancillary_mask_component(mask_shape, ind, compress):
             mask = mask.take(index, axis=i)
 
     return Data(mask)
+
