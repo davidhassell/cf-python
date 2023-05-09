@@ -488,9 +488,14 @@ _docstring_substitution_definitions = {
                 array's dask graph before concatenation. This process
                 has a small overhead but can improve performance
                 overall. If set to False then dask graphs are not
-                culled. See `dask.optimization.cull` for details.
-
-                .. versionadded:: 3.14.0""",
+                culled. See `dask.optimization.cull` for details.""",
+    # relaxed_units
+    "{{relaxed_units: `bool`, optional}}": """relaxed_units: `bool`, optional
+                If True then allow the concatenation of data with
+                invalid but otherwise equal units. By default, if any
+                data array has invalid units then the concatenation
+                will fail. A `Units` object is considered to be
+                invalid if its `!isvalid` attribute is `False`.""",
     # cfa substitutions
     "{{cfa substitutions: `dict`}}": """substitutions: `dict`
                 The substitution definitions in a dictionary whose

@@ -4214,7 +4214,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         return axis in self.cyclic()
 
     @classmethod
-    def concatenate(cls, fields, axis=0, cull_graph=True):
+    def concatenate(cls, fields, axis=0, cull_graph=True, relaxed_units=False):
         """Join a sequence of fields together.
 
         This is different to `cf.aggregate` because it does not account
@@ -4238,6 +4238,12 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             {{cull_graph: `bool`, optional}}
 
+                .. versionadded:: 3.14.0
+
+            {{relaxed_units: `bool`, optional}}
+
+                .. versionadded:: 3.14.1
+
         :Returns:
 
             `Field`
@@ -4258,6 +4264,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             [f.get_data(_fill_value=False) for f in fields],
             axis=axis,
             cull_graph=cull_graph,
+            relaxed_units=relaxed_units,
         )
 
         # Change the domain axis size
@@ -4303,6 +4310,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     constructs,
                     axis=construct_axes.index(dim),
                     cull_graph=cull_graph,
+                    relaxed_units=relaxed_units,
                 )
             except ValueError:
                 # Couldn't concatenate this construct, so remove it from

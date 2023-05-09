@@ -1453,7 +1453,9 @@ class PropertiesDataBounds(PropertiesData):
         )  # pragma: no cover
 
     @classmethod
-    def concatenate(cls, variables, axis=0, cull_graph=True):
+    def concatenate(
+        cls, variables, axis=0, cull_graph=True, relaxed_units=False
+    ):
         """Join a sequence of variables together.
 
         .. seealso:: `Data.cull_graph`
@@ -1466,6 +1468,12 @@ class PropertiesDataBounds(PropertiesData):
 
             {{cull_graph: `bool`, optional}}
 
+                .. versionadded:: 3.14.0
+
+            {{relaxed_units: `bool`, optional}}
+
+                .. versionadded:: 3.15.1
+
         :Returns:
 
             TODO
@@ -1476,7 +1484,12 @@ class PropertiesDataBounds(PropertiesData):
         if len(variables) == 1:
             return variable0.copy()
 
-        out = super().concatenate(variables, axis=axis, cull_graph=cull_graph)
+        out = super().concatenate(
+            variables,
+            axis=axis,
+            cull_graph=cull_graph,
+            relaxed_units=relaxed_units,
+        )
 
         bounds = variable0.get_bounds(None)
         if bounds is not None:
@@ -1484,6 +1497,7 @@ class PropertiesDataBounds(PropertiesData):
                 [v.get_bounds() for v in variables],
                 axis=axis,
                 cull_graph=cull_graph,
+                relaxed_units=relaxed_units,
             )
             out.set_bounds(bounds, copy=False)
 
@@ -1493,6 +1507,7 @@ class PropertiesDataBounds(PropertiesData):
                 [v.get_interior_ring() for v in variables],
                 axis=axis,
                 cull_graph=cull_graph,
+                relaxed_units=relaxed_units,
             )
             out.set_interior_ring(interior_ring, copy=False)
 

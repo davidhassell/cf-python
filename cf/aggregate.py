@@ -2167,8 +2167,19 @@ def aggregate(
                 # ----------------------------------------------------
                 # Still here? Then pass through the fields
                 # ----------------------------------------------------
-                m0 = m[0].copy()
 
+                # Initialise the dictionary that will contain the data
+                # arrays that will need concatenating
+                data_concatenation = {
+                    "field": {},
+                    "dimension_coordinate": {},
+                    "auxiliary_coordinate": {},
+                    "cell_measure": {},
+                    "domain_ancillary": {},
+                    "field_ancillary": {},
+                }
+
+                m0 = m[0].copy()
                 for m1 in m[1:]:
                     m0 = _aggregate_2_fields(
                         m0,
@@ -2177,6 +2188,7 @@ def aggregate(
                         atol=atol,
                         verbose=verbose,
                         concatenate=concatenate,
+                        data_concatenation=data_concatenation,
                         relaxed_units=relaxed_units,
                         copy=(copy or not exclude),
                     )
@@ -2200,6 +2212,35 @@ def aggregate(
 
             if unaggregatable:
                 break
+
+            # Concatenate all data along the aggregation axis
+            field = m0.field
+            #            import pprint
+            #            pprint.pprint(data_concatenation)
+            field_arrays = data_concatenation.pop("field")
+            if field_arrays:
+                # Concatenate the field data
+                iaxis, arrays = field_arrays.popitem()
+                data = Data.concatenate(
+                    arrays, iaxis, relaxed_units=relaxed_units
+                )
+                field.set_data(data, set_axes=False, copy=False)
+
+            #            print (field.constructs)
+            #            pprint.pprint (concat)
+
+            # Concatenate the metadata construct data
+            for construct_type, value in data_concatenation.items():
+                #                print(construct_type, value)
+                for (key, iaxis), constructs in value.items():
+                    #                    print (key, iaxis, axis_key)
+                    c = constructs[0].concatenate(
+                        constructs, iaxis, relaxed_units=relaxed_units
+                    )
+                    #                    print (repr(c))
+                    field.set_construct(
+                        c, axes=field.get_data_axes(key), key=key, copy=False
+                    )
 
             # --------------------------------------------------------
             # Still here? Then the aggregation along this axis was
@@ -3083,6 +3124,7 @@ def _aggregate_2_fields(
     atol=None,
     verbose=None,
     concatenate=True,
+    data_concatenation=None,
     relaxed_units=False,
     copy=True,
 ):
@@ -3263,48 +3305,20 @@ def _aggregate_2_fields(
         construct1.transpose(iaxes, inplace=True)
 
         # Find the position of the concatenating axis
-        # axis = axes0.index(adim0)
         axis = construct_axes0.index(adim0)
 
+        construct_type = construct0.construct_type
+        key = (key0, axis)
         if direction0:
             # The fields are increasing along the aggregating axis
-            data = Data.concatenate(
-                (construct0.get_data(), construct1.get_data()),
-                axis,
-                relaxed_units=relaxed_units,
-            )
-            construct0.set_data(data, copy=False)
-            if construct0.has_bounds():
-                data = Data.concatenate(
-                    (
-                        construct0.bounds.get_data(_fill_value=False),
-                        construct1.bounds.get_data(_fill_value=False),
-                    ),
-                    axis,
-                    relaxed_units=relaxed_units,
-                )
-                construct0.bounds.set_data(data, copy=False)
+            data_concatenation[construct_type].setdefault(
+                key, [construct0]
+            ).append(construct1)
         else:
             # The fields are decreasing along the aggregating axis
-            data = Data.concatenate(
-                (
-                    construct1.get_data(_fill_value=False),
-                    construct0.get_data(_fill_value=False),
-                ),
-                axis,
-                relaxed_units=relaxed_units,
-            )
-            construct0.set_data(data)
-            if construct0.has_bounds():
-                data = Data.concatenate(
-                    (
-                        construct1.bounds.get_data(_fill_value=False),
-                        construct0.bounds.get_data(_fill_value=False),
-                    ),
-                    axis,
-                    relaxed_units=relaxed_units,
-                )
-                construct0.bounds.set_data(data)
+            data_concatenation[construct_type].setdefault(
+                key, [construct1]
+            ).append(construct0)
 
     # ----------------------------------------------------------------
     # Update the size of the aggregating axis in the output parent
@@ -3350,27 +3364,21 @@ def _aggregate_2_fields(
         if transpose_axes1 != data_axes1:
             parent1.transpose(transpose_axes1, inplace=True)
 
+        construct_type = parent0.construct_type
         if direction0:
             # The fields are increasing along the aggregating axis
-            data = Data.concatenate(
-                (parent0.get_data(), parent1.get_data()),
-                axis,
-                relaxed_units=relaxed_units,
-            )
+            data_concatenation[construct_type].setdefault(
+                axis, [parent0.get_data()]
+            ).append(parent1.get_data())
         else:
             # The fields are decreasing along the aggregating axis
-            data = Data.concatenate(
-                (parent1.get_data(), parent0.get_data()),
-                axis,
-                relaxed_units=relaxed_units,
-            )
+            data_concatenation[construct_type].setdefault(
+                axis, [parent1.get_data()]
+            ).append(parent0.get_data())
 
         # Update the size of the aggregating axis in parent0
         domain_axis = parent0.constructs[adim0]
         domain_axis += parent1.constructs[adim1].get_size()
-
-        # Insert the concatentated data into the field
-        parent0.set_data(data, set_axes=False, copy=False)
     else:
         domain_axis = parent0.constructs[adim0]
         domain_axis += parent1.constructs[adim1].get_size()

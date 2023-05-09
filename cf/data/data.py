@@ -3767,24 +3767,9 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
             {{cull_graph: `bool`, optional}}
 
-            relaxed_units: `bool`, optional
-                If True then allow the concatenation of data arrays
-                with invalid but otherwise equal units. By default, if
-                any data array has invalid units then the
-                concatenation will fail.
+                .. versionadded:: 3.14.0
 
-                A `Units` object is considered to be invalid if its
-                `!isvalid` attribute is `False`:
-
-                >>> d = cf.Data(9, 'metre')
-                >>> d.Units.isvalid
-                True
-                >>> d = cf.Data(9)
-                >>> d.Units.isvalid
-                True
-                >>> d = cf.Data(9, 'bad-units')
-                >>> d.Units.isvalid
-                False
+            {{relaxed_units: `bool`, optional}}
 
                 .. versionadded:: 3.14.1
 
