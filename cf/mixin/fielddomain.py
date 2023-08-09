@@ -366,7 +366,9 @@ class FieldDomain:
                         f"  identity     = {identity!r}"
                     )  # pragma: no cover
 
-                if isinstance(value, (list, slice, tuple, np.ndarray)):
+                if isinstance(
+                    value, (list, slice, tuple, np.ndarray, da.Array)
+                ):
                     # 1-d CASE 1: Value is already an index, e.g. [0],
                     #             [7,4,2], slice(0,4,2),
                     #             numpy.array([2,4,7]), [True, False,

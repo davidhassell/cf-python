@@ -952,7 +952,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         for mask in ancillary_mask:
             new.where(mask, cf_masked, None, inplace=True)
 
-        if new.shape != self.shape:
+        if new.nc_hdf5_chunksizes() and new.shape != self.shape:
             # Delete hdf5 chunksizes when the shape has changed.
             new.nc_clear_hdf5_chunksizes()
 

@@ -9486,7 +9486,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                                     axis_in
                                 )
                                 raise ValueError(
-                                    f"Can't collapse: No coordinates for "
+                                    f"Can't group: No coordinates for "
                                     f"{axis_id!r} axis with group={group!r} "
                                     f"and group_span={group_span!r}"
                                 )
@@ -9494,7 +9494,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                             bounds = coord.get_bounds(None)
                             if bounds is None:
                                 raise ValueError(
-                                    f"Can't collapse: No bounds on {coord!r} "
+                                    f"Can't group: No bounds on {coord!r} "
                                     f"with group={group!r} and "
                                     f"group_span={group_span!r}"
                                 )
@@ -12638,6 +12638,79 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         Y.del_property("standard_name", None)
 
         return FieldList((X, Y))
+
+    def group(
+        self,
+        identity,
+        group=None,
+        group_span=None,
+        group_contiguous=1,
+        concatenate=False,
+    ):
+        """TODOGROUP
+
+        :Parameters:
+
+            identity:
+
+            {{group: optional}}
+
+            {{group_span: optional}}
+
+            {{group_contiguous: optional}}
+
+            concatenate: `bool`, optional
+
+        :Returns:
+
+        """
+        if group is None:
+            return self.copy()
+
+        key = self.construct(
+            identity,
+            filter_by_data=True,
+            filter_by_naxes=(1,),
+            key=True,
+            default=None,
+        )
+        if key is not None:
+            axes = self.get_data_axes(key)
+            da_key = self.domain_axis(axes[0], key=True)
+        else:
+            da_key = self.domain_axis(identity, key=True, default=None)
+            if da_key is None:
+                raise ValueError(
+                    f"Can't find indices. Ambiguous axis or axes "
+                    f"defined by {identity!r}"
+                )
+
+        classification = self.collapse(
+            method="maximum",  # Arbitrary method
+            axes=key,
+            group=group,
+            group_span=group_span,
+            group_contiguous=group_contiguous,
+            regroup=True,
+        )
+
+        if concatenate:
+            index = np.where(
+                classification >= 0, np.arange(classification.size), -1
+            )
+            index = index[index >= 0]
+            return self.subspace(**{da_key: index})
+
+        unique = np.unique(classification)
+        unique = unique[np.where(unique >= 0)[0]]
+        unique.sort()
+
+        fl = []
+        for u in unique:
+            index = np.where(classification == u)[0]
+            fl.append(self.subspace(**{da_key: index}))
+
+        return FieldList(fl)
 
     @_inplace_enabled(default=False)
     @_manage_log_level_via_verbosity
