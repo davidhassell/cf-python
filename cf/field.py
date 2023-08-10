@@ -6185,13 +6185,14 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         inplace=False,
         group=None,
         regroup=False,
+        return_classification=False,
         within_days=None,
         within_years=None,
         over_days=None,
         over_years=None,
         coordinate=None,
         group_by=None,
-        group_span=None,
+        group_span=True,
         group_contiguous=1,
         measure=False,
         scale=1,
@@ -6919,63 +6920,84 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 groups. Elements that are not selected by the *group*
                 parameter are excluded from the result.
 
-                The *group* parameter defines how the axis elements are
-                partitioned into groups, and may be one of:
+                The treatment of incomplete groups is handled by the
+                *group_span* and group_contiguous* parameters.
 
-                ===============  =========================================
+                The *group* parameter defines how the axis elements are
+                partitioned into groups. In all cases, and may be one of:
+
+                ===============  =====================================
                 *group*          Description
-                ===============  =========================================
-                `Data`           Define groups by coordinate values that
-                                 span the given range. The first group
-                                 starts at the first coordinate bound of
-                                 the first axis element (or its coordinate
-                                 if there are no bounds) and spans the
-                                 defined group size. Each subsequent
-                                 group immediately follows the preceding
-                                 one. By default each group contains the
-                                 consecutive run of elements whose
-                                 coordinate values lie within the group
-                                 limits (see the *group_by* parameter).
+                ===============  =====================================
+        
+                `None`---------- This is the default. A single group
+                                 is defined from all axis elements.
+
+                `Data`---------- Define groups by axis coordinate
+                                 values that span the given range. The
+                                 first group starts at the first
+                                 coordinate bound of the first axis
+                                 element (or its coordinate if there
+                                 are no bounds) and spans the
+                                 maximally consecutive run of elements
+                                 that span up to the group size. Each
+                                 subsequent group immediately follows
+                                 the preceding one. By default each
+                                 group contains the consecutive run of
+                                 elements whose coordinate values lie
+                                 within the group limits (see the
+                                 *group_by* parameter).
 
                                  * By default each element will be in
-                                   exactly one group (see the *group_by*,
-                                   *group_span* and *group_contiguous*
-                                   parameters).
+                                   exactly one group (see the
+                                   *group_by*, *group_span* and
+                                   *group_contiguous* parameters).
 
-                                 * By default groups may contain different
-                                   numbers of elements.
+                                 * By default groups may contain
+                                   different numbers of elements.
 
                                  * If no units are specified then the
-                                   units of the coordinates are assumed.
+                                   units of the coordinates are
+                                   assumed.
 
-                `TimeDuration`   Define groups by a time interval spanned
-                                 by the coordinates. The first group
-                                 starts at or before the first coordinate
-                                 bound of the first axis element (or its
-                                 coordinate if there are no bounds) and
-                                 spans the defined group size. Each
-                                 subsequent group immediately follows the
-                                 preceding one. By default each group
-                                 contains the consecutive run of elements
-                                 whose coordinate values lie within the
-                                 group limits (see the *group_by*
-                                 parameter).
+                `Query`          Define groups from elements whose
+                                 coordinates satisfy the query
+                                 condition. Multiple groups are created:
+                                 one for each maximally consecutive run
+                                 within the selected elements.
+
+                `TimeDuration`-- Define groups by a time interval
+                                 spanned by the coordinates. The first
+                                 group starts at or before the first
+                                 coordinate bound of the first axis
+                                 element (or its coordinate if there
+                                 are no bounds) and spans the
+                                 maximally consecutive run of elements
+                                 that span up to the group size. Each
+                                 subsequent group immediately follows
+                                 the preceding one. By default each
+                                 group contains the consecutive run of
+                                 elements whose coordinate values lie
+                                 within the group limits (see the
+                                 *group_by* parameter).
 
                                  * By default each element will be in
-                                   exactly one group (see the *group_by*,
-                                   *group_span* and *group_contiguous*
-                                   parameters).
+                                   exactly one group (see the
+                                   *group_by*, *group_span* and
+                                   *group_contiguous* parameters).
 
-                                 * By default groups may contain different
-                                   numbers of elements.
+                                 * By default groups may contain
+                                   different numbers of elements.
 
                                  * The start of the first group may be
-                                   before the first first axis element,
-                                   depending on the offset defined by the
-                                   time duration. For example, if
-                                   ``group=cf.Y(month=12)`` then the first
-                                   group will start on the closest 1st
-                                   December to the first axis element.
+                                   before the first first axis
+                                   element, depending on the offset
+                                   defined by the time duration. For
+                                   example, if
+                                   ``group=cf.Y(month=12)`` then the
+                                   first group will start on the
+                                   closest 1st December to the first
+                                   axis element.
 
                 `Query`          Define groups from elements whose
                                  coordinates satisfy the query
@@ -7013,20 +7035,22 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                                    group which may contain fewer elements
                                    (see the *group_span* parameter).
 
-                `numpy.ndarray`  Define groups by selecting elements that
-                                 map to the same value in the `numpy`
-                                 array. The array must contain integers
-                                 and have the same length as the axis to
-                                 be collapsed and its sequence of values
-                                 correspond to the axis elements. Each
-                                 group contains the elements which
-                                 correspond to a common non-negative
-                                 integer value in the numpy array. Upon
-                                 output, the collapsed axis is arranged in
-                                 order of increasing group number. See the
-                                 *regroup* parameter, which allows the
-                                 creation of such a `numpy.array` for a
-                                 given grouped collapse.
+                `numpy.ndarray`  Define groups by selecting elements
+                                 that map to the same value in the
+                                 `numpy` array. The array must contain
+                                 integers and have the same length as
+                                 the axis to be collapsed and its
+                                 sequence of values correspond to the
+                                 axis elements. Each group contains
+                                 the elements which correspond to a
+                                 common non-negative integer value in
+                                 the numpy array. Upon output, the
+                                 collapsed axis is arranged in order
+                                 of increasing group number. See the
+                                 *return_classification* parameter,
+                                 which allows the creation of such a
+                                 `numpy.array` for a given grouped
+                                 collapse.
 
                                  * The groups do not have to be in runs of
                                    consecutive elements; they may be
@@ -7078,6 +7102,10 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                   ``group=numpy.array([0, -1, 4, 4, 4, -1, -2, 0])``.
 
             regroup: `bool`, optional
+                Deprecated at version TODOVERGROUP. Use the
+                *return_classification* instead.
+
+            return_classification: `bool`, optional
                 If True then, for grouped collapses, do not collapse the
                 field construct, but instead return a `numpy.array` of
                 integers which identifies the groups defined by the
@@ -7090,7 +7118,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 For example:
 
-                >>> groups = f.collapse('time: mean', group=10, regroup=True)
+                >>> groups = f.collapse('time: mean', group=10,
+                                         return_classification=True)
                 >>> g = f.collapse('time: mean', group=groups)
 
                 is equivalent to:
@@ -7133,135 +7162,188 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                               sufficiently small.
                 ============  ============================================
 
+                ============  ========================================
+                *group_by*    Description
+                ============  ========================================
+                ``None``      This is the default. Equivalent to
+                              ``'coords'``
+
+                ``'coords'``  Each group contains the axis elements
+                              whose coordinate values lie within the
+                              group limits. Every element will be in a
+                              group.
+
+                ``'bounds'``  Each group contains the axis elements
+                              whose upper and lower coordinate bounds
+                              both lie within the group limits. Some
+                              elements may not be inside any group,
+                              either because the group limits do not
+                              coincide with coordinate bounds or
+                              because the group size is sufficiently
+                              small.
+                ============  ========================================
+
             group_span: optional
-                Specify how to treat groups that may not span the desired
-                range. For example, when creating 3-month means, the
-                *group_span* parameter can be used to allow groups which
-                only contain 1 or 2 months of data.
+                Specify how to treat groups, defined by the *group*
+                parameter, which do not span the desired range. A
+                group's span is the range defined by its first and
+                last elements. For example, when creating December to
+                February groups, the *group_span* parameter can be
+                used to allow or disallow groups which have no
+                February.
 
-                By default, *group_span* is `None`. This means that only
-                groups whose span equals the size specified by the
-                definition of the groups are collapsed; unless the groups
-                have been defined by one or more `Query` objects, in which
-                case then the default behaviour is to collapse all groups,
-                regardless of their size.
+                See the *group_contiguous* parameter for how to deal
+                with groups that have the desired span but have gaps
+                in their coverage (e.g. a December to February group
+                which has no January).
 
-                In effect, the *group_span* parameter defaults to `True`
-                unless the groups have been defined by one or more `Query`
-                objects, in which case *group_span* defaults to `False`.
+                By default *group_span* is `True`, which results in
+                different behaviours depending on how the groups have
+                been defined with the *group* parameter:
 
-                The different behaviour when the groups have been defined
-                by one or more `Query` objects is necessary because a
-                `Query` object can only define the composition of a group,
-                and not its size (see the parameter examples below for how
-                to specify a group span in this case).
+                By default *group_span* is `True`, which means that
+                the all rgoups defined by the *groups* parmaeter are
+                allowed.                
 
-                .. note:: Prior to version 3.1.0, the default value of
-                          *group_span* was effectively `False`.
+                ==============  ======================================
+                *group* type    Behaviour when *group_span* is True
+                ==============  ======================================
 
-                In general, the span of a group is the absolute difference
-                between the lower bound of its first element and the upper
-                bound of its last element. The only exception to this
-                occurs if *group_span* is (by default or by explicit
-                setting) an integer, in which case the span of a group is
-                the number of elements in the group. See also the
-                *group_contiguous* parameter for how to deal with groups
-                that have gaps in their coverage.
+                `Data`--------- Disallow groups for which the axis
+                                coordinate bounds range (i.e. the
+                                absolute difference between the lower
+                                bound of its first element and the
+                                upper bound of its last element) is
+                                not equal to the *group* value. No
+                                groups are disallowed if there are no
+                                bounds
 
-                The *group_span* parameter is only applied to groups
-                defined by the *group*, *within_days* or *within_years*
-                parameters, and is otherwise ignored.
+                `TimeDuration`- Disallow groups for which the axis
+                                coordinate bounds range (i.e. the
+                                absolute difference between the lower
+                                bound of its first element and the
+                                upper bound of its last element) is
+                                not equal to the *group* value. No
+                                groups are disallowed if there are no
+                                bounds
+
+                `int` --------- Disallow groups do not have the
+                                *group* number of elements.
+
+                (sequence of)-- Allow all groups. This default is
+                `Query`         necessary because `Query` objects can
+                                only define the composition of a
+                                group, not its size. See the
+                                parameter examples below for how to
+                                specify a group span in this case.
+
+                `numpy` array   Allow all groups.
+
+                `None`          Allow the group.
+                ==============  ======================================
 
                 The *group_span* parameter may be one of:
 
-                ==============  ==========================================
+                ==============  ======================================
                 *group_span*    Description
-                ==============  ==========================================
-                `None`          This is the default. Apply a value of
-                                `True` or `False` depending on how the
-                                groups have been defined.
+                ==============  ======================================
 
-                `True`          Ignore groups whose span is not equal to
-                                the size specified by the definition of
-                                the groups. Only applicable if the groups
-                                are defined by a `Data`, `TimeDuration` or
-                                `int` object, and this is the default in
-                                this case.
+                `True`--------- This is the default. Apply a group
+                                span criterion equal to the *group*
+                                definition
 
-                `False`         Collapse all groups, regardless of their
-                                size. This is the default if the groups
-                                are defined by one to more `Query`
-                                objects.
+                                If *group* is `Data` or `TimeDuration`
+                                then disallow groups for whcih the
+                                axis coordinate bounds range (i.e. the
+                                absolute difference between the lower
+                                bound of its first element and the
+                                upper bound of its last element) is
+                                not equal to the *group* value. An
+                                exception is raised if there are no
+                                coordinate bounds.
 
-                `Data`          Ignore groups whose span is not equal to
-                                the given size. If no units are specified
-                                then the units of the coordinates are
+                `False`-------- All groups defined by the *groups*
+                                parameter are allowed.
+
+                `Data`          Disallow groups for which the
+                                coordinate bounds range (i.e. the
+                                absolute difference between the lower
+                                bound of its first element and the
+                                upper bound of its last element) is
+                                not equal to the *group_span* value.
+                                If no units are specified then the
+                                units of the coordinate bounds are
                                 assumed.
 
-                `TimeDuration`  Ignore groups whose span is not equals to
-                                the given time duration.
+                `TimeDuration`  Disallow groups for which the
+                                coordinate bounds range (i.e. the
+                                absolute difference between the lower
+                                bound of its first element and the
+                                upper bound of its last element) is
+                                not equal to the *group_span* value.
+                               
+                `int`           Disallow groups do not have the
+                                *group_span* number of elements.
+                ==============  ======================================
 
-                `int`           Ignore groups that contain fewer than the
-                                given number of elements
-                ==============  ==========================================
+                .. note:: If *group* is a (sequence of) `Query`
+                          objects then
 
                 *Parameter example:*
-                  To collapse into groups of 10km, ignoring any groups
-                  that span less than that distance: ``group=cf.Data(10,
-                  'km'), group_span=True``.
-
-                *Parameter example:*
-                  To collapse a daily timeseries into monthly groups,
-                  ignoring any groups that span less than 1 calendar
-                  month: monthly values: ``group=cf.M(), group_span=True``
+                  To create monthly groups from a time axis, ignoring
+                  any groups that span less than 1 calendar month:
+                  monthly values: ``group=cf.M(), group_span=True``
                   (see `cf.M`).
 
+                *Parameter example:*                  
+                  To create seasonal groups from a time axis, ignoring
+                  any groups that span less than three calendar
+                  months: ``group=cf.seasons(), group_span=cf.M(3)``
+                  (see `cf.seasons` and `cf.M`).
+
                 *Parameter example:*
-                  To collapse a timeseries into seasonal groups, ignoring
-                  any groups that span less than three months:
-                  ``group=cf.seasons(), group_span=cf.M(3)`` (see
-                  `cf.seasons` and `cf.M`).
+                  To create groups of 10 degrees from longitude axis,
+                  ignoring any groups that span have fewer than 4
+                  elements: ``group=cf.Data(10, 'degreeE'),
+                  group_span=4``.
 
             group_contiguous: `int`, optional
                 Specify how to treat groups whose elements are not
-                contiguous or have overlapping cells. For example, when
-                creating a December to February means, the
-                *group_contiguous* parameter can be used to allow groups
-                which have no data for January.
+                contiguous or have cells with overlapping bounds. For
+                example, when creating December to February groups,
+                the *group_contiguous* parameter can be used to allow
+                or disallow groups which have no January.
 
                 A group is considered to be contiguous unless it has
-                coordinates with bounds that do not coincide for adjacent
-                cells. The definition may be expanded to include groups
-                whose coordinate bounds that overlap.
+                coordinates with bounds that do not coincide for
+                adjacent cells.
 
                 By default *group_contiguous* is ``1``, meaning that
-                non-contiguous groups, and those whose coordinate bounds
-                overlap, are not collapsed
+                non-contiguous groups, and those whose coordinate
+                bounds overlap, are not disallowed.
 
                 .. note:: Prior to version 3.1.0, the default value of
                           *group_contiguous* was ``0``.
 
-                The *group_contiguous* parameter is only applied to groups
-                defined by the *group*, *within_days* or *within_years*
-                parameters, and is otherwise ignored.
-
                 The *group_contiguous* parameter may be one of:
 
-                ===================  =====================================
+                ===================  =================================
                 *group_contiguous*   Description
-                ===================  =====================================
+                ===================  =================================
                 ``0``                Allow non-contiguous groups, and
-                                     those containing overlapping cells.
+                                     those containing overlapping
+                                     cells.
 
-                ``1``                This is the default. Ignore
-                                     non-contiguous groups, as well as
-                                     contiguous groups containing
-                                     overlapping cells.
+                ``1``                Disallow non-contiguous groups
+                                     and as well as contiguous groups
+                                     containing overlapping cells.
 
-                ``2``                Ignore non-contiguous groups,
-                                     allowing contiguous groups containing
-                                     overlapping cells.
-                ===================  =====================================
+                                     This is the default.
+
+                ``2``                Disallow non-contiguous groups,
+                                     but allow contiguous groups
+                                     containing overlapping cells.
+                ===================  =================================
 
                 *Parameter example:*
                   To allow non-contiguous groups, and those containing
@@ -7653,8 +7735,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             `Field` or `numpy.ndarray`
                  The collapsed field construct. Alternatively, if the
-                 *regroup* parameter is True then a `numpy` array is
-                 returned.
+                 *return_classification* parameter is True then a
+                 `numpy` array is returned.
 
         **Examples**
 
@@ -7662,6 +7744,16 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         https://ncas-cms.github.io/cf-python/analysis.html#statistical-collapses
 
         """
+        if regroup:
+            _DEPRECATION_ERROR_KWARGS(
+                self,
+                "collapse",
+                {"regroup": None},
+                message="Use the 'return_classification' parameter instead.",
+                version="TODOVERGROUP",
+                removed_at="5.0.0",
+            )  # pragma: no cover
+
         if _debug:
             _DEPRECATION_ERROR_KWARGS(
                 self,
@@ -7811,12 +7903,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             if debug:
                 logger.debug(
-                    f"    axes                    = {axes}"
-                )  # pragma: no cover
-                logger.debug(
-                    f"    method                  = {method}"
-                )  # pragma: no cover
-                logger.debug(
+                    f"    axes                    = {axes}\n"
+                    f"    method                  = {method}\n"
                     f"    collapse_axes_all_sizes = {collapse_axes_all_sizes}"
                 )  # pragma: no cover
 
@@ -7878,7 +7966,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             grouped_collapse = (
                 within is not None or over is not None or group is not None
             )
-
+            if not grouped_collapse and group_span is not True:
+                grouped_collapse = True
+            
             # --------------------------------------------------------
             # Set the group_by parameter
             # --------------------------------------------------------
@@ -7902,6 +7992,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 coordinate = "mid_range"
 
             if grouped_collapse:
+                print (888)
                 if len(collapse_axes) > 1:
                     raise ValueError(
                         "Can't do a grouped collapse on multiple axes "
@@ -7950,7 +8041,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     group=group,
                     group_span=group_span,
                     group_contiguous=group_contiguous,
-                    regroup=regroup,
+                    return_classification=return_classification,
                     mtol=mtol,
                     ddof=ddof,
                     measure=measure,
@@ -7962,7 +8053,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     verbose=verbose,
                 )
 
-                if regroup:
+                if return_classification:
                     # Grouped collapse: Return the numpy array
                     return f
 
@@ -7979,12 +8070,10 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 )
                 continue
 
-            elif regroup:
-                raise ValueError(
-                    "Can't return an array of groups for a non-grouped "
-                    "collapse"
-                )
-
+            elif return_classification:
+                # Return a classification array of all zeros
+                return np.zeros((size,), dtype='int32')
+                
             data_axes = f.get_data_axes()
             iaxes = [
                 data_axes.index(axis)
@@ -8268,11 +8357,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         over_days=None,
         over_years=None,
         group=None,
-        group_span=None,
+        group_span=True,
         group_contiguous=False,
         mtol=None,
         ddof=None,
-        regroup=None,
+        return_classification=None,
         coordinate=None,
         measure=False,
         weights=None,
@@ -8562,7 +8651,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             selection,
             parameter,
             extra_condition=None,
-            group_span=None,
             within=False,
         ):
             """Processes a group selection.
@@ -8616,17 +8704,12 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 classification[boolean_index] = n
                 n += 1
 
-            #                if group_span is not None:
-            #                    x = np.where(classification==n)[0]
-            #                    for i in range(1, max(1, int(float(len(x))/group_span))):
-            #                        n += 1
-            #                        classification[x[i*group_span:(i + 1)*group_span]] = n
-            #                n += 1
-
             return classification, n
 
-        def _discern_runs(classification, within=False):
+        def _discern_runs(classification):
             """Processes a group classification.
+
+            .. seealso:: `_discrern_runs_within`
 
             :Parameters:
 
@@ -8636,26 +8719,51 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 `numpy.ndarray`
 
+            **Examples**
+
+            >>> classification = np.array(
+            ...   [0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, -1, -1, -1, -1]
+            ... )
+            >>> print(classification)
+            [ 0  0  0 -1 -1 -1 -1 -1  0  0  0 -1 -1 -1 -1]
+            >>> print(_discern_runs(classification))
+            [ 0  0  0 -1 -1 -1 -1 -1  1  1  1 -2 -2 -2 -2]
+
             """
+            n = 0
+            m = -1
+            
             x = np.where(np.diff(classification))[0] + 1
             if not x.size:
-                if classification[0] >= 0:
-                    classification[:] = 0
+                if classification[i] >= 0:
+                    value = n
+                else:
+                    value = m
 
+                classification[:] = value
                 return classification
 
             if classification[0] >= 0:
-                classification[0 : x[0]] = 0
+                classification[0 : x[0]] = n
+                n += 1
+            else:
+                classification[0 : x[0]] = m
+                m -= 1
 
-            n = 1
             for i, j in zip(x[:-1], x[1:]):
                 if classification[i] >= 0:
-                    classification[i:j] = n
+                    value = n
                     n += 1
+                else:
+                    value = m
+                    m -= 1
 
+                classification[i:j] = value
+                    
             if classification[x[-1]] >= 0:
                 classification[x[-1] :] = n
-                n += 1
+            else:
+                classification[x[-1] :] = m
 
             return classification
 
@@ -8700,8 +8808,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             :Returns:
 
                 `tuple`
-                    A tuple of 4 `Data` object or, if *time_interval* is
-                    True, a tuple of 4 date-time objects.
+                    A tuple of 4 `Data` objects or, if *time_interval*
+                    is True, a tuple of 4 date-time objects.
 
             """
             bounds = coord.get_bounds(None)
@@ -8793,19 +8901,19 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         if debug:
             logger.debug(
                 "    Grouped collapse:"
-                f"        method            = {method!r}"
-                f"        axis_in           = {axis_in!r}"
-                f"        axis              = {axis!r}"
-                f"        over              = {over!r}"
-                f"        over_days         = {over_days!r}"
-                f"        over_years        = {over_years!r}"
-                f"        within            = {within!r}"
-                f"        within_days       = {within_days!r}"
-                f"        within_years      = {within_years!r}"
-                f"        regroup           = {regroup!r}"
-                f"        group             = {group!r}"
-                f"        group_span        = {group_span!r}"
-                f"        group_contiguous  = {group_contiguous!r}"
+                f"        method                = {method!r}"
+                f"        axis_in               = {axis_in!r}"
+                f"        axis                  = {axis!r}"
+                f"        over                  = {over!r}"
+                f"        over_days             = {over_days!r}"
+                f"        over_years            = {over_years!r}"
+                f"        within                = {within!r}"
+                f"        within_days           = {within_days!r}"
+                f"        within_years          = {within_years!r}"
+                f"        return_classification = {return_classification!r}"
+                f"        group                 = {group!r}"
+                f"        group_span            = {group_span!r}"
+                f"        group_contiguous      = {group_contiguous!r}"
             )  # pragma: no cover
 
         # Size of uncollapsed axis
@@ -8845,6 +8953,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 # Set group to None
                 group = None
+                if group_span is True:
+                    group_span = None
 
         if group is not None:
             if isinstance(group, Query):
@@ -8994,16 +9104,15 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     selection=group,
                     parameter="group",
                 )
-
                 classification = _discern_runs(classification)
 
-                if group_span is None:
-                    group_span = False
-                elif group_span is True:
-                    raise ValueError(
-                        "Can't collapse: Can't set group_span=True when "
-                        f"group={group!r}"
-                    )
+                if group_span is True:
+                    group_span = None
+#                elif group_span is True:
+#                    raise ValueError(
+#                        "Can't collapse: Can't set group_span=True when "
+#                        f"group={group!r}"
+#                    )
 
         if classification is None:
             if over == "days":
@@ -9344,13 +9453,15 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         classification, coord
                     )
 
-                    if group_span is None:
-                        group_span = False
-                    elif group_span is True:
-                        raise ValueError(
-                            "Can't collapse: Can't set group_span=True when "
-                            f"within_days={within_days!r}"
-                        )
+#                    if group_span is None:
+#                        group_span = False
+#                    elif group_span is True:
+#                        raise ValueError(
+#                            "Can't collapse: Can't set group_span=True when "
+#                            f"within_days={within_days!r}"
+#                        )
+                    if group_span is True:
+                        group_span = None
 
             elif within == "years":
                 # ----------------------------------------------------
@@ -9422,19 +9533,21 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         within=True,
                     )
 
-                    classification = _discern_runs(classification, within=True)
-
+                    classification = _discern_runs(classification)
                     classification = _discern_runs_within(
                         classification, coord
                     )
 
-                    if group_span is None:
-                        group_span = False
-                    elif group_span is True:
-                        raise ValueError(
-                            "Can't collapse: Can't set group_span=True when "
-                            f"within_years={within_years!r}"
-                        )
+#                    if group_span is None:
+#                        group_span = False
+#                    elif group_span is True:
+#                        raise ValueError(
+#                            "Can't collapse: Can't set group_span=True when "
+#                            f"within_years={within_years!r}"
+#                        )
+
+                    if group_span is True:
+                        group_span = None
 
             elif over is not None:
                 raise ValueError(
@@ -9446,6 +9559,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     f"Can't collapse: Bad 'within' syntax: {within!r}"
                 )
 
+        if classification is None and group_span is not None:
+            # Return a classification array of all zeros
+            print (777)
+            classification = np.zeros((axis_size,), dtype='int32')
+            
         if classification is not None:
             # ---------------------------------------------------------
             # Collapse each group
@@ -9456,11 +9574,13 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 )  # pragma: no cover
 
             unique = np.unique(classification)
-            unique = unique[np.where(unique >= 0)[0]]
-            unique.sort()
-
-            ignore_n = -1
+#            unique = unique[np.where(unique >= 0)[0]]
+#            unique.sort()
+            unique = unique[unique >= 0]
+            
+            ignore_n = classification.min() - 1
             for u in unique:
+                print (u)
                 index = np.where(classification == u)[0].tolist()
 
                 pc = self.subspace(**{axis: index})
@@ -9471,7 +9591,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 if over is None:
                     coord = pc.coordinate(axis_in, default=None)
 
-                    if group_span is not False:
+                    if group_span is not False: #None:
                         if isinstance(group_span, int):
                             if (
                                 pc.domain_axes(todict=True)[axis].get_size()
@@ -9514,6 +9634,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                                 # collapse it.
                                 classification[index] = ignore_n
                                 ignore_n -= 1
+                                print ('rrr')
                                 continue
 
                     if (
@@ -9530,7 +9651,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         ignore_n -= 1
                         continue
 
-                if regroup:
+                if return_classification:
                     continue
 
                 # ----------------------------------------------------
@@ -9558,17 +9679,29 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     )
                 )
 
-            if regroup:
-                # return the numpy array
+            if debug:
+                logger.debug(
+                    f"        classification    = {classification}"
+                )  # pragma: no cover
+
+            if return_classification:
+                # Return the classification array
                 return classification
 
-        elif regroup:
-            raise ValueError("There is no group classification to return.")
+        elif return_classification:
+            # Return a classification array of all zeros
+            classification = np.zeros((axis_size,), dtype='int32')
+            if debug:
+                logger.debug(
+                    f"        classification    = {classification}"
+                )  # pragma: no cover
+
+            return classification
 
         # Still here?
         if not fl:
             c = "contiguous " if group_contiguous else ""
-            s = f" spanning {group_span}" if group_span is not False else ""
+            s = f" spanning {group_span}" if group_span is not None else ""
             if within is not None:
                 s = f" within {within}{s}"
 
@@ -12643,11 +12776,25 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         self,
         identity,
         group=None,
+        group_by=None,
         group_span=None,
         group_contiguous=1,
         concatenate=False,
+        inverse=False,
+            return_classification=False
     ):
         """TODOGROUP
+
+
+        .. versionadded:: TODOVERGROUP
+
+        .. seealso:: `subspace`, `collapse`
+
+        **Performance**
+
+        Setting the *concatenate* parameter to True gives the same
+        result as concatenating the `FieldList` returned when
+        *concatenate* is False, but is faster.
 
         :Parameters:
 
@@ -12659,14 +12806,71 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             {{group_contiguous: optional}}
 
-            concatenate: `bool`, optional
+                Specify how to treat groups whose elements are not
+                contiguous or have overlapping cells. For example,
+                when creating a December to February groups, the
+                *group_contiguous* parameter can be used to allow
+                groups which have no January.
 
+                A group is considered to be contiguous unless it has
+                coordinates with bounds that do not coincide for adjacent
+                cells. The definition may be expanded to include groups
+                whose coordinate bounds that overlap.
+
+                By default *group_contiguous* is ``1``, meaning that
+                non-contiguous groups, and those whose coordinate bounds
+                overlap, are not collapsed
+
+                .. note:: Prior to version 3.1.0, the default value of
+                          *group_contiguous* was ``0``.
+
+                The *group_contiguous* parameter is only applied to groups
+                defined by the *group*, *within_days* or *within_years*
+                parameters, and is otherwise ignored.
+
+                The *group_contiguous* parameter may be one of:
+
+            group_by: `str` or `None`
+               Specify how coordinates are assigned to the groups.
+               Ignored unless the *group* parameter is a `Data` or
+               `TimeDuration` object. May be one of:
+
+                ============  ========================================
+                *group_by*    Description
+                ============  ========================================
+                ``None``      This is the default. Equivalent to
+                              ``'coords'``
+
+                ``'coords'``  Each group contains the axis elements
+                              whose coordinate values lie within the
+                              group limits. Every element will be in a
+                              group.
+
+                ``'bounds'``  Each group contains the axis elements
+                              whose upper and lower coordinate bounds
+                              both lie within the group limits. Some
+                              elements may not be inside any group,
+                              either because the group limits do not
+                              coincide with coordinate bounds or
+                              because the group size is sufficiently
+                              small.
+                ============  ========================================
+
+            concatenate: `bool`, optional
+                Setting *concatenate* to True gives the same result as
+                concatenating the `FieldList` returned when
+                *concatenate* is False, but is faster.
+
+            inverse: `bool`, optional
+
+            return_classification: `bool`, optional
+    
         :Returns:
 
-        """
-        if group is None:
-            return self.copy()
+            `FieldList` or `Field`
 
+        """
+        # Find the domain axis identifier of the axis to be grouped
         key = self.construct(
             identity,
             filter_by_data=True,
@@ -12681,34 +12885,61 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             da_key = self.domain_axis(identity, key=True, default=None)
             if da_key is None:
                 raise ValueError(
-                    f"Can't find indices. Ambiguous axis or axes "
-                    f"defined by {identity!r}"
+                    "Can't get groups. Can't find unique defined by "
+                    f"{identity!r}"
                 )
 
+        # Use `collapse` to define the groups
         classification = self.collapse(
             method="maximum",  # Arbitrary method
             axes=key,
             group=group,
             group_span=group_span,
             group_contiguous=group_contiguous,
-            regroup=True,
+            group_by=group_by,
+            return_classification=True,
         )
 
+        # Return one field per group
+        if inverse:
+            # Transform negative classification to non-negative
+            # numbers, and vice versa.
+            #
+            # E.g. [-2, -1, -1, 0, 1, 1] -> [1, 0, 0, -1, -2, -2]
+            classification += 1
+            classification *= -1
+
+        if return_classification:
+            return classification
+          
+        # Return a single field of the concatenated groups.
         if concatenate:
-            index = np.where(
-                classification >= 0, np.arange(classification.size), -1
-            )
-            index = index[index >= 0]
-            return self.subspace(**{da_key: index})
+            # Define the groups by the non-negative values in
+            # 'classification'
+            index = np.where(classification >= 0)[0]
 
-        unique = np.unique(classification)
-        unique = unique[np.where(unique >= 0)[0]]
-        unique.sort()
-
+            try:
+                return self.subspace(**{da_key: index})
+            except IndexError:
+                raise IndexError(
+                    "All groups defined by"
+                    f"{' the inverse of' if inverse else ''} group={group!r} "
+                    "are empty. Consider setting concatenate=False to "
+                    "return an empty FieldList instead."
+                )
+          
+        # Create a subspace corresponding to each non-negative value
+        # of 'classification'
+        unique, i = np.unique(classification, return_index=True)
+        unique = classification[np.sort(i)]
+        unique = unique[unique >= 0]
         fl = []
         for u in unique:
             index = np.where(classification == u)[0]
-            fl.append(self.subspace(**{da_key: index}))
+            try:
+                fl.append(self.subspace(**{da_key: index}))
+            except IndexError:
+                pass
 
         return FieldList(fl)
 
