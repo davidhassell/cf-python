@@ -6915,16 +6915,27 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 that the output axis has a size equal to the number of
                 groups.
 
+                A grouped collapse is one for which an axis is not
+                collapsed completely to size 1. Instead, the collapse
+                axis is partitioned into groups and each group is
+                collapsed to size 1, independently of the other
+                groups. The results of the collapses are concatenated
+                so that the output axis has a size equal to the number
+                of groups.
+
                 An element of the collapse axis can not be a member of
                 more than one group, and may be a member of no
                 groups. Elements that are not selected by the *group*
                 parameter are excluded from the result.
 
-                The treatment of incomplete groups is handled by the
-                *group_span* and group_contiguous* parameters.
-
-                The *group* parameter defines how the axis elements are
-                partitioned into groups. In all cases, and may be one of:
+                How the axis elements are partitioned into groups is
+                determined by the all of the *group*, *group_by*,
+                *group_span*, *group_contiguous* parameters
+                combined. Groups are primarily defined by the *group*
+                and *group_by* parameters, and subsequently the
+                *group_span* and *group_contiguous* parameter may
+                cause some of these groups to be removed, resulting in
+                the final group selection.
 
                 ===============  =====================================
                 *group*          Description
@@ -6932,6 +6943,12 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         
                 `None`---------- This is the default. A single group
                                  is defined from all axis elements.
+
+                (sequence of)    Define groups from elements whose
+                `Query`          coordinates satisfy the query
+                                 condition. Multiple groups are created:
+                                 one for each maximally consecutive run
+                                 within the selected elements.
 
                 `Data`---------- Define groups by axis coordinate
                                  values that span the given range. The
@@ -6959,12 +6976,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                                  * If no units are specified then the
                                    units of the coordinates are
                                    assumed.
-
-                `Query`          Define groups from elements whose
-                                 coordinates satisfy the query
-                                 condition. Multiple groups are created:
-                                 one for each maximally consecutive run
-                                 within the selected elements.
 
                 `TimeDuration`-- Define groups by a time interval
                                  spanned by the coordinates. The first
@@ -7248,22 +7259,39 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 *group_span*    Description
                 ==============  ======================================
 
-                `True`--------- This is the default. Apply a group
-                                span criterion equal to the *group*
-                                definition
+                `True`--------- This is the default. The behaviour
+                                depends on the type of *group*
+                                parameter value:
 
-                                If *group* is `Data` or `TimeDuration`
-                                then disallow groups for whcih the
-                                axis coordinate bounds range (i.e. the
-                                absolute difference between the lower
-                                bound of its first element and the
-                                upper bound of its last element) is
-                                not equal to the *group* value. An
-                                exception is raised if there are no
-                                coordinate bounds.
+                                If *group* is a (sequence of) `Query`
+                                objects then all groups defined by the
+                                *groups* parameter are included.
+
+                                If *group* is a `Data` or
+                                `TimeDuration` object then groups for
+                                which the axis coordinate range
+                                (i.e. the absolute difference between
+                                the smallest and largest cell bounds
+                                of the first and last group elements)
+                                is not equal to the *group* value are
+                                not included (an exception is raised
+                                if there are no coordinate bounds).
+
+                                If *group* is an `int` then groups for
+                                which have fewer than the *group*
+                                value number of elements are no
+                                included.
+
+                                If *group* is a `numpy` array then all
+                                groups defined by the *group*
+                                parameter are included.
+
+                                If *group* is `None` then all groups
+                                defined by the *group* parameter are
+                                included.
 
                 `False`-------- All groups defined by the *groups*
-                                parameter are allowed.
+                                parameter are included.
 
                 `Data`          Disallow groups for which the
                                 coordinate bounds range (i.e. the
@@ -12802,6 +12830,192 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             {{group: optional}}
 
+                How the axis elements are partitioned into groups is
+                determined by the all of the *group*, *group_by*,
+                *group_span*, *group_contiguous* parameters
+                combined. Groups are primarily defined by the *group*
+                and *group_by* parameters, and subsequently the
+                *group_span* and *group_contiguous* parameter may
+                cause some of these groups to be removed, resulting in
+                the final group selection.
+
+                The *group* parameter may be one of:
+
+                ===============  =====================================
+                *group*          Description
+                ===============  =====================================
+        
+                `None`---------- This is the default. A single group
+                                 is defined from all axis elements.
+
+                (sequence of)    Define groups from elements whose
+                `Query`          coordinates satisfy the query
+                                 condition. Multiple groups are created:
+                                 one for each maximally consecutive run
+                                 within the selected elements.
+
+                `Data`---------- Define groups by axis coordinate
+                                 values that span the given range. The
+                                 first group starts at the first
+                                 coordinate bound of the first axis
+                                 element (or its coordinate if there
+                                 are no bounds) and spans the
+                                 maximally consecutive run of elements
+                                 that span up to the group size. Each
+                                 subsequent group immediately follows
+                                 the preceding one. By default each
+                                 group contains the consecutive run of
+                                 elements whose coordinate values lie
+                                 within the group limits (see the
+                                 *group_by* parameter).
+
+                                 * By default each element will be in
+                                   exactly one group (see the
+                                   *group_by*, *group_span* and
+                                   *group_contiguous* parameters).
+
+                                 * By default groups may contain
+                                   different numbers of elements.
+
+                                 * If no units are specified then the
+                                   units of the coordinates are
+                                   assumed.
+
+                `TimeDuration`-- Define groups by a time interval
+                                 spanned by the coordinates. The first
+                                 group starts at or before the first
+                                 coordinate bound of the first axis
+                                 element (or its coordinate if there
+                                 are no bounds) and spans the
+                                 maximally consecutive run of elements
+                                 that span up to the group size. Each
+                                 subsequent group immediately follows
+                                 the preceding one. By default each
+                                 group contains the consecutive run of
+                                 elements whose coordinate values lie
+                                 within the group limits (see the
+                                 *group_by* parameter).
+
+                                 * By default each element will be in
+                                   exactly one group (see the
+                                   *group_by*, *group_span* and
+                                   *group_contiguous* parameters).
+
+                                 * By default groups may contain
+                                   different numbers of elements.
+
+                                 * The start of the first group may be
+                                   before the first first axis
+                                   element, depending on the offset
+                                   defined by the time duration. For
+                                   example, if
+                                   ``group=cf.Y(month=12)`` then the
+                                   first group will start on the
+                                   closest 1st December to the first
+                                   axis element.
+
+                `Query`          Define groups from elements whose
+                                 coordinates satisfy the query
+                                 condition. Multiple groups are created:
+                                 one for each maximally consecutive run
+                                 within the selected elements.
+
+                                 If a sequence of `Query` is provided then
+                                 groups are defined for each query.
+
+                                 * If a coordinate does not satisfy any of
+                                   the query conditions then its element
+                                   will not be in a group.
+
+                                 * By default groups may contain different
+                                   numbers of elements.
+
+                                 * If no units are specified then the
+                                   units of the coordinates are assumed.
+
+                                 * If an element is selected by two or
+                                   more queries then the latest one in the
+                                   sequence defines which group it will be
+                                   in.
+
+                `int`            Define groups that contain the given
+                                 number of elements. The first group
+                                 starts with the first axis element and
+                                 spans the defined number of consecutive
+                                 elements. Each subsequent group
+                                 immediately follows the preceding one.
+
+                                 * By default each group has the defined
+                                   number of elements, apart from the last
+                                   group which may contain fewer elements
+                                   (see the *group_span* parameter).
+
+                `numpy.ndarray`  Define groups by selecting elements
+                                 that map to the same value in the
+                                 `numpy` array. The array must contain
+                                 integers and have the same length as
+                                 the axis to be collapsed and its
+                                 sequence of values correspond to the
+                                 axis elements. Each group contains
+                                 the elements which correspond to a
+                                 common non-negative integer value in
+                                 the numpy array. Upon output, the
+                                 collapsed axis is arranged in order
+                                 of increasing group number. See the
+                                 *return_classification* parameter,
+                                 which allows the creation of such a
+                                 `numpy.array` for a given grouped
+                                 collapse.
+
+                                 * The groups do not have to be in runs of
+                                   consecutive elements; they may be
+                                   scattered throughout the axis.
+
+                                 * An element which corresponds to a
+                                   negative integer in the array will not
+                                   be in any group.
+                ===============  =========================================
+
+                *Parameter example:*
+                  To define groups of 10 kilometres: ``group=cf.Data(10,
+                  'km')``.
+
+                *Parameter example:*
+                  To define groups of 5 days, starting and ending at
+                  midnight on each day: ``group=cf.D(5)`` (see `cf.D`).
+
+                *Parameter example:*
+                  To define groups of 1 calendar month, starting and
+                  ending at day 16 of each month: ``group=cf.M(day=16)``
+                  (see `cf.M`).
+
+                *Parameter example:*
+                  To define groups of the season MAM in each year:
+                  ``group=cf.mam()`` (see `cf.mam`).
+
+                *Parameter example:*
+                  To define groups of the seasons DJF and JJA in each
+                  year: ``group=[cf.jja(), cf.djf()]``. To define groups
+                  for seasons DJF, MAM, JJA and SON in each year:
+                  ``group=cf.seasons()`` (see `cf.djf`, `cf.jja` and
+                  `cf.season`).
+
+                *Parameter example:*
+                  To define groups for longitude elements less than or
+                  equal to 90 degrees and greater than 90 degrees:
+                  ``group=[cf.le(90, 'degrees'), cf.gt(90, 'degrees')]``
+                  (see `cf.le` and `cf.gt`).
+
+                *Parameter example:*
+                  To define groups of 5 elements: ``group=5``.
+
+                *Parameter example:*
+                  For an axis of size 8, create two groups, the first
+                  containing the first and last elements and the second
+                  containing the 3rd, 4th and 5th elements, whilst
+                  ignoring the 2nd, 6th and 7th elements:
+                  ``group=numpy.array([0, -1, 4, 4, 4, -1, -2, 0])``.
+
             {{group_span: optional}}
 
             {{group_contiguous: optional}}
@@ -12905,7 +13119,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             # Transform negative classification to non-negative
             # numbers, and vice versa.
             #
-            # E.g. [-2, -1, -1, 0, 1, 1] -> [1, 0, 0, -1, -2, -2]
+            # E.g. [-2,, 0 -1, -1, 1, 1] -> [1, -1, 0, 0, -2, -2]
             classification += 1
             classification *= -1
 
