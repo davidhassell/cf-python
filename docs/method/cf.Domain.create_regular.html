@@ -24,6 +24,7 @@
     <script src="../_static/copybutton.js"></script>
     <script src="../_static/toggleprompt.js"></script>
     <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="cf.Domain.creation_commands" href="cf.Domain.creation_commands.html" />
@@ -39,10 +40,13 @@
     
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/logo.svg" alt="Logo"/>
+            </a></p>
 
 
 
-<h1 class="logo"><a href="../index.html">cf 3.15.2</a></h1>
+<h1 class="logo"><a href="../index.html">cf 3.15.4</a></h1>
 
 
 
@@ -133,7 +137,7 @@ and by <a href="https://ncas.ac.uk/">NCAS</a>.
 <h1>cf.Domain.create_regular<a class="headerlink" href="#cf-domain-create-regular" title="Permalink to this headline">¶</a></h1>
 <dl class="method">
 <dt id="cf.Domain.create_regular">
-<em class="property">classmethod </em><code class="sig-prename descclassname">Domain.</code><code class="sig-name descname">create_regular</code><span class="sig-paren">(</span><em class="sig-param">x_args</em>, <em class="sig-param">y_args</em>, <em class="sig-param">bounds=True</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.2/cf/domain.py#L334-L440"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.Domain.create_regular" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-prename descclassname">Domain.</code><code class="sig-name descname">create_regular</code><span class="sig-paren">(</span><em class="sig-param">x_args</em>, <em class="sig-param">y_args</em>, <em class="sig-param">bounds=True</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.4/cf/domain.py#L334-L440"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.Domain.create_regular" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new domain with the regular longitudes and latitudes.</p>
 <div class="versionadded">
 <p><span class="versionmodified added">New in version 3.15.1.</span></p>
@@ -153,7 +157,7 @@ cellsize.</p>
 <p class="admonition-title">Note</p>
 <p>The cellsize does not have to explicitly divide into
 the range of the given dimension. But as it follows
-<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.arange.html#numpy.arange" title="(in NumPy v1.25)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.arange</span></code></a> while creating the points, one should
+<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.arange.html#numpy.arange" title="(in NumPy v1.26)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.arange</span></code></a> while creating the points, one should
 verify that that the number of grid points are
 returned as expected.</p>
 </div>
@@ -166,12 +170,12 @@ cellsize.</p>
 <p class="admonition-title">Note</p>
 <p>The cellsize does not have to explicitly divide into
 the range of the given dimension. But as it follows
-<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.arange.html#numpy.arange" title="(in NumPy v1.25)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.arange</span></code></a> while creating the points, one should
+<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.arange.html#numpy.arange" title="(in NumPy v1.26)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.arange</span></code></a> while creating the points, one should
 verify that that the number of grid points are
 returned as expected.</p>
 </div>
 </dd>
-<dt>bounds: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>If True (default), bounds will be created
+<dt>bounds: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>If True (default), bounds will be created
 for the coordinates, and the coordinate points will be the
 midpoints of the bounds. If False, the given ranges represent
 the coordinate points directly.</p>
@@ -221,7 +225,7 @@ latitude coordinates and bounds.</p>
     <div class="clearer"></div>
   </div>
     <div class="footer">
-      &copy;2023, NCAS | Page built on 2023-07-21.
+      &copy;2023, NCAS | Page built on 2023-10-10.
       
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.5</a>

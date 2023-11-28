@@ -224,6 +224,8 @@ class _Meta:
             "Nd_coordinates",
             "Cell_measures",
             "Domain_ancillaries",
+            "Domain_topologies",
+            "Cell_connectivities",
             "Field_ancillaries",
         ),
     )
@@ -335,7 +337,11 @@ class _Meta:
         self.key_to_identity = {}
 
         self.all_field_anc_identities = set()
-        self.all_domain_anc_identities = set()
+        # self.all_domain_anc_identities = set()
+        self.all_identities = {
+            "domain_ancillary": set(),
+            "field_ancillary": set(),
+        }
 
         self.message = ""
         self.info = info
@@ -372,7 +378,7 @@ class _Meta:
         # Parent field or domain
         # ------------------------------------------------------------
         self.field = f
-        self.has_data = f.has_data()
+        self.has_field_data = f.has_data()
         self.identity = f.identity(
             strict=strict_identities,
             relaxed=relaxed_identities and not ncvar_identities,
@@ -395,7 +401,7 @@ class _Meta:
             return
 
         if self.identity is None:
-            if not allow_no_identity and self.has_data:
+            if not allow_no_identity and self.has_field_data:
                 if info:
                     self.message = (
                         "no identity; consider setting relaxed_identities=True"
@@ -665,8 +671,11 @@ class _Meta:
             "field_ancillary", todict=True
         )
         for key, field_anc in field_ancs.items():
+            if not self.has_data(field_anc):
+                return
+
             # Find this field ancillary's identity
-            identity = self.field_ancillary_has_identity_and_data(field_anc)
+            identity = self.get_identity(field_anc)
             if identity is None:
                 return
 
@@ -722,11 +731,13 @@ class _Meta:
                 if anc is None:
                     continue
 
+                if not self.has_data(anc):
+                    return
+
                 # Set this domain ancillary's identity
-                identity = (ref_identity, term)
-                identity = self.domain_ancillary_has_identity_and_data(
-                    anc, identity
-                )
+                identity = self.get_identity(anc, (ref_identity, term))
+                if identity is None:
+                    return
 
                 # Find the canonical units
                 units = self.canonical_units(
@@ -757,6 +768,9 @@ class _Meta:
         for key, anc in f.domain_ancillaries(todict=True).items():
             if key in ancs_in_refs:
                 continue
+
+            if not self.has_data(anc):
+                return
 
             # Find this domain ancillary's identity
             identity = self.domain_ancillary_has_identity_and_data(anc)
@@ -791,12 +805,11 @@ class _Meta:
         self.msr = {}
         info_msr = {}
         for key, msr in f.cell_measures(todict=True).items():
-            if not self.cell_measure_has_measure(msr):
+            if not self.has_measure(msr):
                 return
 
-            if (
-                not msr.nc_get_external()
-                and not self.cell_measure_has_data_and_units(msr)
+            if not msr.nc_get_external() and not (
+                self.has_data(msr) and self.has_units(msr)
             ):
                 return
 
@@ -857,6 +870,111 @@ class _Meta:
                 "axes": tuple([v["axes"] for v in value]),
                 "canonical_axes": tuple([v["canonical_axes"] for v in value]),
                 "external": tuple([v["external"] for v in value]),
+            }
+
+        # ------------------------------------------------------------
+        # Domain topologies
+        # ------------------------------------------------------------
+        self.domain_topology = {}
+        info_topology = {}
+        for key, topology in f.domain_topologies(todict=True).items():
+            if not (self.has_cell(topology) and self.has_data(topology)):
+                return
+
+            # Find axes' identities
+            axes = tuple(
+                [self.axis_to_id[axis] for axis in construct_axes[key]]
+            )
+
+            identity = topology.get_cell()
+
+            # Find the canonical axes
+            canonical_axes = self.canonical_axes(topology, identity, axes)
+            canonical_axis = canonical_axes[0]
+
+            if canonical_axis in info_topology:
+                # Check for ambiguous domain topologies, i.e. those
+                # which span the same axis.
+                if info:
+                    self.message = f"duplicate {topology!r}"
+
+                return
+            else:
+                info_topology[canonical_axis] = []
+
+            info_topology[canonical_axes[0]].append(
+                {
+                    "cell": identity,
+                    "key": key,
+                    "axes": axes,
+                    "canonical_axes": canonical_axes,
+                }
+            )
+
+        # For each domain topology's canonical axis, sort the
+        # information by axis identities.
+        for units, value in info_topology.items():
+            self.domain_topology[canonical_axis] = {
+                "cell": tuple([v["cell"] for v in value]),
+                "keys": tuple([v["key"] for v in value]),
+                "axes": tuple([v["axes"] for v in value]),
+                "canonical_axes": tuple([v["canonical_axes"] for v in value]),
+            }
+
+        # ------------------------------------------------------------
+        # Cell connectivities
+        # ------------------------------------------------------------
+        self.cell_connectivity = {}
+        info_connectivity = {}
+        for key, connectivity in f.cell_connectivities(todict=True).items():
+            if not (
+                self.has_connectivity(connectivity)
+                and self.has_data(connectivity)
+            ):
+                return
+
+            # Find axes' identities
+            axes = tuple(
+                [self.axis_to_id[axis] for axis in construct_axes[key]]
+            )
+
+            identity = connectivity.get_connectivity()
+
+            # Find the canonical axes
+            canonical_axes = self.canonical_axes(connectivity, identity, axes)
+            canonical_axis = canonical_axes[0]
+
+            if canonical_axis in info_connectivity:
+                # Check for ambiguous cell connectivities, i.e. those
+                # which span the same axis with the same connectivity
+                # type.
+                for value in info_connectivity[canonical_axis]:
+                    if identity == value["connectivity"]:
+                        if info:
+                            self.message = f"duplicate {connectivity!r}"
+
+                        return
+            else:
+                info_connectivity[canonical_axis] = []
+
+            info_connectivity[canonical_axes[0]].append(
+                {
+                    "connectivity": identity,
+                    "key": key,
+                    "axes": axes,
+                    "canonical_axes": canonical_axes,
+                }
+            )
+
+        # For each cell connectivity's canonical axis, sort the
+        # information by cell type.
+        for axis, value in info_connectivity.items():
+            value.sort(key=itemgetter("connectivity"))
+            self.cell_connectivity[axis] = {
+                "connectivity": tuple([v["connectivity"] for v in value]),
+                "keys": tuple([v["key"] for v in value]),
+                "axes": tuple([v["axes"] for v in value]),
+                "canonical_axes": tuple([v["canonical_axes"] for v in value]),
             }
 
         # ------------------------------------------------------------
@@ -1303,48 +1421,113 @@ class _Meta:
 
         return cms
 
-    def cell_measure_has_data_and_units(self, msr):
-        """True only if a cell measure has both data and units.
+    def has_cell(self, topology):
+        """Whether a domain topology construct has a connectivity type.
+
+        .. versionadded:: 3.16.0
 
         :Parameters:
 
-            msr: `CellMeasure`
+            topology: `DomainTopology`
+                The construct to test.
 
         :Returns:
 
             `bool`
+                `True` if the construct has a cell type, otherwise
+                `False`.
 
         """
-        if not msr.Units:
+        if topology.get_cell(None) is None:
             if self.info:
-                self.message = f"{msr.identity()!r} cell measure has no units"
-
-            return False
-
-        if not msr.has_data():
-            if self.info:
-                self.message = f"{msr.identity()!r} cell measure has no data"
+                self.message = (
+                    f"{topology.identity()!r} "
+                    "domain topology construct has no cell type"
+                )
 
             return False
 
         return True
 
-    def cell_measure_has_measure(self, msr):
-        """True only if a cell measure has a measure.
+    def has_connectivity(self, connectivity):
+        """Whether a cell connectivity construct has a connectivity type.
+
+        .. versionadded:: 3.16.0
 
         :Parameters:
 
-            msr: `CellMeasure`
+            connectivity: `CellConnectivity`
+                The construct to test.
 
         :Returns:
 
             `bool`
+                `True` if the construct has a connectivity type,
+                otherwise `False`.
 
         """
-        if not msr.get_measure(False):
+        if connectivity.get_connectivity(None) is None:
             if self.info:
                 self.message = (
-                    f"{msr.identity()!r} cell measure has no measure"
+                    f"{connectivity.identity()!r} "
+                    "cell connectivity construct has no connectivity type"
+                )
+
+            return False
+
+        return True
+
+    def has_measure(self, msr):
+        """Whether a cell measure construct has a measure.
+
+        .. versionadded:: 3.16.0
+
+        :Parameters:
+
+            msr: `CellMeasure`
+                The construct to test.
+
+        :Returns:
+
+            `bool`
+                `True` if the construct has a measure, otherwise
+                `False`.
+
+        """
+        if msr.get_measure(None) is None:
+            if self.info:
+                self.message = (
+                    f"{msr.identity()!r} "
+                    "cell measure construct has no measure"
+                )
+
+            return False
+
+        return True
+
+    def has_units(self, construct):
+        """Whether a construct has units.
+
+        .. versionadded:: 3.16.0
+
+        :Parameters:
+
+            construct: Construct
+                The construct to test.
+
+        :Returns:
+
+            `bool`
+                `True` if the construct has units, otherwise `False`.
+
+        """
+        if not construct.Units:
+            if self.info:
+                construct_type = construct.construct_type
+                self.message = (
+                    f"{construct.identity()!r} "
+                    f"{construct_type.replace('_', ' ')} construct "
+                    "has no units"
                 )
 
             return False
@@ -1366,8 +1549,8 @@ class _Meta:
         :Returns:
 
             `str` or `None`
-                The coordinate construct's identity, or `None` if there is
-                no identity and/or no data.
+                The coordinate construct's identity, or `None` if
+                there is no identity and/or no data.
 
         """
         identity = coord.identity(
@@ -1396,47 +1579,33 @@ class _Meta:
         if self.info:
             self.message = f"{coord!r} has no identity or no data"
 
-    def field_ancillary_has_identity_and_data(self, anc):
-        """Return a field ancillary's identity if it has one and has
-        data.
+    def has_data(self, construct):
+        """Whether a construct has data.
+
+        .. versionadded:: 3.16.0
 
         :Parameters:
 
-            coord: `FieldAncillary`
+            construct: Construct
+                The construct to test.
 
         :Returns:
 
-            `str` or `None`
-                The coordinate construct's identity, or `None` if
-                there is no identity and/or no data.
+            `bool`
+                `True` if the construct has data, otherwise `False`.
 
         """
-        identity = anc.identity(
-            strict=self.strict_identities,
-            relaxed=self.relaxed_identities and not self.ncvar_identities,
-            nc_only=self.ncvar_identities,
-            default=None,
-        )
+        if not construct.has_data():
+            if self.info:
+                construct_type = construct.construct_type
+                self.message = (
+                    f"{construct.identity()!r} "
+                    f"{construct_type.replace('_', ' ')} has no data"
+                )
 
-        if identity is not None:
-            all_field_anc_identities = self.all_field_anc_identities
+            return False
 
-            if identity in all_field_anc_identities:
-                if self.info:
-                    self.message = f"multiple {identity!r} field ancillaries"
-
-                return
-
-            if anc.has_data():
-                all_field_anc_identities.add(identity)
-                return identity
-
-        # Still here?
-        if self.info:
-            self.message = (
-                f"{anc.identity()!r} field ancillary has no identity or "
-                "no data"
-            )
+        return True
 
     def coordinate_reference_signatures(self, refs):
         """List the structural signatures of given coordinate
@@ -1477,61 +1646,58 @@ class _Meta:
 
         return signatures
 
-    def domain_ancillary_has_identity_and_data(self, anc, identity=None):
-        """Return a domain ancillary's identity if it has one and has
-        data.
+    def get_identity(self, construct, identity=None):
+        """Return a construct's identity if it has one.
+
+        .. versionadded:: 3.16.0
 
         :Parameters:
 
-            anc: cf.DomainAncillary
+            construct: Construct
+                The construct to test.
 
             identity: optional
 
         :Returns:
 
             `str` or `None`
-                The domain ancillary identity, or None if there is no
-                identity and/or no data.
+                The construct identity, or `None` if there isn't one.
 
         """
         if identity is not None:
-            anc_identity = identity
+            construct_identity = identity
         else:
-            anc_identity = anc.identity(
+            construct_identity = construct.identity(
                 strict=self.strict_identities,
                 relaxed=self.relaxed_identities and not self.ncvar_identities,
                 nc_only=self.ncvar_identities,
                 default=None,
             )
 
-        if anc_identity is None:
+        construct_type = construct.construct_type
+        if construct_identity is None:
             if self.info:
                 self.message = (
-                    f"{anc.identity()!r} domain ancillary has no identity"
+                    f"{construct.identity()!r} "
+                    f"{construct_type.replace('_', ' ')} has no identity"
                 )
 
             return
 
-        all_domain_anc_identities = self.all_domain_anc_identities
+        all_identities = self.all_identities.get(construct_type)
+        if all_identities is not None:
+            if construct_identity in all_identities:
+                if self.info:
+                    self.message = (
+                        f"multiple {construct.identity()!r} "
+                        f"{construct_type.replace('_', ' ')} constructs"
+                    )
 
-        if anc_identity in all_domain_anc_identities:
-            if self.info:
-                self.message = (
-                    f"multiple {anc.identity()!r} domain ancillaries"
-                )
-            return
+                return
 
-        if not anc.has_data():
-            if self.info:
-                self.message = (
-                    f"{anc.identity()!r} domain ancillary has no data"
-                )
+            all_identities.add(construct_identity)
 
-            return
-
-        all_domain_anc_identities.add(anc_identity)
-
-        return anc_identity
+        return construct_identity
 
     @_manage_log_level_via_verbose_attr
     def print_info(self, signature=True):
@@ -1605,16 +1771,11 @@ class _Meta:
             Units = self.units.units
 
         Cell_methods = self.cell_methods
-        Data = self.has_data
-        #        signature_append = signature.append
+        Data = self.has_field_data
 
         # Properties
-        #        signature_append(('Properties', self.properties))
         Properties = self.properties
 
-        # standard_error_multiplier
-        #        signature_append(('standard_error_multiplier',
-        #                          f.get_property('standard_error_multiplier', None)))
         standard_error_multiplier = f.get_property(
             "standard_error_multiplier", None
         )
@@ -1715,6 +1876,30 @@ class _Meta:
         ]
         Domain_ancillaries = tuple(x)
 
+        # Domain topologies
+        topology = self.domain_topology
+        x = [
+            (
+                identity,
+                ("cell", topology[identity]["cell"]),
+                ("axes", topology[identity]["canonical_axes"]),
+            )
+            for identity in sorted(topology)
+        ]
+        Domain_topologies = tuple(x)
+
+        # Cell connectivities
+        connectivity = self.cell_connectivity
+        x = [
+            (
+                identity,
+                ("connectivity", connectivity[identity]["connectivity"]),
+                ("axes", connectivity[identity]["canonical_axes"]),
+            )
+            for identity in sorted(connectivity)
+        ]
+        Cell_connectivities = tuple(x)
+
         # Field ancillaries
         field_anc = self.field_anc
         x = [
@@ -1747,6 +1932,8 @@ class _Meta:
             Nd_coordinates=Nd_coordinates,
             Cell_measures=Cell_measures,
             Domain_ancillaries=Domain_ancillaries,
+            Domain_topologies=Domain_topologies,
+            Cell_connectivities=Cell_connectivities,
             Field_ancillaries=Field_ancillaries,
         )
 
@@ -1831,7 +2018,7 @@ class _Meta:
         construct that spans a new independent size 1 domain axis of
         the field, and the property is deleted.
 
-         ... versionadded:: 3.15.0
+        .. versionadded:: 3.15.0
 
         :Parameters:
 
@@ -1890,7 +2077,7 @@ class _Meta:
         If a domain construct is being aggregated then it is always
         returned unchanged.
 
-         ... versionadded:: 3.15.0
+        .. versionadded:: 3.15.0
 
         :Parameters:
 
@@ -2311,7 +2498,7 @@ def aggregate(
             **Units**
 
             Units must be provided on the conditions where applicable,
-            since conditions without defined units do not match
+            since conditions without defined units will not match
             dimension coordinate constructs with defined units.
 
             **Multiple conditions**
@@ -2358,18 +2545,26 @@ def aggregate(
 
             >>> x = cf.aggregate(fl, cells=cf.climatology_cells())
 
+            **Storage of conditions**
+
+            All returned field or domain constructs that have passed
+            dimension coordinate cell conditions will have those
+            conditions stored on the appropriate dimension coordinate
+            constructs, retrievable via their
+            `DimensionCoordinate.get_cell_characteristics` methods.
+
             **Performance**
 
             The testing of the conditions has a computational
             overhead, as well as an I/O overhead if the dimension
-            coordinate data are on disk. Try to avoid setting redundant
-            conditions. For instance, if the inputs comprise monthly mean air
-            temperature and daily mean precipitation fields, then the
-            different field identities alone will ensure a correct
-            aggregation. In this case, adding cell conditions of
-            ``{'T': [{'cellsize': cf.D()}, {'cellsize': cf.M()}]}``
-            will not change the result, but tests will still be
-            carried out.
+            coordinate data are on disk. Try to avoid setting
+            redundant conditions. For instance, if the inputs comprise
+            monthly mean air temperature and daily mean precipitation
+            fields, then the different field identities alone will
+            ensure a correct aggregation. In this case, adding cell
+            conditions of ``{'T': [{'cellsize': cf.D()}, {'cellsize':
+            cf.M()}]}`` will not change the result, but tests will
+            still be carried out.
 
             When setting a sequence of conditions, performance will be
             improved if the conditions towards the beginning of the
@@ -2489,9 +2684,9 @@ def aggregate(
     # Initialise the cache of canonical metadata attributes
     canonical = _Canonical()
 
-    output_constructs = []
-
-    output_constructs_append = output_constructs.append
+    output_meta = []
+    output_meta_append = output_meta.append
+    output_meta_extend = output_meta.extend
 
     if exclude:
         exclude = " NOT"
@@ -2655,10 +2850,10 @@ def aggregate(
                 # This field does not have a structural signature, so
                 # it can't be aggregated. Put it straight into the
                 # output list and move on to the next input construct.
-                if not copy:
-                    output_constructs_append(f)
-                else:
-                    output_constructs_append(f.copy())
+                if copy:
+                    meta = meta.copy()
+
+                output_meta_append(meta)
 
             continue
 
@@ -2724,11 +2919,10 @@ def aggregate(
             # add it straight to the output list and move on to the
             # next signature.
             # --------------------------------------------------------
-            if not copy:
-                output_constructs_append(meta[0].field)
-            else:
-                output_constructs_append(meta[0].field.copy())
+            if copy:
+                meta[0] = meta[0].copy()
 
+            output_meta_append(meta[0])
             continue
 
         if not relaxed_units and not meta[0].units.isvalid:
@@ -2741,9 +2935,9 @@ def aggregate(
 
             if not exclude:
                 if copy:
-                    output_constructs.extend(m.field.copy() for m in meta)
+                    output_meta_extend(m.copy() for m in meta)
                 else:
-                    output_constructs.extend(m.field for m in meta)
+                    output_meta_extend(meta)
 
             continue
 
@@ -2906,7 +3100,7 @@ def aggregate(
                 #    ]
                 #  },
                 #  'auxiliary_coordinate': {},
-                #  'cell_interface': {},
+                #  'cell_connectivity': {},
                 #  'cell_measure': {},
                 #  'domain_ancillary': {},
                 #  'domain_topology': {},
@@ -2933,8 +3127,8 @@ def aggregate(
                     "cell_measure": {},
                     "domain_ancillary": {},
                     "field_ancillary": {},
-                    "domain_topology": {},  # UGRID
-                    "cell_interface": {},  # UGRID
+                    "domain_topology": {},
+                    "cell_connectivity": {},
                 }
 
                 m0 = m[0].copy()
@@ -3035,11 +3229,16 @@ def aggregate(
             status = 1
             if not exclude:
                 if copy:
-                    output_constructs.extend((m.field.copy() for m in meta0))
+                    output_meta_extend(m.copy() for m in meta0)
                 else:
-                    output_constructs.extend((m.field for m in meta0))
+                    output_meta_extend(meta0)
         else:
-            output_constructs.extend((m.field for m in meta))
+            output_meta_extend(meta)
+
+    if cells:
+        _set_cell_conditions(output_meta)
+
+    output_constructs = [m.field for m in output_meta]
 
     aggregate.status = status
 
@@ -3056,6 +3255,52 @@ def aggregate(
         output_constructs = FieldList(output_constructs)
 
     return output_constructs
+
+
+def _set_cell_conditions(output_meta):
+    """Store the cell characteristics from any cell conditions.
+
+    The cell size and cell spacing characteristics are stored on the
+    appropriate dimension coordinate constructs.
+
+    .. versionadded:: 3.15.4
+
+    :Parameters:
+
+        output_meta: `list`
+            The list of `_Meta` objects, each of which contains an
+            output field or domain construct. The field or constructs
+            are updated in-place.
+
+    :Returns:
+
+        `None`
+
+    """
+    for m in output_meta:
+        for value in m.axis.values():
+            dim_index = value["dim_coord_index"]
+            if dim_index is None:
+                # There is no dimension coordinate construct for this
+                # axis
+                continue
+
+            cellsize = value["cellsize"][dim_index]
+            if cellsize is None:
+                # There is no cell size condition
+                continue
+
+            spacing = value["spacing"][dim_index]
+            if spacing is None:
+                # There is no cell spacing condition
+                continue
+
+            # Set the cell conditions on the dimension coordinate
+            # construct
+            dim_coord = m.field.dimension_coordinate(value["keys"][dim_index])
+            dim_coord.set_cell_characteristics(
+                cellsize=cellsize, spacing=spacing
+            )
 
 
 # --------------------------------------------------------------------
@@ -3179,7 +3424,7 @@ def climatology_cells(
       {'cellsize': <CF Query: (isclose 12 hour)>},
       {'cellsize': <CF TimeDuration: P1M (Y-M-01 00:00:00)>}]}
 
-    Add a condition that separately aggregates decadal data:
+    Add a condition for decadal data:
 
     >>> cells['T'].append({'cellsize': cf.wi(3600, 3660, 'day')})
     >>> cells
@@ -3307,12 +3552,16 @@ def _create_hash_and_first_values(
                     sort_indices = slice(None, None, -1)
                 else:
                     sort_indices = slice(None)
-
+            elif identity in m.domain_topology:
+                # ... or which doesn't have a dimension coordinate but
+                # does have a domain topology ...
+                sort_indices = slice(None)
+                needs_sorting = False
             else:
                 # ... or which doesn't have a dimension coordinate but
                 # does have one or more 1-d auxiliary coordinates
                 aux = m_axis_identity["keys"][0]
-                # '.data.compute()' is faster than '.array'
+                # Note: '.data.compute()' is faster than '.array'
                 sort_indices = np.argsort(constructs[aux].data.compute())
                 m_sort_keys[axis] = aux
                 needs_sorting = True
@@ -3482,6 +3731,76 @@ def _create_hash_and_first_values(
                     hash_values.append((h,))
 
                 msr["hash_values"] = hash_values
+
+        # ------------------------------------------------------------
+        # Domain topologies
+        # ------------------------------------------------------------
+        if donotchecknonaggregatingaxes:
+            for topology in m.domain_topology.values():
+                topology["hash_values"] = [(None,) * len(topology["keys"])]
+        else:
+            for topology in m.domain_topology.values():
+                hash_values = []
+                for key, canonical_axes in zip(
+                    topology["keys"], topology["canonical_axes"]
+                ):
+                    construct = constructs[key]
+                    sort_indices, needs_sorting = _sort_indices(
+                        m, canonical_axes
+                    )
+
+                    # Get the hash of the data array
+                    h = _get_hfl(
+                        construct,
+                        _no_units,
+                        sort_indices,
+                        needs_sorting,
+                        False,
+                        False,
+                        hfl_cache,
+                        rtol,
+                        atol,
+                    )
+
+                    hash_values.append((h,))
+
+                topology["hash_values"] = hash_values
+
+        # ------------------------------------------------------------
+        # Cell connectivities
+        # ------------------------------------------------------------
+        if donotchecknonaggregatingaxes:
+            for connectivity in m.cell_connectivity.values():
+                connectivity["hash_values"] = [
+                    (None,) * len(connectivity["keys"])
+                ]
+        else:
+            for connectivity in m.cell_connectivity.values():
+                hash_values = []
+                for key, canonical_axes in zip(
+                    connectivity["keys"], connectivity["canonical_axes"]
+                ):
+                    construct = constructs[key]
+                    sort_indices, needs_sorting = _sort_indices(
+                        m, canonical_axes
+                    )
+
+                    # Get the hash of the data array
+                    h = _get_hfl(
+                        construct,
+                        _no_units,
+                        sort_indices,
+                        needs_sorting,
+                        False,
+                        False,
+                        hfl_cache,
+                        rtol,
+                        atol,
+                    )
+
+                    hash_values.append((h,))
+
+                connectivity["hash_values"] = hash_values
 
         # ------------------------------------------------------------
         # Field ancillaries
@@ -3863,6 +4182,42 @@ def _group_fields(meta, axis, info=False):
                 groups_of_fields.append([m1])
                 continue
 
+            # Still here? Then check the domain topologies
+            topology = m0.domain_topology
+            for axis in topology:
+                for axes, hash_value0, hash_value1 in zip(
+                    topology[axis]["axes"],
+                    topology[axis]["hash_values"],
+                    m1.domain_topology[axis]["hash_values"],
+                ):
+                    if a_identity not in axes and hash_value0 != hash_value1:
+                        # There is a matching pair of domain
+                        # topologies that does not span the
+                        # aggregating axis and they have different
+                        # data array values
+                        ok = False
+                        break
+
+            # Still here? Then check the cell connectivities
+            connectivity = m0.cell_connectivity
+            for axis in connectivity:
+                for axes, hash_value0, hash_value1 in zip(
+                    connectivity[axis]["axes"],
+                    connectivity[axis]["hash_values"],
+                    m1.cell_connectivity[axis]["hash_values"],
+                ):
+                    if a_identity not in axes and hash_value0 != hash_value1:
+                        # There is a matching pair of cell
+                        # connectivities that does not span the
+                        # aggregating axis and they have different
+                        # data array values
+                        ok = False
+                        break
+
+            if not ok:
+                groups_of_fields.append([m1])
+                continue
+
             # Still here? Then set the identity of the aggregating
             # axis
             m0.a_identity = a_identity
@@ -4079,39 +4434,24 @@ def _ok_coordinate_arrays(
                                 f"contiguous={bool(contiguous)} and "
                                 f"{m.axis[axis]['ids'][dim_coord_index]!r} "
                                 "dimension coordinate cells do not match "
-                                "the cell spacing condition between fields "
-                                f"({data1!r} - {data0!r} = {dim_diff!r}) "
+                                "the cell spacing condition between fields: "
+                                f"{data1!r} - {data0!r} = {dim_diff!r} "
                                 f"!= {diff!r}"
                             )
 
                         return False
     else:
         # ------------------------------------------------------------
-        # The aggregating axis does not have a dimension coordinate,
-        # but it does have at least one 1-d auxiliary coordinate.
+        # The aggregating axis does not have a dimension coordinate
         # ------------------------------------------------------------
-        # Check for duplicate auxiliary coordinate values
-        for i, identity in enumerate(meta[0].axis[axis]["ids"]):
-            set_of_1d_aux_coord_values = set()
-            number_of_1d_aux_coord_values = 0
-            for m in meta:
-                aux = m.axis[axis]["keys"][i]
-                # '.data.compute()' is faster than '.array'
-                array = m.field.constructs[aux].data.compute()
-                set_of_1d_aux_coord_values.update(array)
-                number_of_1d_aux_coord_values += array.size
-                if (
-                    len(set_of_1d_aux_coord_values)
-                    != number_of_1d_aux_coord_values
-                ):
-                    if info:
-                        meta[0].message = (
-                            f"no {identity!r} dimension coordinates and "
-                            f"{identity!r} auxiliary coordinates have "
-                            "duplicate values"
-                        )
+        if axis in m.domain_topology or axis in m.cell_connectivity:
+            if info:
+                meta[0].message = (
+                    f"can't aggregate along the {axis!r} mesh topology "
+                    "discrete axis"
+                )
 
-                    return False
+            return False
 
     # ----------------------------------------------------------------
     # Still here? Then the aggregating axis does not overlap between
@@ -4169,6 +4509,7 @@ def _aggregate_2_fields(
     verbose=None,
     concatenate=True,
     data_concatenation=None,
+    cell_conditions=None,
     relaxed_units=False,
     copy=True,
 ):
@@ -4192,7 +4533,8 @@ def _aggregate_2_fields(
 
         data_concatenation: `dict`
             The dictionary that contains the data arrays for each
-            construct type that will need concatenating.
+            construct type that will need concatenating. Will be
+            updated in-place.
 
             .. versionadded:: 3.15.1
 
@@ -4248,10 +4590,6 @@ def _aggregate_2_fields(
     hash_values1 = m1.hash_values[a_identity]
 
     for i, (hash0, hash1) in enumerate(zip(hash_values0, hash_values1)):
-        # try:
-        #     hash_values0[i].append(hash_values1[i])
-        # except AttributeError:
-        #     hash_values0[i] = [hash_values0[i], hash_values1[i]]
         hash_values0[i] = hash_values0[i] + hash_values1[i]
 
     # N-d auxiliary coordinates
@@ -4373,7 +4711,7 @@ def _aggregate_2_fields(
     # Update the size of the aggregating axis in the output parent
     # construct
     # ----------------------------------------------------------------
-    if m0.has_data:
+    if m0.has_field_data:
         # ----------------------------------------------------------------
         # Insert the data array from parent1 into the data array of
         # parent0

@@ -306,12 +306,12 @@ html_title = "Documentation"
 
 # The name of an image file (relative to this directory) to place at
 # the top of the sidebar.
-# html_logo = None
+html_logo = "images/logo.svg"
 
 # The name of an image file (within the static path) to use as favicon
 # of the docs.  This file should be a Windows icon file (.ico) being
 # 16x16 or 32x32 pixels large.
-# html_favicon = None
+html_favicon = "_static/favicon.ico"
 
 # Add any paths that contain custom static files (such as style
 # sheets) here, relative to this directory. They are copied after the
@@ -390,6 +390,10 @@ sphinx_gallery_conf = {
     "inspect_global_variables": True,
     "within_subsection_order": FileNameSortKey,
 }
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # -- Options for LaTeX output -------------------------------------------------
 

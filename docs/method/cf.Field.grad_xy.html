@@ -24,6 +24,7 @@
     <script src="../_static/copybutton.js"></script>
     <script src="../_static/toggleprompt.js"></script>
     <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="cf.Field.laplacian_xy" href="cf.Field.laplacian_xy.html" />
@@ -39,10 +40,13 @@
     
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/logo.svg" alt="Logo"/>
+            </a></p>
 
 
 
-<h1 class="logo"><a href="../index.html">cf 3.15.2</a></h1>
+<h1 class="logo"><a href="../index.html">cf 3.15.4</a></h1>
 
 
 
@@ -133,7 +137,7 @@ and by <a href="https://ncas.ac.uk/">NCAS</a>.
 <h1>cf.Field.grad_xy<a class="headerlink" href="#cf-field-grad-xy" title="Permalink to this headline">¶</a></h1>
 <dl class="method">
 <dt id="cf.Field.grad_xy">
-<code class="sig-prename descclassname">Field.</code><code class="sig-name descname">grad_xy</code><span class="sig-paren">(</span><em class="sig-param">x_wrap=None</em>, <em class="sig-param">one_sided_at_boundary=False</em>, <em class="sig-param">radius=None</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.2/cf/field.py#L12444-L12640"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.Field.grad_xy" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">Field.</code><code class="sig-name descname">grad_xy</code><span class="sig-paren">(</span><em class="sig-param">x_wrap=None</em>, <em class="sig-param">one_sided_at_boundary=False</em>, <em class="sig-param">radius=None</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.4/cf/field.py#L12461-L12657"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.Field.grad_xy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the (X, Y) gradient vector.</p>
 <p>The horizontal gradient vector of a scalar function is
 calculated from a field that has dimension coordinates of X
@@ -175,7 +179,7 @@ calculated.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><dl>
-<dt>x_wrap: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>Whether the X axis is cyclic or not. By default
+<dt>x_wrap: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>Whether the X axis is cyclic or not. By default
 <em>x_wrap</em> is set to the result of this call to the
 field construct’s <a class="reference internal" href="cf.Field.iscyclic.html#cf.Field.iscyclic" title="cf.Field.iscyclic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iscyclic</span></code></a> method:
 <code class="docutils literal notranslate"><span class="pre">f.iscyclic('X')</span></code>. If the X axis is cyclic then
@@ -185,7 +189,7 @@ setting of <em>one_sided_at_boundary</em>.</p>
 <p>The cyclicity of the Y axis is always set to the
 result of <code class="docutils literal notranslate"><span class="pre">f.iscyclic('Y')</span></code>.</p>
 </dd>
-<dt>one_sided_at_boundary: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>If True then one-sided finite differences are
+<dt>one_sided_at_boundary: <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a>, optional</dt><dd><p>If True then one-sided finite differences are
 calculated at the non-cyclic boundaries. By default
 missing values are set at non-cyclic boundaries.</p>
 </dd>
@@ -263,7 +267,7 @@ default value of 6371229 metres.</p>
     <div class="clearer"></div>
   </div>
     <div class="footer">
-      &copy;2023, NCAS | Page built on 2023-07-21.
+      &copy;2023, NCAS | Page built on 2023-10-10.
       
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.5</a>

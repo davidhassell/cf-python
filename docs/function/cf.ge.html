@@ -24,6 +24,7 @@
     <script src="../_static/copybutton.js"></script>
     <script src="../_static/toggleprompt.js"></script>
     <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="cf.gt" href="cf.gt.html" />
@@ -39,10 +40,13 @@
     
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/logo.svg" alt="Logo"/>
+            </a></p>
 
 
 
-<h1 class="logo"><a href="../index.html">cf 3.15.2</a></h1>
+<h1 class="logo"><a href="../index.html">cf 3.15.4</a></h1>
 
 
 
@@ -131,7 +135,7 @@ and by <a href="https://ncas.ac.uk/">NCAS</a>.
 <h1>cf.ge<a class="headerlink" href="#cf-ge" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="cf.ge">
-<code class="sig-prename descclassname">cf.</code><code class="sig-name descname">ge</code><span class="sig-paren">(</span><em class="sig-param">value</em>, <em class="sig-param">units=None</em>, <em class="sig-param">attr=None</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.2/cf/query.py#L1392-L1441"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.ge" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">cf.</code><code class="sig-name descname">ge</code><span class="sig-paren">(</span><em class="sig-param">value</em>, <em class="sig-param">units=None</em>, <em class="sig-param">attr=None</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.4/cf/query.py#L1392-L1441"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.ge" title="Permalink to this definition">¶</a></dt>
 <dd><p>A <a class="reference internal" href="../class/cf.Query.html#cf.Query" title="cf.Query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Query</span></code></a> object for a “greater than or equal” condition.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
@@ -143,13 +147,13 @@ and by <a href="https://ncas.ac.uk/">NCAS</a>.
 <dd class="field-odd"><dl class="simple">
 <dt>value:</dt><dd><p>The query condition’s value.</p>
 </dd>
-<dt>units: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> or <a class="reference internal" href="../class/cf.Units.html#cf.Units" title="cf.Units"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Units</span></code></a>, optional</dt><dd><p>The units of <em>value</em>. By default, the same units as the
+<dt>units: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> or <a class="reference internal" href="../class/cf.Units.html#cf.Units" title="cf.Units"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Units</span></code></a>, optional</dt><dd><p>The units of <em>value</em>. By default, the same units as the
 operand being tested are assumed, if applicable. If
 <em>units</em> is specified and <em>value</em> already has units (such
 as those attached to a <a class="reference internal" href="../class/cf.Data.html#cf.Data" title="cf.Data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code></a> object), then the pair of
 units must be equivalent.</p>
 </dd>
-<dt>attr: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional</dt><dd><p>Apply the condition to the attribute, or nested
+<dt>attr: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional</dt><dd><p>Apply the condition to the attribute, or nested
 attributes, of the operand, rather than the operand
 itself. Nested attributes are specified by separating them
 with a <code class="docutils literal notranslate"><span class="pre">.</span></code>. For example, the “month” attribute of the
@@ -196,7 +200,7 @@ with a <code class="docutils literal notranslate"><span class="pre">.</span></co
     <div class="clearer"></div>
   </div>
     <div class="footer">
-      &copy;2023, NCAS | Page built on 2023-07-21.
+      &copy;2023, NCAS | Page built on 2023-10-10.
       
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.5</a>
