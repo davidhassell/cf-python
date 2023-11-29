@@ -7781,745 +7781,24 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 if group_span is True:
                     group_span = None
 
-        if group is not None:
-            if isinstance(group, Query):
-                group = (group,)
-
-            if isinstance(group, int):
-                # ----------------------------------------------------
-                # E.g. group=3
-                # ----------------------------------------------------
-                coord = None
-                classification = np.empty((axis_size,), int)
-
-                start = 0
-                end = group
-                n = 0
-                while start < axis_size:
-                    classification[start:end] = n
-                    start = end
-                    end += group
-                    n += 1
-
-                if group_span is True or group_span is None:
-                    # Use the group definition as the group span
-                    group_span = group
-
-            elif isinstance(group, TimeDuration):
-                # ----------------------------------------------------
-                # E.g. group=cf.M()
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None:
-                    raise ValueError(
-                        "Dimension coordinates are required for a "
-                        "grouped collapse with TimeDuration groups."
-                    )
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                lower, upper, lower_limit, upper_limit = _tyu(
-                    coord, group_by, True
-                )
-
-                classification, n = _time_interval(
-                    classification,
-                    0,
-                    coord=coord,
-                    interval=group,
-                    lower=lower,
-                    upper=upper,
-                    lower_limit=lower_limit,
-                    upper_limit=upper_limit,
-                    group_by=group_by,
-                )
-
-                if group_span is True or group_span is None:
-                    # Use the group definition as the group span
-                    group_span = group
-
-            elif isinstance(group, Data):
-                # ----------------------------------------------------
-                # Chunks of
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None:
-                    axis_id = self.constructs.domain_axis_identity(axis)
-                    raise ValueError(
-                        f"Dimension coordinates for the {axis_id!r} axis are "
-                        f"required for a collapse with group={group!r}"
-                    )
-
-                if coord.Units.isreftime:
-                    axis_id = self.constructs.domain_axis_identity(axis)
-                    raise ValueError(
-                        f"Can't collapse reference-time axis {axis_id!r} "
-                        f"with group={group!r}. In this case groups should "
-                        "be defined with a TimeDuration instance."
-                    )
-
-                if group.size != 1:
-                    raise ValueError(
-                        "A Data instance 'group' parameter must have exactly "
-                        f"one element: Got group={group!r}"
-                    )
-
-                if group.Units and not group.Units.equivalent(coord.Units):
-                    axis_id = self.constructs.domain_axis_identity(axis)
-                    raise ValueError(
-                        f"Group units {group.Units!r} are not eqivalent to "
-                        f"{axis_id!r} axis units {coord.Units!r}"
-                    )
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                group = group.squeeze()
-
-                lower, upper, lower_limit, upper_limit = _tyu(
-                    coord, group_by, False
-                )
-
-                classification, n = _data_interval(
-                    classification,
-                    0,
-                    coord=coord,
-                    interval=group,
-                    lower=lower,
-                    upper=upper,
-                    lower_limit=lower_limit,
-                    upper_limit=upper_limit,
-                    group_by=group_by,
-                )
-
-                if group_span is True or group_span is None:
-                    # Use the group definition as the group span
-                    group_span = group
-
-            else:
-                # ----------------------------------------------------
-                # E.g. group=[cf.month(4), cf.month(cf.wi(9, 11))]
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None:
-                    coord = self.auxiliary_coordinate(
-                        filter_by_axis=(axis,), axis_mode="exact", default=None
-                    )
-                    if coord is None:
-                        raise ValueError(
-                            "Dimension and/or auxiliary coordinates are "
-                            "required for a grouped collapse with a "
-                            "sequence of groups."
-                        )
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                classification, n = _selection(
-                    classification,
-                    0,
-                    coord=coord,
-                    selection=group,
-                    parameter="group",
-                )
-                classification = _discern_runs(classification)
-
-                if group_span is True:
-                    group_span = None
-        #                elif group_span is True:
-        #                    raise ValueError(
-        #                        "Can't collapse: Can't set group_span=True when "
-        #                        f"group={group!r}"
-        #                    )
-
-        if classification is None:
-            if over == "days":
-                # ----------------------------------------------------
-                # Over days
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None or not coord.Units.isreftime:
-                    raise ValueError(
-                        "Reference-time dimension coordinates are required "
-                        "for an 'over days' collapse"
-                    )
-
-                if not coord.has_bounds():
-                    raise ValueError(
-                        "Reference-time dimension coordinate bounds are "
-                        "required for an 'over days' collapse"
-                    )
-
-                cell_methods = self.cell_methods(todict=True)
-                w = [
-                    cm.get_qualifier("within", None)
-                    for cm in cell_methods.values()
-                ]
-                if "days" not in w:
-                    raise ValueError(
-                        "An 'over days' collapse must come after a "
-                        "'within days' cell method"
-                    )
-
-                # Parse the over_days parameter
-                if isinstance(over_days, Query):
-                    over_days = (over_days,)
-                elif isinstance(over_days, TimeDuration):
-                    if over_days.Units.istime and over_days < Data(1, "day"):
-                        raise ValueError(
-                            f"Bad parameter value: over_days={over_days!r}"
-                        )
-
-                coordinate = "minimum"
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                if isinstance(over_days, TimeDuration):
-                    _, _, lower_limit, upper_limit = _tyu(
-                        coord, "bounds", True
-                    )
-
-                bounds = coord.bounds
-                lower_bounds = coord.lower_bounds.datetime_array
-                upper_bounds = coord.upper_bounds.datetime_array
-
-                HMS0 = None
-
-                n = 0
-                for lower, upper in zip(lower_bounds, upper_bounds):
-                    HMS_l = (
-                        eq(lower.hour, attr="hour")
-                        & eq(lower.minute, attr="minute")
-                        & eq(lower.second, attr="second")
-                    ).addattr("lower_bounds")
-                    HMS_u = (
-                        eq(upper.hour, attr="hour")
-                        & eq(upper.minute, attr="minute")
-                        & eq(upper.second, attr="second")
-                    ).addattr("upper_bounds")
-                    HMS = HMS_l & HMS_u
-
-                    if not HMS0:
-                        HMS0 = HMS
-                    elif HMS.equals(HMS0):
-                        # We've got repeat of the first cell, which
-                        # means that we must have now classified all
-                        # cells. Therefore we can stop.
-                        break
-
-                    if debug:
-                        logger.debug(
-                            f"          HMS  = {HMS!r}"
-                        )  # pragma: no cover
-
-                    if over_days is None:
-                        # --------------------------------------------
-                        # over_days=None
-                        # --------------------------------------------
-                        # Over all days
-                        index = HMS.evaluate(coord).array
-                        classification[index] = n
-                        n += 1
-                    elif isinstance(over_days, TimeDuration):
-                        # --------------------------------------------
-                        # E.g. over_days=cf.M()
-                        # --------------------------------------------
-                        classification, n = _time_interval_over(
-                            classification,
-                            n,
-                            coord=coord,
-                            interval=over_days,
-                            lower=lower,
-                            upper=upper,
-                            lower_limit=lower_limit,
-                            upper_limit=upper_limit,
-                            group_by="bounds",
-                            extra_condition=HMS,
-                        )
-                    else:
-                        # --------------------------------------------
-                        # E.g. over_days=[cf.month(cf.wi(4, 9))]
-                        # --------------------------------------------
-                        classification, n = _selection(
-                            classification,
-                            n,
-                            coord=coord,
-                            selection=over_days,
-                            parameter="over_days",
-                            extra_condition=HMS,
-                        )
-
-            elif over == "years":
-                # ----------------------------------------------------
-                # Over years
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None or not coord.Units.isreftime:
-                    raise ValueError(
-                        "Reference-time dimension coordinates are required "
-                        "for an 'over years' collapse"
-                    )
-
-                bounds = coord.get_bounds(None)
-                if bounds is None:
-                    raise ValueError(
-                        "Reference-time dimension coordinate bounds are "
-                        "required for an 'over years' collapse"
-                    )
-
-                cell_methods = self.cell_methods(todict=True)
-                w = [
-                    cm.get_qualifier("within", None)
-                    for cm in cell_methods.values()
-                ]
-                o = [
-                    cm.get_qualifier("over", None)
-                    for cm in cell_methods.values()
-                ]
-                if "years" not in w and "days" not in o:
-                    raise ValueError(
-                        "An 'over years' collapse must come after a "
-                        "'within years' or 'over days' cell method"
-                    )
-
-                # Parse the over_years parameter
-                if isinstance(over_years, Query):
-                    over_years = (over_years,)
-                elif isinstance(over_years, TimeDuration):
-                    if over_years.Units.iscalendartime:
-                        over_years.Units = Units("calendar_years")
-                        if not over_years.isint or over_years < 1:
-                            raise ValueError(
-                                "over_years is not a whole number of "
-                                f"calendar years: {over_years!r}"
-                            )
-                    else:
-                        raise ValueError(
-                            "over_years is not a whole number of calendar "
-                            f"years: {over_years!r}"
-                        )
-
-                coordinate = "minimum"
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                if isinstance(over_years, TimeDuration):
-                    _, _, lower_limit, upper_limit = _tyu(
-                        coord, "bounds", True
-                    )
-
-                lower_bounds = coord.lower_bounds.datetime_array
-                upper_bounds = coord.upper_bounds.datetime_array
-                mdHMS0 = None
-
-                n = 0
-                for lower, upper in zip(lower_bounds, upper_bounds):
-                    mdHMS_l = (
-                        eq(lower.month, attr="month")
-                        & eq(lower.day, attr="day")
-                        & eq(lower.hour, attr="hour")
-                        & eq(lower.minute, attr="minute")
-                        & eq(lower.second, attr="second")
-                    ).addattr("lower_bounds")
-                    mdHMS_u = (
-                        eq(upper.month, attr="month")
-                        & eq(upper.day, attr="day")
-                        & eq(upper.hour, attr="hour")
-                        & eq(upper.minute, attr="minute")
-                        & eq(upper.second, attr="second")
-                    ).addattr("upper_bounds")
-                    mdHMS = mdHMS_l & mdHMS_u
-
-                    if not mdHMS0:
-                        # Keep a record of the first cell
-                        mdHMS0 = mdHMS
-                        if debug:
-                            logger.debug(
-                                f"        mdHMS0 = {mdHMS0!r}"
-                            )  # pragma: no cover
-                    elif mdHMS.equals(mdHMS0):
-                        # We've got repeat of the first cell, which
-                        # means that we must have now classified all
-                        # cells. Therefore we can stop.
-                        break
-
-                    if debug:
-                        logger.debug(
-                            f"        mdHMS  = {mdHMS!r}"
-                        )  # pragma: no cover
-
-                    if over_years is None:
-                        # --------------------------------------------
-                        # over_years=None
-                        # --------------------------------------------
-                        # Over all years
-                        index = mdHMS.evaluate(coord).array
-                        classification[index] = n
-                        n += 1
-                    elif isinstance(over_years, TimeDuration):
-                        # --------------------------------------------
-                        # E.g. over_years=cf.Y(2)
-                        # --------------------------------------------
-                        classification, n = _time_interval_over(
-                            classification,
-                            n,
-                            coord=coord,
-                            interval=over_years,
-                            lower=lower,
-                            upper=upper,
-                            lower_limit=lower_limit,
-                            upper_limit=upper_limit,
-                            group_by="bounds",
-                            extra_condition=mdHMS,
-                        )
-                    else:
-                        # --------------------------------------------
-                        # E.g. over_years=cf.year(cf.lt(2000))
-                        # --------------------------------------------
-                        classification, n = _selection(
-                            classification,
-                            n,
-                            coord=coord,
-                            selection=over_years,
-                            parameter="over_years",
-                            extra_condition=mdHMS,
-                        )
-
-            elif within == "days":
-                # ----------------------------------------------------
-                # Within days
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None or not coord.Units.isreftime:
-                    raise ValueError(
-                        "Reference-time dimension coordinates are required "
-                        "for an 'over years' collapse"
-                    )
-
-                bounds = coord.get_bounds(None)
-                if bounds is None:
-                    raise ValueError(
-                        "Reference-time dimension coordinate bounds are "
-                        "required for a 'within days' collapse"
-                    )
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                # Parse the within_days parameter
-                if isinstance(within_days, Query):
-                    within_days = (within_days,)
-                elif isinstance(within_days, TimeDuration):
-                    if (
-                        within_days.Units.istime
-                        and TimeDuration(24, "hours") % within_days
-                    ):
-                        # % Data(1, 'day'): # % within_days:
-                        raise ValueError(
-                            f"Can't collapse: within_days={within_days!r} "
-                            "is not an exact factor of 1 day"
-                        )
-
-                if isinstance(within_days, TimeDuration):
-                    # ------------------------------------------------
-                    # E.g. within_days=cf.h(6)
-                    # ------------------------------------------------
-                    lower, upper, lower_limit, upper_limit = _tyu(
-                        coord, "bounds", True
-                    )
-
-                    classification, n = _time_interval(
-                        classification,
-                        0,
-                        coord=coord,
-                        interval=within_days,
-                        lower=lower,
-                        upper=upper,
-                        lower_limit=lower_limit,
-                        upper_limit=upper_limit,
-                        group_by=group_by,
-                    )
-
-                    if group_span is True or group_span is None:
-                        # Use the within_days definition as the group
-                        # span
-                        group_span = within_days
-
-                else:
-                    # ------------------------------------------------
-                    # E.g. within_days=cf.hour(cf.lt(12))
-                    # ------------------------------------------------
-                    classification, n = _selection(
-                        classification,
-                        0,
-                        coord=coord,
-                        selection=within_days,
-                        parameter="within_days",
-                    )
-
-                    classification = _discern_runs(classification)
-
-                    classification = _discern_runs_within(
-                        classification, coord
-                    )
-
-                    #                    if group_span is None:
-                    #                        group_span = False
-                    #                    elif group_span is True:
-                    #                        raise ValueError(
-                    #                            "Can't collapse: Can't set group_span=True when "
-                    #                            f"within_days={within_days!r}"
-                    #                        )
-                    if group_span is True:
-                        group_span = None
-
-            elif within == "years":
-                # ----------------------------------------------------
-                # Within years
-                # ----------------------------------------------------
-                coord = self.dimension_coordinate(
-                    filter_by_axis=(axis,), default=None
-                )
-                if coord is None or not coord.Units.isreftime:
-                    raise ValueError(
-                        "Can't collapse: Reference-time dimension "
-                        'coordinates are required for a "within years" '
-                        "collapse"
-                    )
-
-                if not coord.has_bounds():
-                    raise ValueError(
-                        "Can't collapse: Reference-time dimension coordinate "
-                        'bounds are required for a "within years" collapse'
-                    )
-
-                classification = np.empty((axis_size,), int)
-                classification.fill(-1)
-
-                # Parse within_years
-                if isinstance(within_years, Query):
-                    within_years = (within_years,)
-                elif within_years is None:
-                    raise ValueError(
-                        "Must set the within_years parameter for a "
-                        '"within years" climatalogical time collapse'
-                    )
-
-                if isinstance(within_years, TimeDuration):
-                    # ------------------------------------------------
-                    # E.g. within_years=cf.M()
-                    # ------------------------------------------------
-                    lower, upper, lower_limit, upper_limit = _tyu(
-                        coord, "bounds", True
-                    )
-
-                    classification, n = _time_interval(
-                        classification,
-                        0,
-                        coord=coord,
-                        interval=within_years,
-                        lower=lower,
-                        upper=upper,
-                        lower_limit=lower_limit,
-                        upper_limit=upper_limit,
-                        group_by=group_by,
-                    )
-
-                    if group_span is True or group_span is None:
-                        # Use the within_years definition as the group
-                        # span
-                        group_span = within_years
-
-                else:
-                    # ------------------------------------------------
-                    # E.g. within_years=cf.season()
-                    # ------------------------------------------------
-                    classification, n = _selection(
-                        classification,
-                        0,
-                        coord=coord,
-                        selection=within_years,
-                        parameter="within_years",
-                        within=True,
-                    )
-
-                    classification = _discern_runs(classification)
-                    classification = _discern_runs_within(
-                        classification, coord
-                    )
-
-                    #                    if group_span is None:
-                    #                        group_span = False
-                    #                    elif group_span is True:
-                    #                        raise ValueError(
-                    #                            "Can't collapse: Can't set group_span=True when "
-                    #                            f"within_years={within_years!r}"
-                    #                        )
-
-                    if group_span is True:
-                        group_span = None
-
-            elif over is not None:
-                raise ValueError(
-                    f"Can't collapse: Bad 'over' syntax: {over!r}"
-                )
-
-            elif within is not None:
-                raise ValueError(
-                    f"Can't collapse: Bad 'within' syntax: {within!r}"
-                )
-
-        if classification is None and group_span is not None:
-            # Return a classification array of all zeros
-            classification = np.zeros((axis_size,), dtype="int32")
-
-        if classification is not None:
-            # ---------------------------------------------------------
-            # Collapse each group
-            # ---------------------------------------------------------
-            if debug:
-                logger.debug(
-                    f"        classification    = {classification}"
-                )  # pragma: no cover
-
-            unique = np.unique(classification)
-            unique = unique[unique >= 0].tolist()
-
-            ignore_n = classification.min() - 1
-            for u in unique:
-                index = np.where(classification == u)[0].tolist()
-
-                pc = self.subspace(**{axis: index})
-
-                # ----------------------------------------------------
-                # Ignore groups that don't meet the specified criteria
-                # ----------------------------------------------------
-                if over is None:
-                    coord = pc.coordinate(axis_in, default=None)
-
-                    if group_span is not False and group_span is not None:
-                        if isinstance(group_span, int):
-                            if (
-                                pc.domain_axes(todict=True)[axis].get_size()
-                                != group_span
-                            ):
-                                classification[index] = ignore_n
-                                ignore_n -= 1
-                                continue
-                        else:
-                            if coord is None:
-                                axis_id = pc.constructs.domain_axis_identity(
-                                    axis_in
-                                )
-                                raise ValueError(
-                                    f"Can't group: No coordinates for "
-                                    f"{axis_id!r} axis with group={group!r} "
-                                    f"and group_span={group_span!r}"
-                                )
-
-                            bounds = coord.get_bounds(None)
-                            if bounds is None:
-                                raise ValueError(
-                                    f"Can't group: No bounds on {coord!r} "
-                                    f"with group={group!r} and "
-                                    f"group_span={group_span!r}"
-                                )
-
-                            lb = bounds[0, 0].get_data(_fill_value=False)
-                            ub = bounds[-1, 1].get_data(_fill_value=False)
-                            if coord.T:
-                                lb = lb.datetime_array.item()
-                                ub = ub.datetime_array.item()
-
-                            if not coord.increasing:
-                                lb, ub = ub, lb
-
-                            if group_span + lb != ub:
-                                # The span of this group is not the
-                                # same as group_span, so don't
-                                # collapse it.
-                                classification[index] = ignore_n
-                                ignore_n -= 1
-                                continue
-
-                    if (
-                        group_contiguous
-                        and coord is not None
-                        and coord.has_bounds()
-                        and not coord.bounds.contiguous(
-                            overlap=(group_contiguous == 2)
-                        )
-                    ):
-                        # This group is not contiguous, so don't
-                        # collapse it.
-                        classification[index] = ignore_n
-                        ignore_n -= 1
-                        continue
-
-                if return_classification:
-                    continue
-
-                # ----------------------------------------------------
-                # Still here? Then collapse the group
-                # ----------------------------------------------------
-                w = _group_weights(weights, iaxis, index)
-                if debug:
-                    logger.debug(
-                        f"        Collapsing group {u}:"
-                    )  # pragma: no cover
-
-                fl.append(
-                    pc.collapse(
-                        method,
-                        axis,
-                        weights=w,
-                        measure=measure,
-                        mtol=mtol,
-                        ddof=ddof,
-                        coordinate=coordinate,
-                        squeeze=False,
-                        inplace=True,
-                        _create_zero_size_cell_bounds=True,
-                        _update_cell_methods=False,
-                    )
-                )
-
-            if debug:
-                logger.debug(
-                    f"        classification    = {classification}"
-                )  # pragma: no cover
-
-            if return_classification:
-                # Return the classification array
-                return classification
-
-        elif return_classification:
-            # Return a classification array of all zeros
-            classification = np.zeros((axis_size,), dtype="int32")
-            if debug:
-                logger.debug(
-                    f"        classification    = {classification}"
-                )  # pragma: no cover
-
+        grouped, classification = self.group(
+            axis,
+            group=mmm,
+            group_span=group_span,
+            group_contiguous=group_contiguous,
+            within_days=within == "days",
+            within_years=within == "years",
+            over_days=over == "days",
+            over_years=over == "years",
+            return_classification=return_classification
+        )
+
+        if return_classification:
+            # Return the classification array
             return classification
 
         # Still here?
-        if not fl:
+        if not grouped:
             c = "contiguous " if group_contiguous else ""
             s = f" spanning {group_span}" if group_span is not None else ""
             if within is not None:
@@ -8527,6 +7806,24 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             raise ValueError(
                 f"Can't collapse: No {c}groups{s} were identified"
+            )
+
+        fl = []
+        for g, index in zip(grouped, Group.indices(classification)):
+            fl.append(
+                g.collapse(
+                    method,
+                    axis,
+                    weights=Group.weights(weights, iaxis, index),
+                    measure=measure,
+                    mtol=mtol,
+                    ddof=ddof,
+                    coordinate=coordinate,
+                    squeeze=False,
+                    inplace=True,
+                    _create_zero_size_cell_bounds=True,
+                    _update_cell_methods=False,
+                )
             )
 
         if len(fl) == 1:
@@ -8581,6 +7878,811 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             logger.debug("    End of grouped collapse")  # pragma: no cover
 
         return self
+
+    ####
+#        if group is not None:
+#            if isinstance(group, Query):
+#                group = (group,)
+#
+#            if isinstance(group, int):
+#                # ----------------------------------------------------
+#                # E.g. group=3
+#                # ----------------------------------------------------
+#                coord = None
+#                classification = np.empty((axis_size,), int)
+#
+#                start = 0
+#                end = group
+#                n = 0
+#                while start < axis_size:
+#                    classification[start:end] = n
+#                    start = end
+#                    end += group
+#                    n += 1
+#
+#                if group_span is True or group_span is None:
+#                    # Use the group definition as the group span
+#                    group_span = group
+#
+#            elif isinstance(group, TimeDuration):
+#                # ----------------------------------------------------
+#                # E.g. group=cf.M()
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None:
+#                    raise ValueError(
+#                        "Dimension coordinates are required for a "
+#                        "grouped collapse with TimeDuration groups."
+#                    )
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                lower, upper, lower_limit, upper_limit = _tyu(
+#                    coord, group_by, True
+#                )
+#
+#                classification, n = _time_interval(
+#                    classification,
+#                    0,
+#                    coord=coord,
+#                    interval=group,
+#                    lower=lower,
+#                    upper=upper,
+#                    lower_limit=lower_limit,
+#                    upper_limit=upper_limit,
+#                    group_by=group_by,
+#                )
+#
+#                if group_span is True or group_span is None:
+#                    # Use the group definition as the group span
+#                    group_span = group
+#
+#            elif isinstance(group, Data):
+#                # ----------------------------------------------------
+#                # Chunks of
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None:
+#                    axis_id = self.constructs.domain_axis_identity(axis)
+#                    raise ValueError(
+#                        f"Dimension coordinates for the {axis_id!r} axis are "
+#                        f"required for a collapse with group={group!r}"
+#                    )
+#
+#                if coord.Units.isreftime:
+#                    axis_id = self.constructs.domain_axis_identity(axis)
+#                    raise ValueError(
+#                        f"Can't collapse reference-time axis {axis_id!r} "
+#                        f"with group={group!r}. In this case groups should "
+#                        "be defined with a TimeDuration instance."
+#                    )
+#
+#                if group.size != 1:
+#                    raise ValueError(
+#                        "A Data instance 'group' parameter must have exactly "
+#                        f"one element: Got group={group!r}"
+#                    )
+#
+#                if group.Units and not group.Units.equivalent(coord.Units):
+#                    axis_id = self.constructs.domain_axis_identity(axis)
+#                    raise ValueError(
+#                        f"Group units {group.Units!r} are not eqivalent to "
+#                        f"{axis_id!r} axis units {coord.Units!r}"
+#                    )
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                group = group.squeeze()
+#
+#                lower, upper, lower_limit, upper_limit = _tyu(
+#                    coord, group_by, False
+#                )
+#
+#                classification, n = _data_interval(
+#                    classification,
+#                    0,
+#                    coord=coord,
+#                    interval=group,
+#                    lower=lower,
+#                    upper=upper,
+#                    lower_limit=lower_limit,
+#                    upper_limit=upper_limit,
+#                    group_by=group_by,
+#                )
+#
+#                if group_span is True or group_span is None:
+#                    # Use the group definition as the group span
+#                    group_span = group
+#
+#            else:
+#                # ----------------------------------------------------
+#                # E.g. group=[cf.month(4), cf.month(cf.wi(9, 11))]
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None:
+#                    coord = self.auxiliary_coordinate(
+#                        filter_by_axis=(axis,), axis_mode="exact", default=None
+#                    )
+#                    if coord is None:
+#                        raise ValueError(
+#                            "Dimension and/or auxiliary coordinates are "
+#                            "required for a grouped collapse with a "
+#                            "sequence of groups."
+#                        )
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                classification, n = _selection(
+#                    classification,
+#                    0,
+#                    coord=coord,
+#                    selection=group,
+#                    parameter="group",
+#                )
+#                classification = _discern_runs(classification)
+#
+#                if group_span is True:
+#                    group_span = None
+#        #                elif group_span is True:
+#        #                    raise ValueError(
+#        #                        "Can't collapse: Can't set group_span=True when "
+#        #                        f"group={group!r}"
+#        #                    )
+#
+#        if classification is None:
+#            if over == "days":
+#                # ----------------------------------------------------
+#                # Over days
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None or not coord.Units.isreftime:
+#                    raise ValueError(
+#                        "Reference-time dimension coordinates are required "
+#                        "for an 'over days' collapse"
+#                    )
+#
+#                if not coord.has_bounds():
+#                    raise ValueError(
+#                        "Reference-time dimension coordinate bounds are "
+#                        "required for an 'over days' collapse"
+#                    )
+#
+#                cell_methods = self.cell_methods(todict=True)
+#                w = [
+#                    cm.get_qualifier("within", None)
+#                    for cm in cell_methods.values()
+#                ]
+#                if "days" not in w:
+#                    raise ValueError(
+#                        "An 'over days' collapse must come after a "
+#                        "'within days' cell method"
+#                    )
+#
+#                # Parse the over_days parameter
+#                if isinstance(over_days, Query):
+#                    over_days = (over_days,)
+#                elif isinstance(over_days, TimeDuration):
+#                    if over_days.Units.istime and over_days < Data(1, "day"):
+#                        raise ValueError(
+#                            f"Bad parameter value: over_days={over_days!r}"
+#                        )
+#
+#                coordinate = "minimum"
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                if isinstance(over_days, TimeDuration):
+#                    _, _, lower_limit, upper_limit = _tyu(
+#                        coord, "bounds", True
+#                    )
+#
+#                bounds = coord.bounds
+#                lower_bounds = coord.lower_bounds.datetime_array
+#                upper_bounds = coord.upper_bounds.datetime_array
+#
+#                HMS0 = None
+#
+#                n = 0
+#                for lower, upper in zip(lower_bounds, upper_bounds):
+#                    HMS_l = (
+#                        eq(lower.hour, attr="hour")
+#                        & eq(lower.minute, attr="minute")
+#                        & eq(lower.second, attr="second")
+#                    ).addattr("lower_bounds")
+#                    HMS_u = (
+#                        eq(upper.hour, attr="hour")
+#                        & eq(upper.minute, attr="minute")
+#                        & eq(upper.second, attr="second")
+#                    ).addattr("upper_bounds")
+#                    HMS = HMS_l & HMS_u
+#
+#                    if not HMS0:
+#                        HMS0 = HMS
+#                    elif HMS.equals(HMS0):
+#                        # We've got repeat of the first cell, which
+#                        # means that we must have now classified all
+#                        # cells. Therefore we can stop.
+#                        break
+#
+#                    if debug:
+#                        logger.debug(
+#                            f"          HMS  = {HMS!r}"
+#                        )  # pragma: no cover
+#
+#                    if over_days is None:
+#                        # --------------------------------------------
+#                        # over_days=None
+#                        # --------------------------------------------
+#                        # Over all days
+#                        index = HMS.evaluate(coord).array
+#                        classification[index] = n
+#                        n += 1
+#                    elif isinstance(over_days, TimeDuration):
+#                        # --------------------------------------------
+#                        # E.g. over_days=cf.M()
+#                        # --------------------------------------------
+#                        classification, n = _time_interval_over(
+#                            classification,
+#                            n,
+#                            coord=coord,
+#                            interval=over_days,
+#                            lower=lower,
+#                            upper=upper,
+#                            lower_limit=lower_limit,
+#                            upper_limit=upper_limit,
+#                            group_by="bounds",
+#                            extra_condition=HMS,
+#                        )
+#                    else:
+#                        # --------------------------------------------
+#                        # E.g. over_days=[cf.month(cf.wi(4, 9))]
+#                        # --------------------------------------------
+#                        classification, n = _selection(
+#                            classification,
+#                            n,
+#                            coord=coord,
+#                            selection=over_days,
+#                            parameter="over_days",
+#                            extra_condition=HMS,
+#                        )
+#
+#            elif over == "years":
+#                # ----------------------------------------------------
+#                # Over years
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None or not coord.Units.isreftime:
+#                    raise ValueError(
+#                        "Reference-time dimension coordinates are required "
+#                        "for an 'over years' collapse"
+#                    )
+#
+#                bounds = coord.get_bounds(None)
+#                if bounds is None:
+#                    raise ValueError(
+#                        "Reference-time dimension coordinate bounds are "
+#                        "required for an 'over years' collapse"
+#                    )
+#
+#                cell_methods = self.cell_methods(todict=True)
+#                w = [
+#                    cm.get_qualifier("within", None)
+#                    for cm in cell_methods.values()
+#                ]
+#                o = [
+#                    cm.get_qualifier("over", None)
+#                    for cm in cell_methods.values()
+#                ]
+#                if "years" not in w and "days" not in o:
+#                    raise ValueError(
+#                        "An 'over years' collapse must come after a "
+#                        "'within years' or 'over days' cell method"
+#                    )
+#
+#                # Parse the over_years parameter
+#                if isinstance(over_years, Query):
+#                    over_years = (over_years,)
+#                elif isinstance(over_years, TimeDuration):
+#                    if over_years.Units.iscalendartime:
+#                        over_years.Units = Units("calendar_years")
+#                        if not over_years.isint or over_years < 1:
+#                            raise ValueError(
+#                                "over_years is not a whole number of "
+#                                f"calendar years: {over_years!r}"
+#                            )
+#                    else:
+#                        raise ValueError(
+#                            "over_years is not a whole number of calendar "
+#                            f"years: {over_years!r}"
+#                        )
+#
+#                coordinate = "minimum"
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                if isinstance(over_years, TimeDuration):
+#                    _, _, lower_limit, upper_limit = _tyu(
+#                        coord, "bounds", True
+#                    )
+#
+#                lower_bounds = coord.lower_bounds.datetime_array
+#                upper_bounds = coord.upper_bounds.datetime_array
+#                mdHMS0 = None
+#
+#                n = 0
+#                for lower, upper in zip(lower_bounds, upper_bounds):
+#                    mdHMS_l = (
+#                        eq(lower.month, attr="month")
+#                        & eq(lower.day, attr="day")
+#                        & eq(lower.hour, attr="hour")
+#                        & eq(lower.minute, attr="minute")
+#                        & eq(lower.second, attr="second")
+#                    ).addattr("lower_bounds")
+#                    mdHMS_u = (
+#                        eq(upper.month, attr="month")
+#                        & eq(upper.day, attr="day")
+#                        & eq(upper.hour, attr="hour")
+#                        & eq(upper.minute, attr="minute")
+#                        & eq(upper.second, attr="second")
+#                    ).addattr("upper_bounds")
+#                    mdHMS = mdHMS_l & mdHMS_u
+#
+#                    if not mdHMS0:
+#                        # Keep a record of the first cell
+#                        mdHMS0 = mdHMS
+#                        if debug:
+#                            logger.debug(
+#                                f"        mdHMS0 = {mdHMS0!r}"
+#                            )  # pragma: no cover
+#                    elif mdHMS.equals(mdHMS0):
+#                        # We've got repeat of the first cell, which
+#                        # means that we must have now classified all
+#                        # cells. Therefore we can stop.
+#                        break
+#
+#                    if debug:
+#                        logger.debug(
+#                            f"        mdHMS  = {mdHMS!r}"
+#                        )  # pragma: no cover
+#
+#                    if over_years is None:
+#                        # --------------------------------------------
+#                        # over_years=None
+#                        # --------------------------------------------
+#                        # Over all years
+#                        index = mdHMS.evaluate(coord).array
+#                        classification[index] = n
+#                        n += 1
+#                    elif isinstance(over_years, TimeDuration):
+#                        # --------------------------------------------
+#                        # E.g. over_years=cf.Y(2)
+#                        # --------------------------------------------
+#                        classification, n = _time_interval_over(
+#                            classification,
+#                            n,
+#                            coord=coord,
+#                            interval=over_years,
+#                            lower=lower,
+#                            upper=upper,
+#                            lower_limit=lower_limit,
+#                            upper_limit=upper_limit,
+#                            group_by="bounds",
+#                            extra_condition=mdHMS,
+#                        )
+#                    else:
+#                        # --------------------------------------------
+#                        # E.g. over_years=cf.year(cf.lt(2000))
+#                        # --------------------------------------------
+#                        classification, n = _selection(
+#                            classification,
+#                            n,
+#                            coord=coord,
+#                            selection=over_years,
+#                            parameter="over_years",
+#                            extra_condition=mdHMS,
+#                        )
+#
+#            elif within == "days":
+#                # ----------------------------------------------------
+#                # Within days
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None or not coord.Units.isreftime:
+#                    raise ValueError(
+#                        "Reference-time dimension coordinates are required "
+#                        "for an 'over years' collapse"
+#                    )
+#
+#                bounds = coord.get_bounds(None)
+#                if bounds is None:
+#                    raise ValueError(
+#                        "Reference-time dimension coordinate bounds are "
+#                        "required for a 'within days' collapse"
+#                    )
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                # Parse the within_days parameter
+#                if isinstance(within_days, Query):
+#                    within_days = (within_days,)
+#                elif isinstance(within_days, TimeDuration):
+#                    if (
+#                        within_days.Units.istime
+#                        and TimeDuration(24, "hours") % within_days
+#                    ):
+#                        # % Data(1, 'day'): # % within_days:
+#                        raise ValueError(
+#                            f"Can't collapse: within_days={within_days!r} "
+#                            "is not an exact factor of 1 day"
+#                        )
+#
+#                if isinstance(within_days, TimeDuration):
+#                    # ------------------------------------------------
+#                    # E.g. within_days=cf.h(6)
+#                    # ------------------------------------------------
+#                    lower, upper, lower_limit, upper_limit = _tyu(
+#                        coord, "bounds", True
+#                    )
+#
+#                    classification, n = _time_interval(
+#                        classification,
+#                        0,
+#                        coord=coord,
+#                        interval=within_days,
+#                        lower=lower,
+#                        upper=upper,
+#                        lower_limit=lower_limit,
+#                        upper_limit=upper_limit,
+#                        group_by=group_by,
+#                    )
+#
+#                    if group_span is True or group_span is None:
+#                        # Use the within_days definition as the group
+#                        # span
+#                        group_span = within_days
+#
+#                else:
+#                    # ------------------------------------------------
+#                    # E.g. within_days=cf.hour(cf.lt(12))
+#                    # ------------------------------------------------
+#                    classification, n = _selection(
+#                        classification,
+#                        0,
+#                        coord=coord,
+#                        selection=within_days,
+#                        parameter="within_days",
+#                    )
+#
+#                    classification = _discern_runs(classification)
+#
+#                    classification = _discern_runs_within(
+#                        classification, coord
+#                    )
+#
+#                    #                    if group_span is None:
+#                    #                        group_span = False
+#                    #                    elif group_span is True:
+#                    #                        raise ValueError(
+#                    #                            "Can't collapse: Can't set group_span=True when "
+#                    #                            f"within_days={within_days!r}"
+#                    #                        )
+#                    if group_span is True:
+#                        group_span = None
+#
+#            elif within == "years":
+#                # ----------------------------------------------------
+#                # Within years
+#                # ----------------------------------------------------
+#                coord = self.dimension_coordinate(
+#                    filter_by_axis=(axis,), default=None
+#                )
+#                if coord is None or not coord.Units.isreftime:
+#                    raise ValueError(
+#                        "Can't collapse: Reference-time dimension "
+#                        'coordinates are required for a "within years" '
+#                        "collapse"
+#                    )
+#
+#                if not coord.has_bounds():
+#                    raise ValueError(
+#                        "Can't collapse: Reference-time dimension coordinate "
+#                        'bounds are required for a "within years" collapse'
+#                    )
+#
+#                classification = np.empty((axis_size,), int)
+#                classification.fill(-1)
+#
+#                # Parse within_years
+#                if isinstance(within_years, Query):
+#                    within_years = (within_years,)
+#                elif within_years is None:
+#                    raise ValueError(
+#                        "Must set the within_years parameter for a "
+#                        '"within years" climatalogical time collapse'
+#                    )
+#
+#                if isinstance(within_years, TimeDuration):
+#                    # ------------------------------------------------
+#                    # E.g. within_years=cf.M()
+#                    # ------------------------------------------------
+#                    lower, upper, lower_limit, upper_limit = _tyu(
+#                        coord, "bounds", True
+#                    )
+#
+#                    classification, n = _time_interval(
+#                        classification,
+#                        0,
+#                        coord=coord,
+#                        interval=within_years,
+#                        lower=lower,
+#                        upper=upper,
+#                        lower_limit=lower_limit,
+#                        upper_limit=upper_limit,
+#                        group_by=group_by,
+#                    )
+#
+#                    if group_span is True or group_span is None:
+#                        # Use the within_years definition as the group
+#                        # span
+#                        group_span = within_years
+#
+#                else:
+#                    # ------------------------------------------------
+#                    # E.g. within_years=cf.season()
+#                    # ------------------------------------------------
+#                    classification, n = _selection(
+#                        classification,
+#                        0,
+#                        coord=coord,
+#                        selection=within_years,
+#                        parameter="within_years",
+#                        within=True,
+#                    )
+#
+#                    classification = _discern_runs(classification)
+#                    classification = _discern_runs_within(
+#                        classification, coord
+#                    )
+#
+#                    #                    if group_span is None:
+#                    #                        group_span = False
+#                    #                    elif group_span is True:
+#                    #                        raise ValueError(
+#                    #                            "Can't collapse: Can't set group_span=True when "
+#                    #                            f"within_years={within_years!r}"
+#                    #                        )
+#
+#                    if group_span is True:
+#                        group_span = None
+#
+#            elif over is not None:
+#                raise ValueError(
+#                    f"Can't collapse: Bad 'over' syntax: {over!r}"
+#                )
+#
+#            elif within is not None:
+#                raise ValueError(
+#                    f"Can't collapse: Bad 'within' syntax: {within!r}"
+#                )
+#
+#        if classification is None and group_span is not None:
+#            # Return a classification array of all zeros
+#            classification = np.zeros((axis_size,), dtype="int32")
+#
+#        if classification is not None:
+#            # ---------------------------------------------------------
+#            # Collapse each group
+#            # ---------------------------------------------------------
+#            if debug:
+#                logger.debug(
+#                    f"        classification    = {classification}"
+#                )  # pragma: no cover
+#
+#            unique = np.unique(classification).tolist()
+##            unique = unique[unique >= 0].tolist()
+#
+#            ignore_n = classification.min() - 1
+#            for u in unique:
+#                if u < 0:
+#                    continue
+#
+#                index = np.where(classification == u)[0]
+#
+#                pc = self.subspace(**{axis: index})
+#
+#                # ----------------------------------------------------
+#                # Ignore groups that don't meet the specified criteria
+#                # ----------------------------------------------------
+#                if over is None:
+#                    coord = pc.coordinate(axis_in, default=None)
+#
+#                    if group_span is not False and group_span is not None:
+#                        if isinstance(group_span, int):
+#                            if (
+#                                pc.domain_axes(todict=True)[axis].get_size()
+#                                != group_span
+#                            ):
+#                                classification[index] = ignore_n
+#                                ignore_n -= 1
+#                                continue
+#                        else:
+#                            if coord is None:
+#                                axis_id = pc.constructs.domain_axis_identity(
+#                                    axis_in
+#                                )
+#                                raise ValueError(
+#                                    f"Can't group: No coordinates for "
+#                                    f"{axis_id!r} axis with group={group!r} "
+#                                    f"and group_span={group_span!r}"
+#                                )
+#
+#                            bounds = coord.get_bounds(None)
+#                            if bounds is None:
+#                                raise ValueError(
+#                                    f"Can't group: No bounds on {coord!r} "
+#                                    f"with group={group!r} and "
+#                                    f"group_span={group_span!r}"
+#                                )
+#
+#                            lb = bounds[0, 0].get_data(_fill_value=False)
+#                            ub = bounds[-1, 1].get_data(_fill_value=False)
+#                            if coord.T:
+#                                lb = lb.datetime_array.item()
+#                                ub = ub.datetime_array.item()
+#
+#                            if not coord.increasing:
+#                                lb, ub = ub, lb
+#
+#                            if group_span + lb != ub:
+#                                # The span of this group is not the
+#                                # same as group_span, so don't
+#                                # collapse it.
+#                                classification[index] = ignore_n
+#                                ignore_n -= 1
+#                                continue
+#
+#                    if (
+#                        group_contiguous
+#                        and coord is not None
+#                        and coord.has_bounds()
+#                        and not coord.bounds.contiguous(
+#                            overlap=(group_contiguous == 2)
+#                        )
+#                    ):
+#                        # This group is not contiguous, so don't
+#                        # collapse it.
+#                        classification[index] = ignore_n
+#                        ignore_n -= 1
+#                        continue
+#
+#                if return_classification:
+#                    continue
+#
+#                # ----------------------------------------------------
+#                # Still here? Then collapse the group
+#                # ----------------------------------------------------
+#                w = _group_weights(weights, iaxis, index)
+#                if debug:
+#                    logger.debug(
+#                        f"        Collapsing group {u}:"
+#                    )  # pragma: no cover
+#
+#                fl.append(
+#                    pc.collapse(
+#                        method,
+#                        axis,
+#                        weights=w,
+#                        measure=measure,
+#                        mtol=mtol,
+#                        ddof=ddof,
+#                        coordinate=coordinate,
+#                        squeeze=False,
+#                        inplace=True,
+#                        _create_zero_size_cell_bounds=True,
+#                        _update_cell_methods=False,
+#                    )
+#                )
+#
+#            if debug:
+#                logger.debug(
+#                    f"        classification    = {classification}"
+#                )  # pragma: no cover
+#
+#            if return_classification:
+#                # Return the classification array
+#                return classification
+#
+#        elif return_classification:
+#            # Return a classification array of all zeros
+#            classification = np.zeros((axis_size,), dtype="int32")
+#            if debug:
+#                logger.debug(
+#                    f"        classification    = {classification}"
+#                )  # pragma: no cover
+#
+#            return classification
+#
+#        # Still here?
+#        if not fl:
+#            c = "contiguous " if group_contiguous else ""
+#            s = f" spanning {group_span}" if group_span is not None else ""
+#            if within is not None:
+#                s = f" within {within}{s}"
+#
+#            raise ValueError(
+#                f"Can't collapse: No {c}groups{s} were identified"
+#            )
+#
+#        if len(fl) == 1:
+#            f = fl[0]
+#        else:
+#            # Hack to fix missing bounds!
+#            for g in fl:
+#                try:
+#                    c = g.dimension_coordinate(
+#                        filter_by_axis=(axis,), default=None
+#                    )
+#                    if not c.has_bounds():
+#                        c.set_bounds(c.create_bounds())
+#                except Exception:
+#                    pass
+#
+#            # --------------------------------------------------------
+#            # Sort the list of collapsed fields
+#            # --------------------------------------------------------
+#            if (
+#                coord is not None
+#                and coord.construct_type == "dimension_coordinate"
+#            ):
+#                fl.sort(
+#                    key=lambda g: g.dimension_coordinate(
+#                        filter_by_axis=(axis,)
+#                    ).datum(0),
+#                    reverse=coord.decreasing,
+#                )
+#
+#            # --------------------------------------------------------
+#            # Concatenate the partial collapses.
+#            #
+#            # Use cull_graph=True to prevent dask failures arising
+#            # from concatenating graphs with lots of unused nodes.
+#            # --------------------------------------------------------
+#            try:
+#                f = self.concatenate(fl, axis=iaxis, cull_graph=True)
+#            except ValueError as error:
+#                raise ValueError(f"Can't collapse: {error}")
+#
+#        if squeeze and f.domain_axes(todict=True)[axis].get_size() == 1:
+#            # Remove a totally collapsed axis from the field's
+#            # data array
+#            f.squeeze(axis, inplace=True)
+#
+#        # ------------------------------------------------------------
+#        # Return the collapsed field
+#        # ------------------------------------------------------------
+#        self.__dict__ = f.__dict__
+#        if debug:
+#            logger.debug("    End of grouped collapse")  # pragma: no cover
+#
+#        return self
 
     def _update_cell_methods(
         self,
@@ -11617,6 +11719,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         group_by=None,
         group_span=None,
         group_contiguous=1,
+        within_days=False, within_years=False,
+        over_days=False, over_years=False,
         concatenate=False,
         inverse=False,
         return_classification=False,
@@ -11641,15 +11745,17 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             {{group: optional}}
 
                 How the axis elements are partitioned into groups is
-                determined by the all of the *group*, *group_by*,
-                *group_span*, *group_contiguous* parameters
-                combined. Groups are primarily defined by the *group*
-                and *group_by* parameters, and subsequently the
-                *group_span* and *group_contiguous* parameter may
-                cause some of these groups to be removed, resulting in
-                the final group selection.
+                determined by the *group*, *group_by*, *group_span*,
+                and *group_contiguous* parameters combined. Groups are
+                initially defined by the *group* and *group_by*
+                parameters, and subsequently the *group_span* and
+                *group_contiguous* parameter may cause some of these
+                groups to be removed, resulting in the final group
+                selection.
 
-                The *group* parameter may be one of:
+                The *group* parameter may be one of `None` (the
+                default), `Data`, `TimeDuration`, `int`,
+                `numpy.ndarray`, or (a sequence of) `Query`.
 
                 * `None`
 
@@ -11682,87 +11788,86 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 * `Data`
 
-                   Define groups by axis coordinate values that span
-                   the given range. The first group starts at the
-                   first coordinate bound of the first axis element
-                   (or its coordinate if there are no bounds) and
-                   spans the maximally consecutive run of elements
-                   that span up to the group size. Each subsequent
-                   group immediately follows the preceding one. By
-                   default each group contains the consecutive run of
-                   elements whose coordinate values lie within the
-                   group limits (see the *group_by* parameter).
+                  Each group is defined as elements whose coordinate cells
+                  correspond to the index positions of a non-negative
+                  value in the `numpy` array. The array must contain
+                  integers and have the same length as the axis being
+                  grouped
 
-                   - By default each element will be in exactly one
-                     group (see the *group_by*, *group_span* and
-                     *group_contiguous* parameters).
+                  Define groups by axis coordinate values that span
+                  the given range. The first group starts at the first
+                  coordinate bound of the first axis element (or its
+                  coordinate if there are no bounds) and spans the
+                  maximally consecutive run of elements that span up
+                  to the group size. Each subsequent group immediately
+                  follows the preceding one. By default each group
+                  contains the consecutive run of elements whose
+                  coordinate values lie within the group limits (see
+                  the *group_by* parameter).
 
-                   - By default groups may contain different numbers
-                     of elements.
+                  - By default each element will be in exactly one
+                    group (see the *group_by*, *group_span* and
+                    *group_contiguous* parameters).
 
-                   - If no units are specified then the units of the
-                     coordinates are assumed.
+                  - By default groups may contain different numbers of
+                    elements.
+
+                  - If no units are specified then the units of the
+                    coordinates are assumed.
 
                 * `TimeDuration`
 
-                   Define groups by a time interval spanned by the
-                   coordinates. The first group starts at or before
-                   the first coordinate bound of the first axis
-                   element (or its coordinate if there are no bounds)
-                   and spans the maximally consecutive run of elements
-                   that span up to the group size. Each subsequent
-                   group immediately follows the preceding one. By
-                   default each group contains the consecutive run of
-                   elements whose coordinate values lie within the
-                   group limits (see the *group_by* parameter).
+                  Define groups by a time interval spanned by the
+                  coordinates. The first group starts at or before the
+                  first coordinate bound of the first axis element (or
+                  its coordinate if there are no bounds) and spans the
+                  maximally consecutive run of elements that span up
+                  to the group size. Each subsequent group immediately
+                  follows the preceding one. By default each group
+                  contains the consecutive run of elements whose
+                  coordinate values lie within the group limits (see
+                  the *group_by* parameter).
 
-                   - By default each element will be in exactly one
-                     group (see the *group_by*, *group_span* and
-                     *group_contiguous* parameters).
+                  - By default each element will be in exactly one
+                    group (see the *group_by*, *group_span* and
+                    *group_contiguous* parameters).
 
-                   - By default groups may contain different numbers
-                     of elements.
+                  - By default groups may contain different numbers of
+                    elements.
 
-                   - The start of the first group may be before the
-                     first first axis element, depending on the offset
-                     defined by the time duration. For example, if
-                     ``group=cf.Y(month=12)`` then the first group
-                     will start on the closest 1st December to the
-                     first axis element.
+                  - The start of the first group may be before the
+                    first first axis element, depending on the offset
+                    defined by the time duration. For example, if
+                    ``group=cf.Y(month=12)`` then the first group will
+                    start on the closest 1st December to the first
+                    axis element.
 
                 * `int`
 
-                   Define groups that contain the given number of
-                   elements. The first group starts with the first
-                   axis element and spans the defined number of
-                   consecutive elements. Each subsequent group
-                   immediately follows the preceding one.
+                  Define groups that contain the given number of
+                  elements. The first group starts with the first axis
+                  element and spans the defined number of consecutive
+                  elements. Each subsequent group immediately follows
+                  the preceding one.
 
-                   - By default each group has the defined number of
-                     elements, apart from the last group which may
-                     contain fewer elements (see the *group_span*
-                     parameter).
+                  - By default each group has the defined number of
+                    elements, apart from the last group which may
+                    contain fewer elements (see the *group_span*
+                    parameter).
 
                 * `numpy.ndarray`
 
-                  Define groups by selecting elements that map to the
-                  same value in the `numpy` array. The array must
-                  contain integers and have the same length as the
-                  axis to be collapsed and its sequence of values
-                  correspond to the axis elements. Each group contains
-                  the elements which correspond to a common
-                  non-negative integer value in the numpy array. Upon
-                  output, the collapsed axis is arranged in order of
-                  increasing group number. See the
-                  *return_classification* parameter, which allows the
-                  creation of such a `numpy.array` for a given grouped
-                  collapse.
+                  Each group is defined as those elements which
+                  correspond to the index positions of a non-negative
+                  value in the `numpy` array. The array must contain
+                  integers and have the same length as the axis being
+                  grouped
 
                   - The groups do not have to be in runs of
                     consecutive elements; they may be scattered
                     throughout the axis.
 
-                  - An element which corresponds to a negative integer
+                  - An element which corresponds to a negative value
                     in the array will not be in any group.
 
                 ===============  =====================================
@@ -12022,70 +12127,655 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             default=None,
         )
         if key is not None:
-            axes = self.get_data_axes(key)
-            da_key = self.domain_axis(axes[0], key=True)
+            axis, da = self.domain_axis(self.get_data_axes(key)[0], item=True)
         else:
-            da_key = self.domain_axis(identity, key=True, default=None)
-            if da_key is None:
+            axis, da = self.domain_axis(identity, item=True,
+                                        default=(None,None))
+            if axis is None:
                 raise ValueError(
-                    "Can't get groups. Can't find unique defined by "
+                    "Can't get groups. Can't find unique axis defined by "
                     f"{identity!r}"
                 )
 
-        # Use `collapse` to define the groups
-        classification = self.collapse(
-            method="maximum",  # Arbitrary method
-            axes=key,
-            group=group,
-            group_span=group_span,
-            group_contiguous=group_contiguous,
-            group_by=group_by,
-            return_classification=True,
-        )
+        axis_size = da.get_size()
 
-        # Return one field per group
+        if isinstance(group, Query):
+            group = (group,)
+
+        if isinstance(group, np.ndarray):
+            classification = np.squeeze(group.copy())
+
+            if classification.dtype.kind != "i":
+                raise ValueError(
+                    "Can't group by numpy array of type "
+                    f"{classification.dtype.name}"
+                )
+            elif classification.shape != (axis_size,):
+                raise ValueError(
+                "Can't group by numpy array with incorrect "
+                    f"shape: {classification.shape}"
+                )
+
+            # Set group to None
+            group = None
+            if group_span is True:
+                group_span = None
+
+        # ppp
+        if within_days or within_years or over_days or over_years:
+            # ----------------------------------------------------
+            # ----------------------------------------------------
+            dim_coord = self.dimension_coordinate(
+                filter_by_axis=(axis,), default=None
+            )
+            if dim_coord is None or not dim_coord.Units.isreftime:
+                raise ValueError(
+                    "Can't collapse: Reference-time dimension "
+                    'coordinates are required for a "within years" '
+                    "collapse"
+                )
+
+            if not dim_coord.has_bounds():
+                raise ValueError(
+                    "Can't collapse: Reference-time dimension coordinate "
+                    'bounds are required for a "within years" collapse'
+                )
+
+            group_by = "bounds"
+
+        if isinstance(group, np.ndarray):
+            classification = np.squeeze(group.copy())
+
+            if classification.dtype.kind != "i":
+                raise ValueError(
+                    "Can't group by numpy array of type "
+                    f"{classification.dtype.name}"
+                )
+            elif classification.shape != (axis_size,):
+                raise ValueError(
+                "Can't group by numpy array with incorrect "
+                    f"shape: {classification.shape}"
+                )
+
+            if group_span is True:
+                group_span = None
+
+        elif over_days or over_years:
+            dim_coord = dim_coord.persist()
+
+            classification = Group.initialise_classification(axis_size)
+
+            if isinstance(group, TimeDuration):
+                # --------------------------------------------------------
+                # E.g. group=cf.M()
+                # --------------------------------------------------------
+                if over_days:
+                    if group.Units.istime and group < Data(1, "day"):
+                        raise ValueError(
+                            f"Bad parameter value: over_days={over_days!r}"
+                        )
+                else:
+                    if group.Units.iscalendartime:
+                        group.Units = Units("calendar_years")
+                        if not group.isint or group < 1:
+                            raise ValueError(
+                                "over_years is not a whole number of "
+                                f"calendar years: {group!r}"
+                            )
+                    else:
+                        raise ValueError(
+                            "over_years is not a whole number of calendar "
+                            f"years: {over_years!r}"
+                        )
+
+                    _, _, lower_limit, upper_limit = Group.tyu(
+                        dim_coord, group_by, True
+                    )
+
+            lower_bounds = dim_coord.lower_bounds.datetime_array.tolist()
+            upper_bounds = dim_coord.upper_bounds.datetime_array.tolist()
+
+            query0 = None
+            n = 0
+            for lower, upper in zip(lower_bounds, upper_bounds):
+                query_l = (
+                    eq(lower.hour, attr="hour")
+                    & eq(lower.minute, attr="minute")
+                    & eq(lower.second, attr="second")
+                ).addattr("lower_bounds")
+                query_u = (
+                    eq(upper.hour, attr="hour")
+                    & eq(upper.minute, attr="minute")
+                    & eq(upper.second, attr="second")
+                ).addattr("upper_bounds")
+
+                if over_years:
+                    query_l &= (
+                        eq(lower.month, attr="month")
+                        & eq(lower.day, attr="day")
+                    ).addattr("lower_bounds")
+                    query_u &= (
+                        eq(upper.month, attr="month")
+                        & eq(upper.day, attr="day")
+                    ).addattr("upper_bounds")
+
+                query = query_l & query_u
+
+                if not query0:
+                    query0 = query
+                elif query.equals(query0):
+                    # We've got repeat of the first cell, which
+                    # means that we must have now classified all
+                    # cells. Therefore we can stop.
+                    break
+
+                if debug:
+                    logger.debug(
+                        f"          query  = {query!r}"
+                    )  # pragma: no cover
+
+                if group is None:
+                    # --------------------------------------------
+                    # group=None
+                    # --------------------------------------------
+                    # Over all days/years
+                    index = query.evaluate(dim_coord).array
+                    classification[index] = n
+                    n += 1
+                elif isinstance(group, TimeDuration):
+                    # --------------------------------------------
+                    # E.g. group=cf.M()
+                    #      group=cf.Y(2)
+                    # --------------------------------------------
+                    classification, n = Group.by_timeduration_over(
+                        classification,
+                        n,
+                        coord=dim_coord,
+                        interval=group,over_days,
+                        lower=lower,
+                        upper=upper,
+                        lower_limit=lower_limit,
+                        upper_limit=upper_limit,
+                        group_by=group_by,
+                        extra_condition=query,
+                    )
+                else:
+                    # --------------------------------------------
+                    # E.g. over_days=[cf.month(cf.wi(4, 9))]
+                    # --------------------------------------------
+                    classification, n = Group.by_queries(
+                        classification,
+                        n,
+                        coord=dim_coord,
+                        selection=group
+                        parameter="over_days",
+                        extra_condition=query,
+                    )
+
+        elif group is None:
+            # --------------------------------------------------------
+            # group=None
+            # --------------------------------------------------------
+            classification = Group.initialise_classification(axis_size, 0)
+
+        elif isinstance(group, np.ndarray):
+            # --------------------------------------------------------
+            #
+            # --------------------------------------------------------
+            if group.dtype.kind != "i":
+                raise ValueError(
+                    f"Can't group by numpy array of type {group.dtype.name}"
+                )
+
+            classification = np.squeeze(group.copy())
+            if classification.shape != (axis_size,):
+                raise ValueError(
+                    "Can't group by numpy array with incorrect "
+                    f"shape: {classification.shape}"
+                )
+
+        elif isinstance(group, int):
+            # --------------------------------------------------------
+            # E.g. group=3
+            # --------------------------------------------------------
+            classification = []
+            extend = classification.extend
+            for n in range(axis_size // group):
+                extend((n,) * group)
+
+            d = axis_size -  len(classification)
+            if d:
+                extend((-1,) * d)
+
+            classification = np.array(classification)
+
+            if group_span is True or group_span is None:
+                # Use the group definition as the group span
+                group_span = group
+
+        elif isinstance(group, TimeDuration):
+            # --------------------------------------------------------
+            # E.g. group=cf.M()
+            # --------------------------------------------------------
+            dim_coord = self.dimension_coordinate(
+                filter_by_axis=(axis,), default=None
+            )
+            if dim_coord is None:
+                raise ValueError(
+                    f"{identity!r} dimension coordinates are required for "
+                    "for {group.__class__.__name__} groups"  )
+
+                    )
+
+            if (within_days and
+                group.Units.istime
+                and TimeDuration(24, "hours") % group
+                ):
+                raise ValueError(
+                    f"TODO Can't collapse: within_days={within_days!r} "
+                    "is not an exact factor of 1 day"
+                )
+
+            dim_coord = dim_coord.persist()
+
+            classification = Group.initialise_classification(axis_size)
+            lower, upper, lower_limit, upper_limit, group_by = Group.tyu(
+                dim_coord, group_by, True
+            )
+
+            classification, n = Group.by_timeduration(
+                classification,
+                0,
+                coord=dim_coord,
+                interval=group,
+                lower=lower,
+                upper=upper,
+                lower_limit=lower_limit,
+                upper_limit=upper_limit,
+                group_by=group_by,
+            )
+
+            if group_span is True or group_span is None:
+                # Use the group definition as the group span
+                group_span = group
+
+        elif isinstance(group, Data):
+            # ----------------------------------------------------
+            # E.g. group=cf.Data(10, 'degrees_east')
+            # ----------------------------------------------------
+            dim_coord = self.dimension_coordinate(
+                filter_by_axis=(axis,), default=None
+            )
+            if dim_coord is None:
+                raise ValueError(
+                    f"{identity!r} dimension coordinates are required for "
+                    f"for {group.__class__.__name__} groups"
+                )
+
+            if coord.Units.isreftime:
+                axis_id = self.constructs.domain_axis_identity(axis)
+                raise ValueError(
+                    f"Can't collapse reference-time axis {axis_id!r} "
+                    f"with group={group!r}. In this case groups should "
+                    "be defined with a TimeDuration instance."
+                )
+
+            if group.size != 1:
+                raise ValueError(
+                    "A Data instance 'group' parameter must have exactly "
+                    f"one element: Got group={group!r}"
+                )
+
+            if group.Units and not group.Units.equivalent(coord.Units):
+                axis_id = self.constructs.domain_axis_identity(axis)
+                raise ValueError(
+                    f"Group units {group.Units!r} are not eqivalent to "
+                    f"{axis_id!r} axis units {coord.Units!r}"
+                )
+
+            group = group.squeeze()
+
+            classification = Group.initialise_classification(axis_size)
+            lower, upper, lower_limit, upper_limit, group_by = Group.tyu(
+                dim_coord, group_by, False
+            )
+
+            classification, n = Group.by_data(
+                classification,
+                0,
+                coord=dim_coord,
+                interval=group,
+                lower=lower,
+                upper=upper,
+                lower_limit=lower_limit,
+                upper_limit=upper_limit,
+                group_by=group_by,
+            )
+
+            if group_span is True or group_span is None:
+                # Use the group definition as the group span
+                group_span = group
+        else:
+            # E.g. group=cf.djf()
+            #      group=[cf.month(4), cf.month(cf.wi(9, 11))]
+
+            coord = self.dimension_coordinate(
+                filter_by_axis=(axis,), default=None
+            )
+            if coord is None:
+                coord = self.auxiliary_coordinate(
+                    filter_by_axis=(axis,), axis_mode="exact", default=None
+                )
+                if coord is None:
+                    raise ValueError(
+                        "Dimension or auxiliary coordinates are "
+                        "required for a sequence of groups"
+                    )
+
+            coord = coord.persist()
+
+            classification = Group.initialise_classification(axis_size)
+            classification, n = Group.by_queries(
+                classification,
+                0,
+                coord=coord,
+                selection=group,
+                parameter="group",
+            )
+
+            classification = Group.discern_groups(classification)
+            if within_days or within years:
+                classification = Group.discern_runs_within(
+                    classification, coord
+                )
+
+            if group_span is True:
+                group_span = None
+
+#        # --------------------------------------------------------
+#        #
+#        # --------------------------------------------------------
+#        ignore_n = classification.min() - 1
+#        fl = []
+#        if group_span is not False and group_span is not None:
+#            coord = g.coordinate(axis_in, default=None)
+#            if coord is None:
+#                axis_id = g.constructs.domain_axis_identity(
+#                    axis_in
+#                )
+#                raise ValueError(
+#                    f"Can't group: No coordinates for "
+#                    f"{axis_id!r} axis with group={group!r} "
+#                    f"and group_span={group_span!r}"
+#                )
+#
+#            bounds = coord.get_bounds(None)
+#            if bounds is None and not isinstance(group_span, int):
+#                raise ValueError(
+#                    f"Can't group: No bounds on {coord!r} "
+#                    f"with group={group!r} and "
+#                    f"group_span={group_span!r}"
+#                )
+#
+#            for index in Group.indices(classification):
+#                if isinstance(group_span, int) and len(index) != group_span:
+#                    classification[index] = ignore_n
+#                    ignore_n -= 1
+#                    continue
+#
+#                bounds = coord[index].bounds
+#
+#                lb = bounds[0, 0].get_data(_fill_value=False)
+#                ub = bounds[-1, 1].get_data(_fill_value=False)
+#                if coord.T:
+#                    lb = lb.datetime_array.item()
+#                    ub = ub.datetime_array.item()
+#
+#                if not coord.increasing:
+#                    lb, ub = ub, lb
+#
+#                if group_span + lb != ub:
+#                    classification[index] = ignore_n
+#                    ignore_n -= 1
+#                    continue
+#
+#                # Ignore a non-contiguous group
+#                if (
+#                        group_contiguous
+#                        and bounds is not None
+#                        and not bounds.contiguous(
+#                            overlap=(group_contiguous == 2)
+#                        )
+#                ):
+#                    classification[index] = ignore_n
+#                    ignore_n -= 1
+#                    continue
+#
+#
+#        for index in Group.indices(classification):
+#            g = self.subspace(**{axis: index})
+#
+#            if group_span is not False and group_span is not None:
+#                # Ignore a group that doesn't span 'group_span'
+#                if isinstance(group_span, int) and len(index) != group_span:
+#                    classification[index] = ignore_n
+#                    ignore_n -= 1
+#                    continue
+#
+#                coord = g.coordinate(axis_in, default=None)
+#                if coord is None:
+#                    axis_id = g.constructs.domain_axis_identity(
+#                        axis_in
+#                    )
+#                    raise ValueError(
+#                        f"Can't group: No coordinates for "
+#                        f"{axis_id!r} axis with group={group!r} "
+#                        f"and group_span={group_span!r}"
+#                    )
+#
+#                bounds = coord.get_bounds(None)
+#                if bounds is None:
+#                    raise ValueError(
+#                        f"Can't group: No bounds on {coord!r} "
+#                        f"with group={group!r} and "
+#                        f"group_span={group_span!r}"
+#                    )
+#
+#                lb = bounds[0, 0].get_data(_fill_value=False)
+#                ub = bounds[-1, 1].get_data(_fill_value=False)
+#                if coord.T:
+#                    lb = lb.datetime_array.item()
+#                    ub = ub.datetime_array.item()
+#
+#                if not coord.increasing:
+#                    lb, ub = ub, lb
+#
+#                if group_span + lb != ub:
+#                    classification[index] = ignore_n
+#                    ignore_n -= 1
+#                    continue
+#
+#            # Ignore a non-contiguous group
+#            if (
+#                group_contiguous
+#                and coord is not None
+#                and coord.has_bounds()
+#                and not coord.bounds.contiguous(
+#                    overlap=(group_contiguous == 2)
+#                )
+#            ):
+#                classification[index] = ignore_n
+#                ignore_n -= 1
+#                continue
+#
+#            if not inverse:
+#                fl.append(g)
+
         if inverse:
             # Transform negative classification numbers to
             # non-negative ones, and vice versa.
             #
-            # E.g. [-2,, 0 -1, -1, 1, 1] -> [1, -1, 0, 0, -2, -2]
+            # E.g. [-2, 0 -1, -1, 1, 1] -> [1, -1, 0, 0, -2, -2]
             classification += 1
             classification *= -1
 
         if return_classification:
             return classification
 
-        # Return a single field of the concatenated groups.
+        # Still here?
         if concatenate:
-            # Define the groups by the non-negative values in
-            # 'classification'
-            index = np.where(classification >= 0)[0]
+            # Return a single field of the concatenated groups.
+            all_indices = []
+            extend =  all_indices.extend
+            for index in Group.indices(classification):
+                extend(index.tolist())
 
-            try:
-                return self.subspace(**{da_key: index})
-            except IndexError:
+            if not all_indices.size:
                 raise IndexError(
-                    "All groups defined by"
-                    f"{' the inverse of' if inverse else ''} group={group!r} "
-                    "are empty. Consider setting concatenate=False to "
-                    "return an empty FieldList instead of raising an "
-                    "exception."
+                    "No non-empty groups were found. Consider setting "
+                    "concatenate=False to return an empty FieldList."
                 )
 
-        # Create a subspace corresponding to each non-negative value
-        # of 'classification'
-        unique, i = np.unique(classification, return_index=True)
-        unique = classification[np.sort(i)]
-        unique = unique[unique >= 0]
-        fl = []
-        for u in unique:
-            index = np.where(classification == u)[0]
-            try:
-                fl.append(self.subspace(**{da_key: index}))
-            except IndexError:
-                pass
+            return self.subspace(**{axis: all_indices})
+
+        # Still here?
+        fl = [self.subspace(**{axis: index})
+              index in Group.indices(classification)]
 
         return FieldList(fl)
+
+#        fl = []
+#
+#        if isinstance(group, np.ndarray):
+#            classification = group.squeeze().copy()
+#
+#            if classification.dtype.kind != "i":
+#                raise ValueError(
+#                    "Can't group by numpy array of type "
+#                    f"{classification.dtype.name}"
+#                )
+#            elif classification.shape != (axis_size,):
+#                raise ValueError(
+#                    "Can't group by numpy array with incorrect "
+#                    f"shape: {classification.shape}"
+#                )
+#        elif isinstance(group, int):
+#            # ----------------------------------------------------
+#            # E.g. group=3
+#            # ----------------------------------------------------
+#            coord = None
+#
+#            classification = []
+#            extend = classification.extend
+#            for n in range(axis_size // group):
+#                extend((n,) * group)
+#
+#            d = axis_size -  len(classification)
+#            if d:
+#                extend((n+1,) * d)
+#
+#            if group_span is True or group_span is None:
+#                # Use the group definition as the group span
+#                group_span = group
+#
+#        elif isinstance(group, TimeDuration):
+#            # ----------------------------------------------------
+#            # E.g. group=cf.M()
+#            # ----------------------------------------------------
+#            coord = self.dimension_coordinate(
+#                filter_by_axis=(axis,), default=None
+#            )
+#            if coord is None:
+#                raise ValueError(
+#                    "Dimension coordinates are required for a "
+#                    "grouped collapse with TimeDuration groups."
+#                )
+#
+#            classification = np.empty((axis_size,), int)
+#            classification.fill(-1)
+#
+#            lower, upper, lower_limit, upper_limit = _tyu(
+#                coord, group_by, True
+#            )
+#
+#            classification, n = _time_interval(
+#                classification,
+#                0,
+#                coord=coord,
+#                interval=group,
+#                lower=lower,
+#                upper=upper,
+#                lower_limit=lower_limit,
+#                upper_limit=upper_limit,
+#                group_by=group_by,
+#            )
+#
+#            if group_span is True or group_span is None:
+#                # Use the group definition as the group span
+#                group_span = group
+#
+#
+#        # If group, rolling window, classification, etc, do something
+#        # special for size one axes - either return unchanged
+#        # (possibly mofiying cell methods with , e.g, within_days', or
+#        # raising an exception for 'can't match', I suppose.
+#
+#        classification = None
+#
+#        # Use `collapse` to define the groups
+#        classification = self.collapse(
+#            method="maximum",  # Arbitrary method
+#            axes=da_key,
+#            group=group,
+#            group_span=group_span,
+#            group_contiguous=group_contiguous,
+#            group_by=group_by,
+#            return_classification=True,
+#        )
+#
+#        # Return one field per group
+#        if inverse:
+#            # Transform negative classification numbers to
+#            # non-negative ones, and vice versa.
+#            #
+#            # E.g. [-2,, 0 -1, -1, 1, 1] -> [1, -1, 0, 0, -2, -2]
+#            classification += 1
+#            classification *= -1
+#
+#        if return_classification:
+#            return classification
+#
+#        # Return a single field of the concatenated groups.
+#        if concatenate:
+#            # Define the groups by the non-negative values in
+#            # 'classification'
+#            index = np.where(classification >= 0)[0]
+#
+#            try:
+#                return self.subspace(**{da_key: index})
+#            except IndexError:
+#                raise IndexError(
+#                    "All groups defined by"
+#                    f"{' the inverse of' if inverse else ''} group={group!r} "
+#                    "are empty. Consider setting concatenate=False to "
+#                    "return an empty FieldList instead of raising an "
+#                    "exception."
+#                )
+#
+#        # Create a subspace corresponding to each non-negative value
+#        # of 'classification'
+#        unique, i = np.unique(classification, return_index=True)
+#        unique = classification[np.sort(i)]
+#        unique = unique[unique >= 0]
+#        fl = []
+#        for u in unique:
+#            index = np.where(classification == u)[0]
+#            try:
+#                fl.append(self.subspace(**{da_key: index}))
+#            except IndexError:
+#                pass
+#
+#        return FieldList(fl)
 
     @_inplace_enabled(default=False)
     @_manage_log_level_via_verbosity
