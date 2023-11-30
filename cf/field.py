@@ -12139,32 +12139,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         axis_size = da.get_size()
 
-        if isinstance(group, Query):
-            group = (group,)
-
-        if isinstance(group, np.ndarray):
-            classification = np.squeeze(group.copy())
-
-            if classification.dtype.kind != "i":
-                raise ValueError(
-                    "Can't group by numpy array of type "
-                    f"{classification.dtype.name}"
-                )
-            elif classification.shape != (axis_size,):
-                raise ValueError(
-                "Can't group by numpy array with incorrect "
-                    f"shape: {classification.shape}"
-                )
-
-            # Set group to None
-            group = None
-            if group_span is True:
-                group_span = None
-
-        # ppp
         if within_days or within_years or over_days or over_years:
-            # ----------------------------------------------------
-            # ----------------------------------------------------
+            #
+            if isinstance(group, np.ndarray):
+                raise ValueError("TODO")
+            
             dim_coord = self.dimension_coordinate(
                 filter_by_axis=(axis,), default=None
             )
@@ -12183,7 +12162,15 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             group_by = "bounds"
 
+        if isinstance(group, Query):
+            group = (group,)
+            
         if isinstance(group, np.ndarray):
+            # ----------------------------------------------------
+            # ----------------------------------------------------
+            if group_span is not None or group_contiguous is not None :
+                raise ValueError("TODO")
+            
             classification = np.squeeze(group.copy())
 
             if classification.dtype.kind != "i":
@@ -12279,9 +12266,15 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     # group=None
                     # --------------------------------------------
                     # Over all days/years
-                    index = query.evaluate(dim_coord).array
-                    classification[index] = n
-                    n += 1
+                    classification, n = Group.by_queries(
+                        classification,
+                        n,
+                        coord=dim_coord,
+                        queries=(query,)
+                    )
+#                    index = query.evaluate(dim_coord).array
+#                    classification[index] = n
+#                    n += 1
                 elif isinstance(group, TimeDuration):
                     # --------------------------------------------
                     # E.g. group=cf.M()
@@ -12291,7 +12284,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         classification,
                         n,
                         coord=dim_coord,
-                        interval=group,over_days,
+                        interval=group,
                         lower=lower,
                         upper=upper,
                         lower_limit=lower_limit,
@@ -12312,15 +12305,21 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         extra_condition=query,
                     )
 
+                group_span = False
+                group_contiguous = 0
+
         elif group is None:
             # --------------------------------------------------------
             # group=None
             # --------------------------------------------------------
-            classification = Group.initialise_classification(axis_size, 0)
+#            classification = Group.initialise_classification(axis_size, 0)
+            g = Group(None, size=axis_size)
+            g.initialize_classification(0)
 
         elif isinstance(group, np.ndarray):
+            g = Group(group, group_span=group_span, size=axis_size)
             # --------------------------------------------------------
-            #
+            # ppp
             # --------------------------------------------------------
             if group.dtype.kind != "i":
                 raise ValueError(
@@ -12338,6 +12337,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             # --------------------------------------------------------
             # E.g. group=3
             # --------------------------------------------------------
+            g = Group(group, group_span=group_span, size=axis_size)
+            g.group_by_integer()
             classification = []
             extend = classification.extend
             for n in range(axis_size // group):
@@ -12378,6 +12379,17 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
             dim_coord = dim_coord.persist()
 
+            if group_span is True or group_span is None:
+                # Use the group definition as the group span
+                group_span = group
+
+            g = Group(group,
+                      group_span=group_span,
+                      group_contiguous=group_contiguous,
+                      group_by=group_by,
+                      coord=dim_coord)
+            g.group_by_timduration()
+          
             classification = Group.initialise_classification(axis_size)
             lower, upper, lower_limit, upper_limit, group_by = Group.tyu(
                 dim_coord, group_by, True
@@ -12456,13 +12468,16 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 # Use the group definition as the group span
                 group_span = group
         else:
+            # --------------------------------------------------------
             # E.g. group=cf.djf()
             #      group=[cf.month(4), cf.month(cf.wi(9, 11))]
-
+            # --------------------------------------------------------
             coord = self.dimension_coordinate(
                 filter_by_axis=(axis,), default=None
             )
             if coord is None:
+                # Note: For within_days or within_years then 'coord'
+                #       will never be None.
                 coord = self.auxiliary_coordinate(
                     filter_by_axis=(axis,), axis_mode="exact", default=None
                 )
@@ -12473,7 +12488,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     )
 
             coord = coord.persist()
-
+            g = Group(group, group_span, group_contiguous, coord)
+            
             classification = Group.initialise_classification(axis_size)
             classification, n = Group.by_queries(
                 classification,
@@ -12484,6 +12500,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             )
 
             classification = Group.discern_groups(classification)
+            
             if within_days or within years:
                 classification = Group.discern_runs_within(
                     classification, coord

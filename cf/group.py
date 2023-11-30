@@ -1,7 +1,62 @@
 class Group:
+
+    def __init__(self, group, group_span=None, group_contiguous=None, coord=None, size=None, n=-1):
+        self.group = group
+        self.group_span = group_span
+        self.group_contiguous = group_contiguous
+
+        self.coord = coord
+        try:
+            self.bounds = coord.get_bounds(None)
+        except AttributeError:
+            self.bounds = None
+            
+        if coord is not None:
+            size = coord.size
+            
+        if isinstance(group, np.ndarray):
+            if group.dtype.kind != "i":
+                raise ValueError(
+                    f"Can't group by numpy array of type {group.dtype.name}"
+                )
+
+            if classification.shape != (size,):
+                raise ValueError(
+                    "Can't group by numpy array with incorrect "
+                    f"shape: {group.shape}"
+                )
+
+            classification = group.copy()
+        else:
+            classification = self.initialise_classification(size, n)
+
+        self.classification = classification
+        self.ignore_n = -1
+        
     @classmethod
-    def initialise_classification(cls, size, value=-1):
-        return np.full((size,), value, int)
+    def group_by_integer(cls, group):
+        size = self.size
+
+        classification = []
+        extend = classification.extend
+        for n in range(size // group):
+            extend((n,) * group)
+            
+        d = size -  len(classification)
+        if d:
+            if self.group_span is not False and self.group_span is not None:
+                extend((-1,) * d)
+            else:
+                n +=1                
+                extend((n,) * d)
+                
+        self.classification = np.array(classification)
+        self.n = n + 1
+    
+    @classmethod
+    def initialise_classification(cls, size, n=-1):
+        return np.full((size,), n, int)
+        self.n = n + 1
     
     @classmethod
     def indices(cls, classification):
@@ -40,6 +95,9 @@ class Group:
                 is True, a tuple of 4 date-time objects.
 
         """
+        coord = self.coord
+        group_by = self.group_by
+        
         bounds = coord.get_bounds(None)
         
         if bounds is None and group_by == "bounds":
@@ -49,7 +107,7 @@ class Group:
             )
 
         if (bounds is None and group_by is None) or group_by == "coords":
-            group_by = 'coords'
+            self.group_by = 'coords'
             if coord.increasing:
                 lower = coord.data[0]
                 upper = coord.data[-1]
@@ -61,7 +119,7 @@ class Group:
             upper_limit = upper
 
         elif bounds is not None:
-            group_by = 'bounds'
+            self.group_by = 'bounds'
             lower_bounds = coord.lower_bounds
             upper_bounds = coord.upper_bounds
             lower = lower_bounds[0]
@@ -81,7 +139,7 @@ class Group:
                     f"Can't group by TimeDuration "
                     f"when coordinates have units {coord.Units!r}"
                 )
-    
+            
         return (lower, upper, lower_limit, upper_limit,    group_by)
 
     @classmethod
@@ -127,7 +185,13 @@ class Group:
             (`numpy.ndarray`, `int`)
 
         """
-        group_by_coords = group_by == "coords"
+        if self.lower is None:
+            self.tyu(time_interval=True)
+
+        if self.classification is None:
+            self.initialise_classification(-1)
+            
+        group_by_coords = self.group_by == "coords"
 
         if coord.increasing:
             # Increasing dimension coordinate
@@ -185,17 +249,17 @@ class Group:
             `numpy.ndarray`, `int`, date-time, date-time
 
         """
-        if group_by_coords:
-            q = ge(lower) & lt(upper)
-        else:
-            q = ge(lower, attr="lower_bounds") & le(
-                upper, attr="upper_bounds"
+        if self.group_by == "bounds":
+            q = ge(self.lower, attr="lower_bounds") & le(
+                self.upper, attr="upper_bounds"
             )
+        else:
+            q = ge(self.lower) & lt(self.upper)
 
         if extra_condition:
             q &= extra_condition
 
-        index = q.evaluate(coord).array
+        index = q.evaluate(self.coord).array
 
         #new
         ignore_group, ignore_n = cls.ggggg(
@@ -205,7 +269,7 @@ class Group:
         )
             
         if not ignore_group:
-            classification[index] = n
+            self.classification[index] = n
             n += 1
 
         if increasing:
@@ -213,7 +277,10 @@ class Group:
         else:
             upper = lower
 
-        return classification, n, lower, upper, ignore_n
+        self.lower = lower
+        self.upper = upper
+            
+#        return classification, n, lower, upper, ignore_n
 
     @classmethod
     def by_data(cls,
@@ -317,6 +384,9 @@ class Group:
                 f"{parameter}={selection!r}"
             )
 
+        n = self.n
+        classification =  self.classification
+      
         for condition in queries:
             if not isinstance(condition, Query):
                 raise ValueError(
@@ -332,7 +402,9 @@ class Group:
             classification[index] = n
             n += 1
 
-        return classification, n
+        self.n = n
+        self.classification = classification
+#        return classification, n
 
     @classmethod
     def discern_groups(cls, classification):
@@ -411,9 +483,13 @@ class Group:
     @classmethod
     def ggggg(cls, classification,ignore_n,  coord, index, group_span, group_contiguous):
         """TODO"""
+        group_span = self.group_span
+        group_contiguous = self.group_contiguous
+
         ignore_group = False
+
         if group_span is not False and group_span is not None:
-            bounds = coord.bounds[index]
+            bounds = bounds[index]
             lb = bounds[0, 0].get_data(_fill_value=False)
             ub = bounds[-1, 1].get_data(_fill_value=False)
                 
@@ -425,24 +501,27 @@ class Group:
                 lb, ub = ub, lb
                 
             if group_span + lb != ub:
-                ignore_group = True
-                classification[index] = ignore_n
-                ignore_n -= 1
+                self.classification[index] = self.ignore_n
+                self.ignore_n -= 1
+                return
                 
         # Ignore a non-contiguous group
         if (
                 not ignore_group 
-                and group_contiguous
+                and self.group_contiguous
                 and bounds is not None
                 and not bounds.contiguous(
-                    overlap=(group_contiguous == 2)
+                    overlap=(self.group_contiguous == 2)
                 )
         ):
-            classification[index] = ignore_n
-            ignore_n -= 1
+            self.classification[index] = self.ignore_n
+            self.ignore_n -= 1
+            return
 
-        return  ignore_group , ignore_n
-    
+        # Still here?
+        self.classification[index] = self.n
+        self.n += 1
+                
     @classmethod
     def discern_runs_within(cls, classification, coord):
         """Processes group classification for a 'within' collapse.
