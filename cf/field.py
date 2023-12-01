@@ -12222,7 +12222,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             lower_bounds = dim_coord.lower_bounds.datetime_array.tolist()
             upper_bounds = dim_coord.upper_bounds.datetime_array.tolist()
 
-            query0 = None
+            queries = []
             n = 0
             for lower, upper in zip(lower_bounds, upper_bounds):
                 query_l = (
@@ -12247,15 +12247,50 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     ).addattr("upper_bounds")
 
                 query = query_l & query_u
-
-                if not query0:
-                    query0 = query
-                elif query.equals(query0):
+                queries.append(query)
+                if len(queries) > 1 and query.equals(queries[0]):
                     # We've got repeat of the first cell, which
                     # means that we must have now classified all
                     # cells. Therefore we can stop.
                     break
 
+            if group is None:
+                # --------------------------------------------
+                # group=None
+                # --------------------------------------------
+                # Over all days/years
+                classification, n = Group.by_queries_over(
+                    classification,
+                    n,
+                    coord=dim_coord,
+                    queries=queries,
+                )
+            elif isinstance(group, TimeDuration):
+                # --------------------------------------------
+                # E.g. group=cf.M()
+                #      group=cf.Y(2)
+                # --------------------------------------------
+                g = Group.by_timeduration_over(
+                    group,
+                    group_span=group_span,
+                    group_contiguous=group_contigous,
+                    coord=coord,
+                    extra_conditions=queries,
+                    over=True
+                )
+            else:
+                # --------------------------------------------
+                # E.g. over_days=[cf.month(cf.wi(4, 9))]
+                # --------------------------------------------
+                g = Group.by_queries(
+                    group,
+                    group_span=group_span,
+                    group_contiguous=group_contigous,
+                    coord=coord,
+                    extra_conditions=queries
+                    over=True
+                )
+                
                 if debug:
                     logger.debug(
                         f"          query  = {query!r}"
@@ -12388,7 +12423,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                       group_contiguous=group_contiguous,
                       group_by=group_by,
                       coord=dim_coord)
-            g.group_by_timduration()
+            g.group_by_timeduration()
           
             classification = Group.initialise_classification(axis_size)
             lower, upper, lower_limit, upper_limit, group_by = Group.tyu(
