@@ -144,7 +144,7 @@ class CFANetCDFArray(NetCDFArray):
             shape = [sum(c) for c in chunks]
             positions = chunk_positions(chunks)
             locations = chunk_locations(chunks)
-
+          
             if term is not None:
                 # --------------------------------------------------------
                 # This fragment contains a constant value, not file
@@ -177,7 +177,7 @@ class CFANetCDFArray(NetCDFArray):
 
                 if not fmt.ndim:
                     fmt = np.full(fragment_shape, fmt, dtype=fmt.dtype)
-
+                    
                 if extra_dimension:
                     aggregated_data = {
                         frag_loc: {

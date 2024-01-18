@@ -43,8 +43,8 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
             `bool`
 
         """
-        if self.write_vars["cfa"]:
-            return False
+#        if self.write_vars["cfa"]:
+#            return False
 
         return super()._unlimited(field, axis)
 
@@ -438,20 +438,82 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
         cfa = self._cfa_aggregation_instructions(data, cfvar)
 
         # ------------------------------------------------------------
+        # Get the fragment netCDF dimensions. These always start with
+        # "f_".
+        # ------------------------------------------------------------
+        aggregation_address = cfa["address"]
+        fragment_ncdimensions = []
+        g.setdefault("cfa_unlimited", {})
+        for i, (ncdim, size) in enumerate( zip(
+            ncdimensions + ("extra",) * (aggregation_address.ndim - ndim),
+            aggregation_address.shape,
+        )):
+            f_ncdim = f"f_{ncdim}"
+            base = f_ncdim
+            if f_ncdim not in g["dimensions"]:
+                # Create a new fragement dimension
+                if (i == 0
+                    and ncdim.startswith("time") and ncdim not in (
+                        "time_2", "time_3", "time_4"
+                    )
+                    ):
+                    self._write_dimension(f_ncdim, None, unlimited=True)
+                    g["cfa_unlimited"][f_ncdim] = True
+                else:
+                    self._write_dimension(f_ncdim, None, size=size)
+
+            fragment_ncdimensions.append(f_ncdim)
+
+        fragment_ncdimensions = tuple(fragment_ncdimensions)
+        print (ncvar, fragment_ncdimensions)
+        # ------------------------------------------------------------
         # Get the location netCDF dimensions. These always start with
         # "f_{size}_loc".
         # ------------------------------------------------------------
         location_ncdimensions = []
-        for size in cfa["location"].shape:
-            l_ncdim = f"f_{size}_loc"
-            if l_ncdim not in g["dimensions"]:
-                # Create a new location dimension
-                self._write_dimension(l_ncdim, None, size=size)
-
+        for aa, size in zip(("y", "x"), cfa["location"].shape):
+            l_ncdim = f"f_loc{aa}_{size}"
+            if fragment_ncdimensions[0] in g["cfa_unlimited"]:                
+                if l_ncdim not in g["dimensions"]:
+                    # Create a new location dimension
+                    if aa == "x":
+                        self._write_dimension(l_ncdim, None, unlimited=True)
+                        g["cfa_unlimited"][l_ncdim] = True
+                    else:
+                        self._write_dimension(l_ncdim, None, size=size)
+                elif aa == "x" and l_ncdim not in g["cfa_unlimited"]:
+                    base = l_ncdim
+                    n = 1
+                    while l_ncdim in g["dimensions"] and l_ncdim not in g["cfa_unlimited"]:
+                        l_ncdim = f"{base}_{n}"
+                        n += 1
+                        
+                    if l_ncdim not in g["dimensions"]:
+                        self._write_dimension(l_ncdim, None, unlimited=True)
+                        g["cfa_unlimited"][l_ncdim] = True
+            else:
+                if l_ncdim not in g["dimensions"]:
+                    print (aa, l_ncdim, 1111)
+                    # Create a new location dimension
+                    self._write_dimension(l_ncdim, None, size=size)
+                elif  aa == "x" and l_ncdim in g["cfa_unlimited"]:
+                    print (aa, l_ncdim, 2222)
+                    base = l_ncdim
+                    n = 1
+                    while l_ncdim in g["dimensions"] and l_ncdim in g["cfa_unlimited"]:
+                        l_ncdim = f"{base}_{n}"
+                        print (l_ncdim)
+                        n += 1
+                        
+                    if l_ncdim not in g["dimensions"]:
+                        self._write_dimension(l_ncdim, None, size=size)
+                else:
+                    print (aa, l_ncdim, 3333)
             location_ncdimensions.append(l_ncdim)
 
+        print (ncvar, location_ncdimensions, g["cfa_unlimited"])
+            
         location_ncdimensions = tuple(location_ncdimensions)
-
         # ------------------------------------------------------------
         # Get the fragment netCDF dimensions. These always start with
         # "f_".
@@ -465,7 +527,7 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
             f_ncdim = f"f_{ncdim}"
             if f_ncdim not in g["dimensions"]:
                 # Create a new fragement dimension
-                self._write_dimension(f_ncdim, None, size=size)
+                self._write_dimension(f_ncdim, None, unlimited=True)
 
             fragment_ncdimensions.append(f_ncdim)
 
