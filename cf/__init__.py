@@ -89,6 +89,8 @@ _requires = (
     "scipy",
 )
 
+CANARI_CFA = True
+
 x = ", ".join(_requires)
 _error0 = f"cf v{__version__} requires the modules {x}. "
 

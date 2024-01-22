@@ -465,7 +465,7 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
             fragment_ncdimensions.append(f_ncdim)
 
         fragment_ncdimensions = tuple(fragment_ncdimensions)
-        print (ncvar, fragment_ncdimensions)
+        print (ncvar) #, fragment_ncdimensions)
         # ------------------------------------------------------------
         # Get the location netCDF dimensions. These always start with
         # "f_{size}_loc".
@@ -493,11 +493,11 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
                         g["cfa_unlimited"][l_ncdim] = True
             else:
                 if l_ncdim not in g["dimensions"]:
-                    print (aa, l_ncdim, 1111)
+#                    print (aa, l_ncdim, 1111)
                     # Create a new location dimension
                     self._write_dimension(l_ncdim, None, size=size)
                 elif  aa == "x" and l_ncdim in g["cfa_unlimited"]:
-                    print (aa, l_ncdim, 2222)
+#                    print (aa, l_ncdim, 2222)
                     base = l_ncdim
                     n = 1
                     while l_ncdim in g["dimensions"] and l_ncdim in g["cfa_unlimited"]:
@@ -507,11 +507,11 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
                         
                     if l_ncdim not in g["dimensions"]:
                         self._write_dimension(l_ncdim, None, size=size)
-                else:
-                    print (aa, l_ncdim, 3333)
+#                else:
+#                    print (aa, l_ncdim, 3333)
             location_ncdimensions.append(l_ncdim)
 
-        print (ncvar, location_ncdimensions, g["cfa_unlimited"])
+#        print (ncvar, location_ncdimensions, g["cfa_unlimited"])
             
         location_ncdimensions = tuple(location_ncdimensions)
         # ------------------------------------------------------------
@@ -789,6 +789,7 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
                 The netCDF variable name of the CFA term variable.
 
         """
+        data.nc_set_hdf5_chunksizes(data.shape)
         create = not self._already_in_file(data, ncdimensions)
 
         if create:
