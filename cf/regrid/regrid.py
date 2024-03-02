@@ -341,7 +341,7 @@ def regrid(
     cartesian = not spherical
 
     debug = is_log_level_debug(logger)
-  
+
     # ----------------------------------------------------------------
     # Parse and check parameters
     # ----------------------------------------------------------------
@@ -497,15 +497,15 @@ def regrid(
         ln_z=ln_z,
     )
 
-#    if debug:
-#        logger.debug(
-#            "Source regrid.Grid:\n"
-#            "-------------------\n"
-#            f"{src_grid}\n\n"
-#            "Destination regrid.Grid:\n"
-#            "------------------------\n"
-#            f"{dst_grid}\n"
-#        )  # pragma: no cover
+    #    if debug:
+    #        logger.debug(
+    #            "Source regrid.Grid:\n"
+    #            "-------------------\n"
+    #            f"{src_grid}\n\n"
+    #            "Destination regrid.Grid:\n"
+    #            "------------------------\n"
+    #            f"{dst_grid}\n"
+    #        )  # pragma: no cover
 
     conform_coordinates(src_grid, dst_grid)
 
@@ -706,20 +706,20 @@ def regrid(
         # Fewer source grid axes than destination grid axes (e.g. mesh
         # regridded to lat/lon).
         regridded_axis_sizes = {src_grid.axis_indices[0]: dst_grid.shape}
-    else: #lif dst_grid.n_regrid_axes == 1:
+    else:  # lif dst_grid.n_regrid_axes == 1:
         # More source grid axes than destination grid axes
         # (e.g. lat/lon regridded to mesh).
         src_axis_indices = sorted(src_grid.axis_indices)
         regridded_axis_sizes = {}
         for i, src_iaxis in enumerate(src_axis_indices[:dst_n]):
             regridded_axis_sizes[src_iaxis] = (dst_grid.shape[i],)
-            
-#        regridded_axis_sizes = {src_axis_indices[0]: (dst_grid.shape[0],)}
-#        for src_iaxis in src_axis_indices[1:]:
+
+        #        regridded_axis_sizes = {src_axis_indices[0]: (dst_grid.shape[0],)}
+        #        for src_iaxis in src_axis_indices[1:]:
         for src_iaxis in src_axis_indices[dst_n:]:
             regridded_axis_sizes[src_iaxis] = ()
-        print (99999, src_axis_indices, regridded_axis_sizes)
- 
+        print(99999, src_axis_indices, regridded_axis_sizes)
+
     regridded_data = src.data._regrid(
         method=method,
         operator=regrid_operator,
@@ -1338,7 +1338,7 @@ def spherical_grid(
 
         z_axis = None
         z_coord = None
-    
+
         if mesh_location:
             raise ValueError(
                 "Can't do 3-d spherical regridding "
@@ -1425,7 +1425,7 @@ def spherical_grid(
                         coord_axes.index(axis) for axis in (x_axis, y_axis)
                     ]
                     z_coord = z_2d.transpose(esmpy_order)
-                    
+
             if z_coord is None:
                 raise ValueError(
                     f"Could not find {name} structured grid {z!r} coordinates"
@@ -1441,7 +1441,7 @@ def spherical_grid(
             n_regrid_axes += 1
 
         regridding_dimensionality += 1
-        
+
         z_index = 2
     else:
         z_index = None
@@ -2864,11 +2864,11 @@ def update_coordinates(src, dst, src_grid, dst_grid):
         src.del_construct(key)
 
     # Domain axes
-    print (0 ,repr(src))
+    print(0, repr(src))
     src_domain_axes = src.domain_axes(todict=True)
     dst_domain_axes = dst.domain_axes(todict=True)
     if src_grid.n_regrid_axes == dst_grid.n_regrid_axes:
-        print ('a',src_axis_keys, dst_axis_keys)
+        print("a", src_axis_keys, dst_axis_keys)
         # Change the size of the regridded domain axes
         for src_axis, dst_axis in zip(src_axis_keys, dst_axis_keys):
             src_domain_axis = src_domain_axes[src_axis]
@@ -2889,7 +2889,7 @@ def update_coordinates(src, dst, src_grid, dst_grid):
             for dst_axis in dst_axis_keys
         ]
         src_grid.new_axis_keys = src_axis_keys
-    print (1,repr(src))
+    print(1, repr(src))
     axis_map = {
         dst_axis: src_axis
         for dst_axis, src_axis in zip(dst_axis_keys, src_axis_keys)
