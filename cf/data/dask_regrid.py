@@ -293,7 +293,8 @@ def regrid(
 
     n_dst_axes = len(dst_shape)
 
-    if n_src_axes == 1 and n_dst_axes == 2:
+#    if n_src_axes == 1 and n_dst_axes == 2:
+    if n_dst_axes == n_src_axes + 1 :
         # The regridding operation increased the number of data axes
         # by 1 => modify 'axis_order' to contain the new axis.
         #
@@ -304,7 +305,8 @@ def regrid(
             i if i <= raxis else i + n_dst_axes - 1 for i in axis_order
         ]
         axis_order[-1:] = range(raxis, raxis + n_dst_axes)
-    elif n_src_axes == 2 and n_dst_axes == 1:
+#    elif n_src_axes == 2 and n_dst_axes == 1:
+    elif n_dst_axes == n_src_axes  -1 :
         # The regridding operation decreased the number of data axes
         # by 1 => modify 'axis_order' to remove the removed axis.
         #
@@ -313,7 +315,8 @@ def regrid(
         #      [0,1,3,4,2]
         raxis0, raxis = axis_order[-2:]
         axis_order = [i if i <= raxis else i - 1 for i in axis_order[:-1]]
-    elif n_src_axes == 3 and n_dst_axes == 1:
+#    elif n_src_axes == 3 and n_dst_axes == 1:
+    elif  n_dst_axes == n_src_axes  -2:
         # The regridding operation decreased the number of data axes
         # by 2 => modify 'axis_order' to remove the removed axes.
         #
