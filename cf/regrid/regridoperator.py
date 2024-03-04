@@ -231,6 +231,14 @@ class RegridOperator(mixin_Container, Container):
             f"<CF {self.__class__.__name__}: {self.coord_sys} {self.method}>"
         )
 
+    def __str__(self):
+        """x.__str__() <==> str(x)
+        
+        .. versionadded:: TODOVER
+        
+        """
+        return self.dump(display=False)
+
     @property
     def col(self):
         """The 1-d array of the column indices of the regridding
@@ -796,7 +804,7 @@ class RegridOperator(mixin_Container, Container):
         # It is much more efficient to access 'weights.indptr' and
         # 'weights.data' directly, rather than iterating over rows of
         # 'weights' and using 'weights.getrow'.
-
+        
         indptr = weights.indptr.tolist()
         data = weights.data
         for j, (i0, i1) in enumerate(zip(indptr[:-1], indptr[1:])):

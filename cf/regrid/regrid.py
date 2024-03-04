@@ -341,6 +341,11 @@ def regrid(
     cartesian = not spherical
 
     debug = is_log_level_debug(logger)
+    if debug:
+        logger.debug(
+            f"Source field:\n{src}\n\n"
+            f"Destination:\n{dst}\n"
+        )  # pragma: no cover
 
     # ----------------------------------------------------------------
     # Parse and check parameters
@@ -706,19 +711,19 @@ def regrid(
         # Fewer source grid axes than destination grid axes (e.g. mesh
         # regridded to lat/lon).
         regridded_axis_sizes = {src_grid.axis_indices[0]: dst_grid.shape}
-    else:  # lif dst_grid.n_regrid_axes == 1:
+    else:
         # More source grid axes than destination grid axes
         # (e.g. lat/lon regridded to mesh).
         src_axis_indices = sorted(src_grid.axis_indices)
         regridded_axis_sizes = {}
-        for i, src_iaxis in enumerate(src_axis_indices[:dst_n]):
-            regridded_axis_sizes[src_iaxis] = (dst_grid.shape[i],)
+#        for i, src_iaxis in enumerate(src_axis_indices[:dst_n]):
+#            regridded_axis_sizes[src_iaxis] = (dst_grid.shape[i],)
+            
+        for dst_size, src_iaxis in zip(dst_grid.shape, src_axis_indices):
+            regridded_axis_sizes[src_iaxis] = (dst_size,)
 
-        #        regridded_axis_sizes = {src_axis_indices[0]: (dst_grid.shape[0],)}
-        #        for src_iaxis in src_axis_indices[1:]:
         for src_iaxis in src_axis_indices[dst_n:]:
             regridded_axis_sizes[src_iaxis] = ()
-        print(99999, src_axis_indices, regridded_axis_sizes)
 
     regridded_data = src.data._regrid(
         method=method,
@@ -856,8 +861,8 @@ def spherical_coords_to_domain(
 
     if dst_z is not None and "Z" not in coords:
         raise ValueError(
-            "Expected a sequence that includes vertical "
-            f"coordinate constructs. Got: {dst!r}"
+            "Expected a sequence that includes a vertical "
+            f"coordinate construct. Got: {dst!r}"
         )
 
     coords_1d = False
@@ -938,10 +943,23 @@ def spherical_coords_to_domain(
         # ------------------------------------------------------------
         z_coord = coords["Z"]
         if z_coord.ndim == 1:
+            # 1-d Z coordinates
             z_axis = d.set_construct(d._DomainAxis(z_coord.size), copy=False)
-            d.set_construct(z_coord, axes=z_axis, copy=False)
+            z_key = d.set_construct(z_coord, axes=z_axis, copy=False)
+        elif z_coord.ndim == 2:    
+            # 2-d Z coordinates        
+            if dst_axes is None or not (set(dst_axes) == set(('X', 'Y')) and set(dst.values()) == set((0, 1))):
+                raise ValueError(
+                    "When 'dst' is a sequence containing a 2-d vertical "
+                    "coordinate construct, 'dst_axes' must be either "
+                    "{'X': 0, 'Y': 1} or {'X': 1, 'Y': 0}. "
+                    f"Got: {dst_axes!r}"
+                )
+            z_axis = None
+            z_key = d.set_construct(z_coord, axes=coord_axes, copy=False)
         elif z_coord.ndim == 3:
-            if dst_axes is None or "Z" not in dst_axes or dst_axes["Z"] != 2:
+            # 3-d Z coordinates
+            if dst_axes is None or dst_axes.get('Z') != 2:
                 raise ValueError(
                     "When 'dst' is a sequence containing a 3-d vertical "
                     "coordinate construct, 'dst_axes' must be either "
@@ -966,7 +984,8 @@ def spherical_coords_to_domain(
             )
 
         dst_z = key
-        dst_axes["Z"] = z_axis
+        if z_axis is not None:
+            dst_axes["Z"] = z_axis
 
     return d, dst_axes, dst_z
 
@@ -2864,11 +2883,9 @@ def update_coordinates(src, dst, src_grid, dst_grid):
         src.del_construct(key)
 
     # Domain axes
-    print(0, repr(src))
     src_domain_axes = src.domain_axes(todict=True)
     dst_domain_axes = dst.domain_axes(todict=True)
     if src_grid.n_regrid_axes == dst_grid.n_regrid_axes:
-        print("a", src_axis_keys, dst_axis_keys)
         # Change the size of the regridded domain axes
         for src_axis, dst_axis in zip(src_axis_keys, dst_axis_keys):
             src_domain_axis = src_domain_axes[src_axis]
@@ -2889,7 +2906,7 @@ def update_coordinates(src, dst, src_grid, dst_grid):
             for dst_axis in dst_axis_keys
         ]
         src_grid.new_axis_keys = src_axis_keys
-    print(1, repr(src))
+
     axis_map = {
         dst_axis: src_axis
         for dst_axis, src_axis in zip(dst_axis_keys, src_axis_keys)
