@@ -63,6 +63,7 @@ CONSTANTS = {
     "LOG_LEVEL": logging.getLevelName(logging.getLogger().level),
     "BOUNDS_COMBINATION_MODE": "AND",
     "CHUNKSIZE": parse_bytes(_CHUNKSIZE),
+    "hdf_chunksize": None,
 }
 
 masked = np.ma.masked

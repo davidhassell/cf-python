@@ -785,6 +785,67 @@ class chunksize(ConstantAccess):
         return parse_bytes(arg)
 
 
+class hdf_chunksize(ConstantAccess):
+    """TODO Set the default chunksize used by `dask` arrays.
+
+    If called without any arguments then the existing chunksize is
+    returned.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        arg: number or `str` or `Constant`, optional
+            The chunksize in bytes. Any size accepted by
+            `dask.utils.parse_bytes` is accepted, for instance
+            ``100``, ``'100'``, ``'1e6'``, ``'100 MB'``, ``'100M'``,
+            ``'5kB'``, ``'5.4 kB'``, ``'1kiB'``, ``'1e6 kB'``, and
+            ``'MB'`` are all valid sizes.
+
+            Note that if *arg* is a `float`, or a string that implies
+            a non-integral amount of bytes, then the integer part
+            (rounded down) will be used.
+
+            *Parameter example:*
+               A chunksize of 2 MiB may be specified as ``'2097152'``
+               or ``'2 MiB'``
+
+            *Parameter example:*
+               Chunksizes of ``'2678.9'`` and ``'2.6789 KB'`` are both
+               equivalent to ``2678``.
+
+    :Returns:
+
+        `Constant`
+            The value prior to the change, or the current value if no
+            new value was specified.
+
+    """
+
+    _name = "hdf_chunksize"
+
+    def _parse(cls, arg):
+        """Parse a new constant value.
+
+        .. versionadded:: NEXTVERSION
+
+        :Parameters:
+
+            cls:
+                This class.
+
+            arg:
+                The given new constant value.
+
+        :Returns:
+
+                A version of the new constant value suitable for insertion
+                into the `CONSTANTS` dictionary.
+
+        """
+        return parse_bytes(arg)
+
+
 class tempdir(ConstantAccess):
     """The directory for internally generated temporary files.
 

@@ -8189,6 +8189,61 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         return product(*[range(0, r) for r in self.shape])
 
+    def nc_set_hdf5_chunksizes(self, chunksizes):
+        """Set the HDF5 chunksizes for the data.
+
+        .. note:: Chunksizes are cleared from the output of methods that
+                  change the data shape.
+
+        .. note:: Chunksizes are ignored for netCDF3 files that do not use
+                  HDF5.
+
+        .. versionadded:: NEXTVERSION
+
+        .. seealso:: `nc_hdf5_chunksizes`, `nc_clear_hdf5_chunksizes`
+
+        :Parameters:
+
+            chunksizes: sequence of `int`
+                The chunksizes for each dimension. Can be integers from 0
+                to the dimension size.
+
+        :Returns:
+
+            `None`
+
+        **Examples**
+
+        >>> d.shape
+        (1, 96, 73)
+        >>> d.nc_set_hdf5_chunksizes([1, 48, 73])
+        >>> d.nc_hdf5_chunksizes()
+        (1, 48, 73)
+        >>> d.nc_clear_hdf5_chunksizes()
+        (1, 48, 73)
+        >>> d.nc_hdf5_chunksizes()
+        ()
+
+        """
+        try:
+            shape = self.shape
+        except AttributeError:
+            pass
+        else:
+            if len(chunksizes) != len(shape):
+                raise ValueError(
+                    "chunksizes must be a sequence with the same length "
+                    "as dimensions"
+                )
+
+            for i, j in zip(chunksizes, shape):
+                if i < 0:
+                    raise ValueError("chunksize cannot be negative")
+                if i > j:
+                    raise ValueError("chunksize cannot exceed dimension size")
+
+        self._get_component("netcdf")["hdf5_chunksizes"] = tuple(chunksizes)
+
     @_deprecated_kwarg_check("traceback", version="3.0.0", removed_at="4.0.0")
     @_manage_log_level_via_verbosity
     def equals(
