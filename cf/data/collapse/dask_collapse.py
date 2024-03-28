@@ -15,7 +15,6 @@ from dask.core import flatten
 from dask.utils import deepmap
 
 from ..dask_utils import cf_asanyarray
-from .collapse_active import active_storage_chunk
 from .collapse_utils import double_precision_dtype
 
 
@@ -230,7 +229,6 @@ def sum_sample_sizes(pairs, axis, computing_meta=False, **kwargs):
 # --------------------------------------------------------------------
 # mean
 # --------------------------------------------------------------------
-@active_storage_chunk("mean")
 def cf_mean_chunk(
     x,
     weights=None,
@@ -371,7 +369,6 @@ def cf_mean_agg(
 # --------------------------------------------------------------------
 # maximum
 # --------------------------------------------------------------------
-@active_storage_chunk("max")
 def cf_max_chunk(x, dtype=None, computing_meta=False, **kwargs):
     """Chunk calculations for the maximum.
 
@@ -524,7 +521,6 @@ def cf_mid_range_agg(
 # --------------------------------------------------------------------
 # minimum
 # --------------------------------------------------------------------
-@active_storage_chunk("min")
 def cf_min_chunk(x, dtype=None, computing_meta=False, **kwargs):
     """Chunk calculations for the minimum.
 
@@ -629,7 +625,6 @@ def cf_min_agg(
 # --------------------------------------------------------------------
 # range
 # --------------------------------------------------------------------
-@active_storage_chunk("range")
 def cf_range_chunk(x, dtype=None, computing_meta=False, **kwargs):
     """Chunk calculations for the range.
 
@@ -742,7 +737,6 @@ def cf_range_agg(
 # --------------------------------------------------------------------
 # root mean square
 # --------------------------------------------------------------------
-@active_storage_chunk("rms")
 def cf_rms_chunk(x, weights=None, dtype="f8", computing_meta=False, **kwargs):
     """Chunk calculations for the root mean square (RMS).
 
@@ -821,7 +815,6 @@ def cf_rms_agg(
 # --------------------------------------------------------------------
 # sample size
 # --------------------------------------------------------------------
-@active_storage_chunk("sample_size")
 def cf_sample_size_chunk(x, dtype="i8", computing_meta=False, **kwargs):
     """Chunk calculations for the sample size.
 
@@ -934,7 +927,6 @@ def cf_sample_size_agg(
 # --------------------------------------------------------------------
 # sum
 # --------------------------------------------------------------------
-@active_storage_chunk("sum")
 def cf_sum_chunk(
     x,
     weights=None,
@@ -1068,7 +1060,6 @@ def cf_sum_agg(
 # --------------------------------------------------------------------
 # sum of weights
 # --------------------------------------------------------------------
-@active_storage_chunk("sum_of_weights")
 def cf_sum_of_weights_chunk(
     x, weights=None, dtype="f8", computing_meta=False, **kwargs
 ):
@@ -1108,7 +1099,6 @@ def cf_sum_of_weights_chunk(
 # --------------------------------------------------------------------
 # sum of squares of weights
 # --------------------------------------------------------------------
-@active_storage_chunk("sum_of_weights2")
 def cf_sum_of_weights2_chunk(
     x, weights=None, dtype="f8", computing_meta=False, **kwargs
 ):
@@ -1150,7 +1140,6 @@ def cf_sum_of_weights2_chunk(
 # --------------------------------------------------------------------
 # unique
 # --------------------------------------------------------------------
-@active_storage_chunk("unique")
 def cf_unique_chunk(x, dtype=None, computing_meta=False, **kwargs):
     """Chunk calculations for the unique values.
 
@@ -1214,7 +1203,6 @@ def cf_unique_agg(pairs, axis=None, computing_meta=False, **kwargs):
 # --------------------------------------------------------------------
 # variance
 # --------------------------------------------------------------------
-@active_storage_chunk("var")
 def cf_var_chunk(
     x, weights=None, dtype="f8", computing_meta=False, ddof=None, **kwargs
 ):

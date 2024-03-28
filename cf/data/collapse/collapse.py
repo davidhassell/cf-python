@@ -5,57 +5,11 @@ from cfdm.core import DocstringRewriteMeta
 from dask.array.reductions import reduction
 
 from ...docstring import _docstring_substitution_definitions
-from .collapse_active import active_storage
 from .collapse_utils import check_input_dtype, double_precision_dtype
 
 
 class Collapse(metaclass=DocstringRewriteMeta):
     """Container for functions that collapse dask arrays.
-
-    **Active storage reductions**
-
-    A collapse method (such as `max`, `var`, etc.) will attempt to
-    make use of active storage reductions when all of the following
-    conditions are met:
-
-      * `cf.active_storage()` is True;
-
-      * ``cf.active_storage_url()`` returns the URL of an active
-        storage server;
-
-      * it is possible to import the `activestorage.Active` class;
-
-      * the collapse is over all axes;
-
-      * the collapse is unweighted;
-
-      * the data are in netCDF-4 files on disk (rather than in
-        any other file format, or in memory);
-
-      * the data are not compressed by convention;
-
-      * the `Collapse` method's *active_storage* parameter is True;
-
-      * the `Collapse` method's *chunk_function* parameter is `None`;
-
-      * the method has a corresponding active chunk function defined
-        in the `cf.data.collapse.active_chunk_functions` dictionary;
-
-      * inspection of the graph of the `dask` array with
-        `cf.data.collapse.actify` confirms that making use of active
-        storage is possible;
-
-    in which case the Dask graph is modified to expect the per-chunk
-    reductions to be carried out externally.
-
-    .. note:: The performance improvements from using active storage
-              operations will increase the closer, in a network sense,
-              the active storage server is to the data storage. If the
-              active storage server is sufficiently far away from the
-              data then it may be faster and require less energy to do
-              a normal, non-active operation.
-
-    See `cf.data.collapse.active_storage` for details.
 
     .. versionadded:: 3.14.0
 
@@ -93,7 +47,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         """
         return 0
 
-    @active_storage("max")
     def max(
         self,
         a,
@@ -102,7 +55,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return maximum values of an array.
 
@@ -129,10 +81,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -161,7 +109,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("max_abs")
     def max_abs(
         self,
         a,
@@ -170,7 +117,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=1,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return maximum absolute values of an array.
 
@@ -198,10 +144,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
 
             {{chunk_function: callable, optional}}
 
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
         :Returns:
 
             `dask.array.Array`
@@ -214,10 +156,8 @@ class Collapse(metaclass=DocstringRewriteMeta):
             keepdims=keepdims,
             mtol=mtol,
             split_every=split_every,
-            active_storage=False,
         )
 
-    @active_storage("mean")
     def mean(
         self,
         a,
@@ -227,7 +167,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return mean values of an array.
 
@@ -257,10 +196,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
 
             {{chunk_function: callable, optional}}
 
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
         :Returns:
 
             `dask.array.Array`
@@ -289,7 +224,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             weights=weights,
         )
 
-    @active_storage("mean_abs")
     def mean_abs(
         self,
         a,
@@ -299,7 +233,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return mean absolute values of an array.
 
@@ -329,10 +262,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
 
             {{chunk_function: callable, optional}}
 
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
         :Returns:
 
             `dask.array.Array`
@@ -346,10 +275,8 @@ class Collapse(metaclass=DocstringRewriteMeta):
             keepdims=keepdims,
             mtol=mtol,
             split_every=split_every,
-            active_storage=False,
         )
 
-    @active_storage("mid_range")
     def mid_range(
         self,
         a,
@@ -359,7 +286,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return mid-range values of an array.
 
@@ -386,10 +312,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -422,7 +344,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("min")
     def min(
         self,
         a,
@@ -431,7 +352,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return minimum values of an array.
 
@@ -458,10 +378,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -490,7 +406,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("min_abs")
     def min_abs(
         self,
         a,
@@ -499,7 +414,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return minimum absolute values of an array.
 
@@ -527,10 +441,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
 
             {{chunk_function: callable, optional}}
 
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
         :Returns:
 
             `dask.array.Array`
@@ -543,10 +453,8 @@ class Collapse(metaclass=DocstringRewriteMeta):
             keepdims=keepdims,
             mtol=mtol,
             split_every=split_every,
-            active_storage=False,
         )
 
-    @active_storage("range")
     def range(
         self,
         a,
@@ -555,7 +463,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return range values of an array.
 
@@ -582,10 +489,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -618,7 +521,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("rms")
     def rms(
         self,
         a,
@@ -628,7 +530,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return root mean square (RMS) values of an array.
 
@@ -658,10 +559,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
 
             {{chunk_function: callable, optional}}
 
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
         :Returns:
 
             `dask.array.Array`
@@ -690,7 +587,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             weights=weights,
         )
 
-    @active_storage("sample_size")
     def sample_size(
         self,
         a,
@@ -699,7 +595,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return sample size values of an array.
 
@@ -726,10 +621,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -762,7 +653,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("sum")
     def sum(
         self,
         a,
@@ -772,7 +662,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return sum values of an array.
 
@@ -801,10 +690,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -837,7 +722,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             weights=weights,
         )
 
-    @active_storage("sum_of_weights")
     def sum_of_weights(
         self,
         a,
@@ -847,7 +731,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return sum of weights values for an array.
 
@@ -876,10 +759,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -913,7 +792,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             weights=weights,
         )
 
-    @active_storage("sum_of_weights2")
     def sum_of_weights2(
         self,
         a,
@@ -923,7 +801,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         mtol=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return sum of squares of weights values for an array.
 
@@ -952,10 +829,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -989,9 +862,8 @@ class Collapse(metaclass=DocstringRewriteMeta):
             weights=weights,
         )
 
-    @active_storage("unique")
     def unique(
-        self, a, split_every=None, chunk_function=None, active_storage=False
+        self, a, split_every=None, chunk_function=None,
     ):
         """Return unique elements of the data.
 
@@ -1005,10 +877,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -1044,7 +912,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             meta=np.array((), dtype=dtype),
         )
 
-    @active_storage("var")
     def var(
         self,
         a,
@@ -1055,7 +922,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
         ddof=None,
         split_every=None,
         chunk_function=None,
-        active_storage=False,
     ):
         """Return variances of an array.
 
@@ -1086,10 +952,6 @@ class Collapse(metaclass=DocstringRewriteMeta):
             {{split_every: `int` or `dict`, optional}}
 
             {{chunk_function: callable, optional}}
-
-            {{active_storage: `bool`, optional}}
-
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 

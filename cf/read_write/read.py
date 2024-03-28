@@ -63,8 +63,6 @@ def read(
     chunks="auto",
     domain=False,
     cfa=None,
-    netcdf_engine=None,
-    storage_options=None,
     cache_metadata=True,
 ):
     """Read field or domain constructs from files.
@@ -678,62 +676,6 @@ def read(
 
             .. versionadded:: 3.15.0
 
-        netcdf_engine: `None` or `str`, optional
-            Specify which library to use for opening and reading
-            netCDF files. By default, or if `None`, then the first one
-            of `netCDF4` and `h5netcdf` to successfully open the file
-            netCDF file is used. Setting *netcdf_engine* to one of
-            ``'netCDF4'`` and ``'h5netcdf'`` will force the use of
-            that library.
-
-            .. note:: The *netcdf_engine* parameter does not affect
-                      the opening of netCDF fragment files that define
-                      the data of aggregated variables. For these, the
-                      first one of `netCDF4` and `h5netcdf` to
-                      successfully open the file netCDF file is always
-                      be used.
-
-            .. note:: `h5netcdf` restricts the types of indices that
-                      define subspaces of its data. See
-                      https://docs.h5py.org for details. However, such
-                      indices on a returned `Field` are possible if
-                      they are followed by further subspaces that
-                      imply acceptable indices.
-
-            .. versionadded:: NEXTVERSION
-
-        storage_options: `dict` or `None`, optional
-           Key/value pairs to be passed on to the creation of
-           `s3fs.S3FileSystem` file systems to control the opening of
-           files in S3 object stores. Ignored for files not in an S3
-           object store, i.e. those whose names do not start with
-           ``s3:``.
-
-           By default, or if `None`, then *storage_options* is taken
-           as ``{}``.
-
-           If the ``'endpoint_url'`` key is not in *storage_options*
-           or is not in a dictionary defined by the ``'client_kwargs``
-           key (which is always the case when *storage_options* is
-           `None`), then one will be automatically inserted for
-           accessing an S3 file. For example, for a file name of
-           ``'s3://store/data/file.nc'``, an ``'endpoint_url'`` key
-           with value ``'https://store'`` would be created.
-
-           *Parameter example:*
-             For a file name of ``'s3://store/data/file.nc'``, the
-             following are equivalent: ``None``, ``{}``, and
-             ``{'endpoint_url': 'https://store'}``,
-             ``{'client_kwargs': {'endpoint_url': 'https://store'}}``
-
-           *Parameter example:*
-             ``{'key: 'scaleway-api-key...', 'secret':
-             'scaleway-secretkey...', 'endpoint_url':
-             'https://s3.fr-par.scw.cloud', 'client_kwargs':
-             {'region_name': 'fr-par'}}``
-
-           .. versionadded:: NEXTVERSION
-
         cache_metadata: `bool`, optional
             If True, the default, then data for metadata constructs
             will have their first and last array elements retrieved
@@ -1038,8 +980,6 @@ def read(
                 select=select,
                 domain=domain,
                 cfa_options=cfa_options,
-                netcdf_engine=netcdf_engine,
-                storage_options=storage_options,
                 cache_metadata=cache_metadata,
             )
 
@@ -1156,8 +1096,6 @@ def _read_a_file(
     select=None,
     domain=False,
     cfa_options=None,
-    netcdf_engine=None,
-    storage_options=None,
     cache_metadata=True,
 ):
     """Read the contents of a single file into a field list.
@@ -1193,16 +1131,6 @@ def _read_a_file(
             See `cf.read` for details.
 
             .. versionadded:: 3.15.0
-
-        storage_options: `dict` or `None`, optional
-            See `cf.read` for details.
-
-            .. versionadded:: NEXTVERSION
-
-        netcdf_engine: `str` or `None`, optional
-            See `cf.read` for details.
-
-            .. versionadded:: NEXTVERSION
 
         cache_metadata: `bool`, optional
             See `cf.read` for details.
@@ -1284,8 +1212,6 @@ def _read_a_file(
                 unpack=unpack,
                 warn_valid=warn_valid,
                 domain=domain,
-                storage_options=storage_options,
-                netcdf_engine=netcdf_engine,
             )
         except MaskError:
             # Some data required for field interpretation is missing,

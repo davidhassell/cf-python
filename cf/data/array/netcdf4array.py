@@ -2,11 +2,10 @@ import cfdm
 
 from ...mixin_container import Container
 from .locks import netcdf_lock
-from .mixin import ActiveStorageMixin, ArrayMixin, FileArrayMixin, IndexMixin
+from .mixin import ArrayMixin, FileArrayMixin, IndexMixin
 
 
 class NetCDF4Array(
-    ActiveStorageMixin,
     IndexMixin,
     FileArrayMixin,
     ArrayMixin,
@@ -14,11 +13,6 @@ class NetCDF4Array(
     cfdm.NetCDF4Array,
 ):
     """A netCDF array accessed with `netCDF4`.
-
-    **Active storage reductions**
-
-    An active storage reduction may be enabled with the `actify`
-    method. See `cf.data.collapse.Collapse` for details.
 
     """
 

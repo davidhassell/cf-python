@@ -140,7 +140,7 @@ def cf_convolve1d(a, window=None, axis=-1, origin=0):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             The float array to be filtered.
 
         window: 1-d sequence of numbers
@@ -185,7 +185,7 @@ def cf_convolve1d(a, window=None, axis=-1, origin=0):
 
 
 def cf_harden_mask(a):
-    """Harden the mask of a masked `numpy` array.
+    """Harden the mask of an array.
 
     Has no effect if the array is not a masked array.
 
@@ -195,7 +195,7 @@ def cf_harden_mask(a):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             The array to have a hardened mask.
 
     :Returns:
@@ -351,7 +351,7 @@ def cf_percentile(a, q, axis, method, keepdims=False, mtol=1):
 
 
 def cf_soften_mask(a):
-    """Soften the mask of a masked `numpy` array.
+    """Soften the mask of an array.
 
     Has no effect if the array is not a masked array.
 
@@ -361,7 +361,7 @@ def cf_soften_mask(a):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             The array to have a softened mask.
 
     :Returns:
@@ -383,10 +383,10 @@ def cf_soften_mask(a):
     return a
 
 
-def cf_where(array, condition, x, y, hardmask):
-    """Set elements of *array* from *x* or *y* depending on *condition*.
+def cf_where(a, condition, x, y, hardmask):
+    """Set elements of *a* from *x* or *y* depending on *condition*.
 
-    The input *array* is not changed in-place.
+    The input *a* is not changed in-place.
 
     See `where` for details on the expected functionality.
 
@@ -399,35 +399,35 @@ def cf_where(array, condition, x, y, hardmask):
 
     :Parameters:
 
-        array: numpy.ndarray
+        a: array_like
             The array to be assigned to.
 
-        condition: numpy.ndarray
+        condition: array_like
             Where False or masked, assign from *y*, otherwise assign
             from *x*.
 
-        x: numpy.ndarray or `None`
+        x: array_like or `None`
             *x* and *y* must not both be `None`.
 
-        y: numpy.ndarray or `None`
+        y: array_like or `None`
             *x* and *y* must not both be `None`.
 
         hardmask: `bool`
            Set the mask hardness for a returned masked array. If True
            then a returned masked array will have a hardened mask, and
-           the mask of the input *array* (if there is one) will be
-           applied to the returned array, in addition to any masked
-           elements arising from assignments from *x* or *y*.
+           the mask of the input *a* (if there is one) will be applied
+           to the returned array, in addition to any masked elements
+           arising from assignments from *x* or *y*.
 
     :Returns:
 
         `numpy.ndarray`
-            A copy of the input *array* with elements from *y* where
+            A copy of the input *a* with elements from *y* where
             *condition* is False or masked, and elements from *x*
             elsewhere.
 
     """
-    array = cf_asanyarray(array)
+    a = cf_asanyarray(a)
     condition = cf_asanyarray(condition)
     if x is not None:
         x = cf_asanyarray(x)
@@ -437,11 +437,11 @@ def cf_where(array, condition, x, y, hardmask):
 
     mask = None
 
-    if np.ma.isMA(array):
+    if np.ma.isMA(a):
         # Do a masked where
         where = np.ma.where
         if hardmask:
-            mask = array.mask
+            mask = a.mask
     elif np.ma.isMA(x) or np.ma.isMA(y):
         # Do a masked where
         where = np.ma.where
@@ -463,7 +463,7 @@ def cf_where(array, condition, x, y, hardmask):
         else:
             c = condition
 
-        array = where(c, x, array)
+        a = where(c, x, a)
 
     if y is not None:
         # Assign values from y
@@ -474,16 +474,16 @@ def cf_where(array, condition, x, y, hardmask):
         else:
             c = condition
 
-        array = where(c, array, y)
+        a = where(c, a, y)
 
     if hardmask:
         if mask is not None and mask.any():
             # Apply the mask from the input array to the result
-            array.mask |= mask
+            a.mask |= mask
 
-        array.harden_mask()
+        a.harden_mask()
 
-    return array
+    return a
 
 
 def _getattr(x, attr):
@@ -506,7 +506,7 @@ def cf_YMDhms(a, attr):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             The array from which to extract date-time component.
 
         attr: `str`
@@ -543,7 +543,7 @@ def cf_rt2dt(a, units):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             An array of numeric reference times.
 
         units: `Units`
@@ -596,7 +596,7 @@ def cf_dt2rt(a, units):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             An array of date-time objects.
 
         units: `Units`
@@ -631,7 +631,7 @@ def cf_units(a, from_units, to_units):
 
     :Parameters:
 
-        a: `numpy.ndarray`
+        a: array_like
             The array.
 
         from_units: `Units`
@@ -670,6 +670,8 @@ def cf_is_masked(a):
 
     .. versionadded:: NEXTVERSION
 
+    .. seealso:: `cf.Data.is_masked`
+
     :Parameters:
 
         a: array_like
@@ -692,6 +694,8 @@ def cf_filled(a, fill_value=None):
     """Replace masked elements with a fill value.
 
     .. versionadded:: NEXTVERSION
+
+    .. seealso:: `cf.Data.filled`
 
     :Parameters:
 
@@ -723,8 +727,9 @@ def cf_filled(a, fill_value=None):
 def cf_asanyarray(a):
     """Convert to a `numpy` array.
 
-    Only do this is the input *a* has an `__asanyarray__` attribute
-    with value True.
+    The input array *a* is returned unchanged unless it has an
+    `__asanyarray__` attribute with value True, in which case,
+    ``np.asanyarray(a)`` is returned instead.
 
     .. versionadded:: NEXTVERSION
 

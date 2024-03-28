@@ -101,7 +101,6 @@ _NONE = 0  # =   0b0000
 _ARRAY = 1  # =  0b0001
 _CACHE = 2  # =  0b0010
 _CFA = 4  # =    0b0100
-_ACTIVE = 8  # = 0b1000
 _ALL = 15  # =   0b1111
 
 
@@ -466,8 +465,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             # compressed input arrays this will contain extra
             # information, such as a count or index variable.
             self._set_Array(array)
-            # Data files are candidates for active storage reductions
-            self._set_active_storage(True)
 
         # Cast the input data as a dask array
         kwargs = init_options.get("from_array", {})
@@ -957,7 +954,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # Set the subspaced dask array. Set 'asanyarray=True' to
         # honour truely lazy subspacing.
         # ------------------------------------------------------------
-        new._set_dask(dx, clear=_ALL ^ _ACTIVE, asanyarray=True)
+        new._set_dask(dx, clear=_ALL, asanyarray=True)
 
         # ------------------------------------------------------------
         # Get the axis identifiers for the subspace
@@ -1368,9 +1365,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 * If ``clear & _CFA`` is non-zero then the CFA write
                   status is set to `False`.
 
-                * If ``clear & _ACTIVE`` is non-zero then set the
-                  active storage status to `False`.
-
                 By default *clear* is the ``_ALL`` integer-valued
                 constant, which results in all components being
                 removed.
@@ -1405,10 +1399,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         if clear & _CFA:
             # Set the CFA write status to False
             self._cfa_del_write()
-
-        if clear & _ACTIVE:
-            # Set active storage to False
-            self._del_active_storage()
 
     def _set_dask(self, dx, copy=False, clear=_ALL, asanyarray=False):
         """Set the dask array.
@@ -1531,32 +1521,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         self._clear_after_dask_update(clear)
         return out
 
-    def _del_active_storage(self):
-        """Set the active storage reduction status to False.
-
-        .. versionadded:: NEXTVERSION
-
-        .. seealso:: `active_storage`, `_set_active_storage`
-
-        :Returns:
-
-            `None`
-
-        **Examples**
-
-        >>> d = cf.Data([9])
-        >>> d.active_storage()
-        False
-        >>> d._set_active_storage(True)
-        >>> d.active_storage()
-        True
-        >>> d._del_active_storage()
-        >>> d.active_storage()
-        False
-
-        """
-        self._custom.pop("active_storage", False)
-
     def _del_cached_elements(self):
         """Delete any cached element values.
 
@@ -1615,32 +1579,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         """
         return isinstance(array, cfdm.Array)
-
-    def _set_active_storage(self, value):
-        """Set the active storage reduction status.
-
-        .. versionadded:: NEXTVERSION
-
-        .. seealso:: `active_storage`, `_del_active_storage`
-
-        :Returns:
-
-            `None`
-
-        **Examples**
-
-        >>> d = cf.Data([9])
-        >>> d.active_storage()
-        False
-        >>> d._set_active_storage(True)
-        >>> d.active_storage()
-        True
-        >>> d._del_active_storage()
-        >>> d.active_storage()
-        False
-
-        """
-        self._custom["active_storage"] = bool(value)
 
     def _set_cached_elements(self, elements):
         """Cache selected element values.
@@ -3294,7 +3232,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         dx = d.to_dask_array(asanyarray=False)
         dx = dx.rechunk(chunks, threshold, block_size_limit, balance)
         d._set_dask(
-            dx, clear=_ALL ^ _ARRAY ^ _CACHE ^ _ACTIVE, asanyarray=True
+            dx, clear=_ALL ^ _ARRAY ^ _CACHE, asanyarray=True
         )
 
         return d
@@ -4288,15 +4226,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                     cfa = _NONE
                     break
 
-        # Set the active storage status
-        active = _ACTIVE
-        for d in processed_data:
-            if not d.active_storage:
-                # Set the output active storage status to False when
-                # any input data instance has False status
-                active = _NONE
-                break
-
         # Set the __asanyarray__ status
         asanyarray = processed_data[0].__asanyarray__
         for d in processed_data[1:]:
@@ -4308,7 +4237,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 break
 
         # Set the new dask array
-        data0._set_dask(dx, clear=_ALL ^ cfa ^ active, asanyarray=asanyarray)
+        data0._set_dask(dx, clear=_ALL ^ cfa, asanyarray=asanyarray)
 
         # Set appropriate cached elements
         cached_elements = {}
@@ -4957,32 +4886,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
     # ----------------------------------------------------------------
     # Attributes
     # ----------------------------------------------------------------
-    @property
-    def active_storage(self):
-        """Whether or not active storage reductions are possible.
-
-        When the `active_storage` attribute is False it signifies that
-        active storage reductions are not available.
-
-        When the `active_storage` attribute is True it signifies that
-        active storage reductions are possible, but only when all of
-        the conditions described by `cf.data.collapse.Collapse` are
-        met.
-
-        .. versionadded:: NEXTVERSION
-
-        **Examples**
-
-        >>> d = cf.Data([9])
-        >>> d.active_storage
-        False
-
-        """
-        return (
-            self._custom.get("active_storage", False)
-            and not self.get_compression_type()
-        )
-
     @property
     def Units(self):
         """The `cf.Units` object containing the units of the data array.

@@ -171,8 +171,6 @@ def configuration(
     regrid_logging=None,
     relaxed_identities=None,
     bounds_combination_mode=None,
-    active_storage=None,
-    active_storage_url=None,
     of_fraction=None,
     collapse_parallel_mode=None,
     free_memory_factor=None,
@@ -191,8 +189,6 @@ def configuration(
     * `regrid_logging`
     * `relaxed_identities`
     * `bounds_combination_mode`
-    * `active_storage`
-    * `active_storage_url`
 
     These are all constants that apply throughout cf, except for in
     specific functions only if overridden by the corresponding keyword
@@ -211,8 +207,7 @@ def configuration(
 
     .. seealso:: `atol`, `rtol`, `tempdir`, `chunksize`,
                  `total_memory`, `log_level`, `regrid_logging`,
-                 `relaxed_identities`, `bounds_combination_mode`,
-                 `active_storage`, `active_storage_url`
+                 `relaxed_identities`, `bounds_combination_mode`
 
     :Parameters:
 
@@ -264,19 +259,6 @@ def configuration(
             construct identity. The default is to not change the
             current value.
 
-        active_storage: `bool` or `Constant`, optional
-            The new value (either True to enable active storage
-            reductions or False to disable them). The default is to
-            not change the current behaviour.
-
-            .. versionadded:: NEXTVERSION
-
-        active_storage_url: `str` or `None` or `Constant`, optional
-            The new value (either a new URL string or `None` to remove
-            the URL). The default is to not change the value.
-
-            .. versionadded:: NEXTVERSION
-
         of_fraction: `float` or `Constant`, optional
             Deprecated at version 3.14.0 and is no longer
             available.
@@ -306,9 +288,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'WARNING',
      'bounds_combination_mode': 'AND',
-     'chunksize': 82873466.88000001,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 82873466.88000001}
     >>> cf.chunksize(7.5e7)  # any change to one constant...
     82873466.88000001
     >>> cf.configuration()['chunksize']  # ...is reflected in the configuration
@@ -322,9 +302,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'WARNING',
      'bounds_combination_mode': 'AND',
-     'chunksize': 75000000.0,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 75000000.0}
     >>> cf.configuration()  # the items set have been updated accordingly
     {'rtol': 2.220446049250313e-16,
      'atol': 2.220446049250313e-16,
@@ -333,9 +311,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'INFO',
      'bounds_combination_mode': 'AND',
-     'chunksize': 75000000.0,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 75000000.0}
 
     Use as a context manager:
 
@@ -347,9 +323,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'INFO',
      'bounds_combination_mode': 'AND',
-     'chunksize': 75000000.0,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 75000000.0}
     >>> with cf.configuration(atol=9, rtol=10):
     ...     print(cf.configuration())
     ...
@@ -360,9 +334,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'INFO',
      'bounds_combination_mode': 'AND',
-     'chunksize': 75000000.0,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 75000000.0}
     >>> print(cf.configuration())
     {'rtol': 2.220446049250313e-16,
      'atol': 2.220446049250313e-16,
@@ -371,9 +343,7 @@ def configuration(
      'relaxed_identities': False,
      'log_level': 'INFO',
      'bounds_combination_mode': 'AND',
-     'chunksize': 75000000.0,
-     'active_storage': False,
-     'active_storage_url': None}
+     'chunksize': 75000000.0}
 
     """
     if of_fraction is not None:
@@ -404,8 +374,6 @@ def configuration(
         new_regrid_logging=regrid_logging,
         new_relaxed_identities=relaxed_identities,
         bounds_combination_mode=bounds_combination_mode,
-        active_storage=active_storage,
-        active_storage_url=active_storage_url,
     )
 
 
@@ -455,8 +423,6 @@ def _configuration(_Configuration, **kwargs):
         "new_regrid_logging": regrid_logging,
         "new_relaxed_identities": relaxed_identities,
         "bounds_combination_mode": bounds_combination_mode,
-        "active_storage": active_storage,
-        "active_storage_url": active_storage_url,
     }
 
     old_values = {}
@@ -1179,129 +1145,6 @@ class bounds_combination_mode(ConstantAccess):
             )
 
         return arg
-
-
-class active_storage(ConstantAccess):
-    """Whether or not to attempt active storage reductions.
-
-    .. versionadded:: NEXTVERSION
-
-    .. seealso:: `active_storage_url`, `configuration`
-
-    :Parameters:
-
-        arg: `bool` or `Constant`, optional
-            Provide a value that will apply to all subsequent
-            operations.
-
-    :Returns:
-
-        `Constant`
-            The value prior to the change, or the current value if no
-            new value was specified.
-
-    **Examples**
-
-    >>> cf.active_storage()
-    False
-    >>> with cf.active_storage(True):
-    ...     print(cf.active_storage())
-    ...
-    True
-    >>> cf.active_storage()
-    False
-    >>> cf.active_storage(True)
-    False
-    >>> cf.active_storage()
-    True
-
-    """
-
-    _name = "active_storage"
-
-    def _parse(cls, arg):
-        """Parse a new constant value.
-
-        .. versionaddedd:: NEXTVERSION
-
-        :Parameters:
-
-            cls:
-                This class.
-
-            arg:
-                The given new constant value.
-
-        :Returns:
-
-                A version of the new constant value suitable for
-                insertion into the `CONSTANTS` dictionary.
-
-        """
-        return bool(arg)
-
-
-class active_storage_url(ConstantAccess):
-    """The URL location of the active storage reducer.
-
-    .. versionadded:: NEXTVERSION
-
-    .. seealso::  `active_storage`, `configuration`
-
-    :Parameters:
-
-        arg: `str` or `None` or `Constant`, optional
-            Provide a value that will apply to all subsequent
-            operations.
-
-    :Returns:
-
-        `Constant`
-            The value prior to the change, or the current value if no
-            new value was specified.
-
-    **Examples**
-
-    >>> print(cf.active_storage_url())
-    None
-    >>> with cf.active_storage_url('http://active/storage/location'):
-    ...     print(cf.active_storage_url())
-    ...
-    'http://active/storage/location'
-    >>> print(cf.active_storage_url())
-    None
-    >>> print(cf.active_storage_url('http://other/location'))
-    None
-    >>> cf.active_storage_url()
-    'http://other/location'
-
-    """
-
-    _name = "active_storage_url"
-
-    def _parse(cls, arg):
-        """Parse a new constant value.
-
-        .. versionaddedd:: NEXTVERSION
-
-        :Parameters:
-
-            cls:
-                This class.
-
-            arg:
-                The given new constant value.
-
-        :Returns:
-
-                A version of the new constant value suitable for
-                insertion into the `CONSTANTS` dictionary.
-
-        """
-        if arg is None:
-            return arg
-
-        return str(arg)
 
 
 def CF():

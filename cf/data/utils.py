@@ -862,7 +862,6 @@ def collapse(
         "keepdims": keepdims,
         "split_every": split_every,
         "mtol": mtol,
-        "active_storage": d.active_storage,
     }
 
     weights = parse_weights(d, weights, axis)
@@ -873,9 +872,7 @@ def collapse(
         kwargs["ddof"] = ddof
 
     # The applicable chunk function will have its own call to
-    # 'cf_asanyarray', so we can set 'asanyarray=False'. Also, setting
-    # asanyarray=False will ensure that any active storage operations
-    # are not compromised.
+    # 'cf_asanyarray', so we can set 'asanyarray=False'.
     dx = d.to_dask_array(asanyarray=False)
     dx = func(dx, **kwargs)
     d._set_dask(dx)
