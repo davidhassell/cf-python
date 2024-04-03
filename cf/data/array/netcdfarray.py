@@ -2,13 +2,15 @@ import cfdm
 from dask.utils import SerializableLock
 
 from ...mixin_container import Container
-from .mixin import ArrayMixin, FileArrayMixin
+from .mixin import ArrayMixin, FileArrayMixin, IndexMixin
 
 # Global lock for netCDF file access
 _lock = SerializableLock()
 
 
-class NetCDFArray(FileArrayMixin, ArrayMixin, Container, cfdm.NetCDFArray):
+class NetCDFArray(
+    IndexMixin, FileArrayMixin, ArrayMixin, Container, cfdm.NetCDFArray
+):
     """An array stored in a netCDF file."""
 
     def __dask_tokenize__(self):
@@ -33,3 +35,38 @@ class NetCDFArray(FileArrayMixin, ArrayMixin, Container, cfdm.NetCDFArray):
 
         """
         return _lock
+
+    def _get_array(self, index=None):
+        """Returns a subspace of the dataset variable.
+
+        .. versionadded:: NEXTVERSION
+
+        .. seealso:: `__array__`, `index`
+
+        :Parameters:
+
+            index: `tuple` or `None`, optional
+               Provide the indices that define the subspace. If `None`
+               then the `index` attribute is used.
+
+        :Returns:
+
+            `numpy.ndarray`
+                The subspace.
+
+        """
+        if index is None:
+            index = self.index()
+
+        # Note: We need to lock because the netCDF file is about to be
+        #       accessed.
+        self._lock.acquire()
+
+        # Note: It's cfdm.NetCDFArray.__getitem__ that we want to call
+        #       here, but we use 'Container' in super because that
+        #       comes immediately before cfdm.NetCDFArray in the
+        #       method resolution order.
+        array = super(Container, self).__getitem__(index)
+
+        self._lock.release()
+        return array

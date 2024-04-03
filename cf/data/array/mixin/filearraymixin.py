@@ -27,33 +27,35 @@ class FileArrayMixin:
         )
 
     @property
-    def _dask_meta(self):
-        """The metadata for the containing dask array.
+    def _meta(self):
+        """Normalize the array to an appropriate Dask meta object.
 
-        This is the kind of array that will result from slicing the
-        file array.
+        The Dask meta can be thought of as a suggestion to Dask. Dask
+        uses this meta to generate the task graph until it can infer
+        the actual metadata from the values. It does not force the
+        output to have the structure or dtype of the specified meta.
 
-        .. versionadded:: 3.14.0
+        .. versionadded:: NEXTVERSION
 
-        .. seealso:: `dask.array.from_array`
+        .. seealso:: `dask.utils.meta_from_array`
 
         """
         return np.array((), dtype=self.dtype)
 
-    @property
-    def filename(self):
-        """The name of the file containing the array.
-
-        Deprecated at version 3.14.0. Use method `get_filename` instead.
-
-        """
-        _DEPRECATION_ERROR_ATTRIBUTE(
-            self,
-            "filename",
-            message="Use method 'get_filename' instead.",
-            version="3.14.0",
-            removed_at="5.0.0",
-        )  # pragma: no cover
+#    @property
+#    def filename(self):
+#        """The name of the file containing the array.
+#
+#        Deprecated at version 3.14.0. Use method `get_filename` instead.
+#
+#        """
+#        _DEPRECATION_ERROR_ATTRIBUTE(
+#            self,
+#            "filename",
+#            message="Use method 'get_filename' instead.",
+#            version="3.14.0",
+#            removed_at="5.0.0",
+#        )  # pragma: no cover
 
     def del_file_location(self, location):
         """Remove reference to files in the given location.
