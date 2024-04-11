@@ -390,25 +390,26 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             ancillary_mask = None
             indices2 = indices
 
-        indices, roll = parse_indices(shape, indices2, cyclic=True)
+#        indices, roll = parse_indices(shape, indices2, cyclic=True)
+        indices = parse_indices(shape, indices2)
 
-        if roll:
-            new = self
-            axes = data._axes
-            cyclic_axes = data._cyclic
-            for iaxis, shift in roll.items():
-                axis = axes[iaxis]
-                if axis not in cyclic_axes:
-                    _ = self.get_data_axes()[iaxis]
-                    raise IndexError(
-                        "Can't take a cyclic slice from non-cyclic "
-                        f"{self.constructs.domain_axis_identity(_)!r} axis"
-                    )
-
-                new = new.roll(axis=iaxis, shift=shift)
-        else:
-            new = self.copy()
-
+#        if roll:
+#            new = self
+#            axes = data._axes
+#            cyclic_axes = data._cyclic
+#            for iaxis, shift in roll.items():
+#                axis = axes[iaxis]
+#                if axis not in cyclic_axes:
+#                    _ = self.get_data_axes()[iaxis]
+#                    raise IndexError(
+#                        "Can't take a cyclic slice from non-cyclic "
+#                        f"{self.constructs.domain_axis_identity(_)!r} axis"
+#                    )
+#
+#                new = new.roll(axis=iaxis, shift=shift)
+#        else:
+#            new = self.copy()
+        new = self.copy()
         data = new.data
 
         # ------------------------------------------------------------

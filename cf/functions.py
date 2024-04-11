@@ -25,6 +25,7 @@ import cfdm
 import netCDF4
 import numpy as np
 from dask import config as _config
+from dask.array.slicing import normalize_index
 from dask.base import is_dask_collection
 from dask.utils import parse_bytes
 from psutil import virtual_memory
@@ -2017,7 +2018,7 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
                 # x[ -9:1:1] => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
                 # x[-10:0:1] => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
                 index = np.arange(start, stop, step)
-                cyclic_slices.append(i)
+#                cyclic_slices.append(i)
 #                index = slice(0, stop - start, step)
 #                roll[i] = -start
 
@@ -2030,7 +2031,7 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
                 # x[0: -2:-1] => [0, 9]
                 # x[0:-10:-1] => [0, 9, 8, 7, 6, 5, 4, 3, 2, 1]
                 index = np.arange(start, stop, step)
-                cyclic_slices.append(i)
+#                cyclic_slices.append(i)
 #                index = slice(start - stop - 1, None, step)
 #                roll[i] = -1 - stop
 
@@ -2052,8 +2053,94 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
     if not cyclic:
         return parsed_indices
 
-    return parsed_indices, cyclic_slices
+    return parsed_indices #, cyclic_slices
 
+def normalize_cyclic_slice(index, size):
+    """Normalise a cyclic slice.
+
+    If the *index* is found to be a cyclic slice then a normalised
+    copy if it is returned. If a non-cyclic slice *index* is found
+    then an `IndexError` is raised.
+
+    .. versionadded:: NEXTRELEASE
+
+    :Parameters:
+
+        index:
+            The index to be normalised.
+
+        size: `int`
+            The size of the axis to which the *index* applies.
+
+    :Returns:
+
+        `slice`
+            The normalised cyclic slice.
+
+    **Examples**
+
+    >>> cf.normalize_cyclic_slice(slice(-2, 3), 8)
+    slice(-2, 3, 1)
+    >>> cf.normalize_cyclic_slice(slice(6, 3), 8)
+    slice(-2, 3, 1)
+
+    >>> cf.normalize_cyclic_slice(slice(2, -3, -1), 8)
+    slice(2, -3, -1)
+    >>> cf.normalize_cyclic_slice(slice(2, 5, -1), 8)
+    slice(2, -3, -1)
+
+    >>> cf.normalize_cyclic_slice(slice(1, 6), 8)
+    IndexError: slice(1, 6, None) is not a cyclic slice
+    >>> cf.normalize_cyclic_slice([1, 2, 3, 4], 8)
+    IndexError: [1, 2, 3, 4] is not a cyclic slice
+
+    """
+    if not isinstance(index, slice):
+        # Return normalised non-slice index
+        return normalize_index((index,), (size,))[0]
+
+  start = index.start
+  stop = index.stop
+  step = index.step
+  if start is None or stop is None:
+      step = 0
+  elif step is None:
+      step = 1
+
+  if step > 0:
+      if 0 < start < size and 0 <= stop <= start:
+          # 6:0:1 => -4:0:1
+          # 6:1:1 => -4:1:1
+          # 6:3:1 => -4:3:1
+          # 6:6:1 => -4:6:1
+          start -= size
+      elif -size <= start < 0 and -size <= stop <= start:
+          # -4:-10:1  => -4:1:1
+          # -4:-9:1   => -4:1:1
+          # -4:-7:1   => -4:3:1
+          # -4:-4:1   => -4:6:1
+          # -10:-10:1 => -10:0:1
+          stop += size
+  elif step < 0:
+      if -size <= start < 0 and start <= stop < 0:
+          # -4:-1:-1   => 6:-1:-1
+          # -4:-2:-1   => 6:-2:-1
+          # -4:-4:-1   => 6:-4:-1
+          # -10:-2:-1  => 0:-2:-1
+          # -10:-10:-1 => 0:-10:-1
+          start += size
+      elif 0 <= start < size and start < stop < size:
+          # 0:6:-1 => 0:-4:-1
+          # 3:6:-1 => 3:-4:-1
+          # 3:9:-1 => 3:-1:-1
+          stop -= size
+
+    if (step > 0 and start < 0 and stop > 0) or (step < 0 and start > 0 and stop < 0):
+        # Convert cyclic slice to a 1-d array of integers
+        return np.arange(start, stop, step)
+
+    # Return normalised non-cyclic slice
+    return normalize_index((index,), (size,))[0]
 
 def get_subspace(array, indices):
     """Return a subspace defined by the given indices of an array.

@@ -58,24 +58,24 @@ class PropertiesDataBounds(PropertiesData):
             auxiliary_mask = None
             indices2 = indices
 
-        indices, roll = parse_indices(self.shape, indices2, cyclic=True)
+#        indices, roll = parse_indices(self.shape, indices2, cyclic=True)
+        indices = parse_indices(self.shape, indices2)
 
-        if roll:
-            new = self
-            data = self.data
-            axes = data._axes
-            cyclic_axes = data._cyclic
-            for iaxis, shift in roll.items():
-                if axes[iaxis] not in cyclic_axes:
-                    raise IndexError(
-                        "Can't do a cyclic slice on a non-cyclic axis"
-                    )
-
-                new = new.roll(iaxis, shift)
-        else:
-            new = self.copy()  # data=False)
-
-        #       data = self.data
+#        if roll:
+#            new = self
+#            data = self.data
+#            axes = data._axes
+#            cyclic_axes = data._cyclic
+#            for iaxis, shift in roll.items():
+#                if axes[iaxis] not in cyclic_axes:
+#                    raise IndexError(
+#                        "Can't do a cyclic slice on a non-cyclic axis"
+#                    )
+#
+#                new = new.roll(iaxis, shift)
+#        else:
+#            new = self.copy()  # data=False)
+        new = self.copy()
 
         if auxiliary_mask:
             findices = tuple(auxiliary_mask) + tuple(indices)

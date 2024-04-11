@@ -852,7 +852,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         shape = self.shape
         keepdims = self.__keepdims_indexing__
 
-        indices, cyclic_slices = parse_indices(
+        indices = parse_indices(
             shape, indices, cyclic=True, keepdims=keepdims
         )
 
@@ -876,14 +876,14 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         #    )
         #    dx = new.to_dask_array()
         #else:
-        if cyclic_slices:
-            # For example, if slice(-2, 3) has been requested on a
-            # cyclic axis, then we roll that axis by two points and
-            # apply the slice(0, 5) instead.
-            if not cyclic_axes.issuperset([axes[i] for i in cyclic_slices]):
-                raise IndexError(
-                    "Can't take a cyclic slice of a non-cyclic axis"
-                )
+        #f cyclic_slices:
+        #   # For example, if slice(-2, 3) has been requested on a
+        #   # cyclic axis, then we roll that axis by two points and
+        #   # apply the slice(0, 5) instead.
+        #   if not cyclic_axes.issuperset([axes[i] for i in cyclic_slices]):
+        #       raise IndexError(
+        #           "Can't take a cyclic slice of a non-cyclic axis"
+        #       )
         
         new = self.copy(array=False)
         dx = self.to_dask_array()
