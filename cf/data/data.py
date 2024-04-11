@@ -852,7 +852,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         shape = self.shape
         keepdims = self.__keepdims_indexing__
 
-        indices, roll = parse_indices(
+        indices, cyclic_slices = parse_indices(
             shape, indices, cyclic=True, keepdims=keepdims
         )
 
@@ -862,22 +862,31 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # ------------------------------------------------------------
         # Roll axes with cyclic slices
         # ------------------------------------------------------------
-        if roll:
+        #if roll:
+        #    # For example, if slice(-2, 3) has been requested on a
+        #    # cyclic axis, then we roll that axis by two points and
+        #    # apply the slice(0, 5) instead.
+        #    if not cyclic_axes.issuperset([axes[i] for i in roll]):
+        #        raise IndexError(
+        #            "Can't take a cyclic slice of a non-cyclic axis"
+        #        )
+        #
+        #    new = self.roll(
+        #        axis=tuple(roll.keys()), shift=tuple(roll.values())
+        #    )
+        #    dx = new.to_dask_array()
+        #else:
+        if cyclic_slices:
             # For example, if slice(-2, 3) has been requested on a
             # cyclic axis, then we roll that axis by two points and
             # apply the slice(0, 5) instead.
-            if not cyclic_axes.issuperset([axes[i] for i in roll]):
+            if not cyclic_axes.issuperset([axes[i] for i in cyclic_slices]):
                 raise IndexError(
                     "Can't take a cyclic slice of a non-cyclic axis"
                 )
-
-            new = self.roll(
-                axis=tuple(roll.keys()), shift=tuple(roll.values())
-            )
-            dx = new.to_dask_array()
-        else:
-            new = self.copy(array=False)
-            dx = self.to_dask_array()
+        
+        new = self.copy(array=False)
+        dx = self.to_dask_array()
 
         # ------------------------------------------------------------
         # Subspace the dask array

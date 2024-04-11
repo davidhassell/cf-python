@@ -1928,6 +1928,7 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
     """
     parsed_indices = []
     roll = {}
+    cyclic_slices = []
 
     if not isinstance(indices, tuple):
         indices = (indices,)
@@ -1980,7 +1981,7 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
                     # 6:1:1 => -4:1:1
                     # 6:3:1 => -4:3:1
                     # 6:6:1 => -4:6:1
-                    start = size - start
+                    start -= size
                 elif -size <= start < 0 and -size <= stop <= start:
                     # -4:-10:1  => -4:1:1
                     # -4:-9:1   => -4:1:1
@@ -2015,8 +2016,10 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
                 # x[ -9:0:1] => [1, 2, 3, 4, 5, 6, 7, 8, 9]
                 # x[ -9:1:1] => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
                 # x[-10:0:1] => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-                index = slice(0, stop - start, step)
-                roll[i] = -start
+                index = np.arange(start, stop, step)
+                cyclic_slices.append(i)
+#                index = slice(0, stop - start, step)
+#                roll[i] = -start
 
             elif step < 0 and 0 <= start < size and start - size <= stop < 0:
                 # x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -2026,8 +2029,10 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
                 # x[6: -4:-1] => [6, 5, 4, 3, 2, 1, 0, 9, 8, 7]
                 # x[0: -2:-1] => [0, 9]
                 # x[0:-10:-1] => [0, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-                index = slice(start - stop - 1, None, step)
-                roll[i] = -1 - stop
+                index = np.arange(start, stop, step)
+                cyclic_slices.append(i)
+#                index = slice(start - stop - 1, None, step)
+#                roll[i] = -1 - stop
 
         elif keepdims and isinstance(index, Integral):
             # Convert an integral index to a slice
@@ -2047,7 +2052,7 @@ def parse_indices(shape, indices, cyclic=False, keepdims=True):
     if not cyclic:
         return parsed_indices
 
-    return parsed_indices, roll
+    return parsed_indices, cyclic_slices
 
 
 def get_subspace(array, indices):
