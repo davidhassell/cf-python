@@ -2152,41 +2152,38 @@ class DataTest(unittest.TestCase):
                 d.flip(inplace=True)
                 x = cf.Data(a1, "metre")
 
-                message = "Failed in {!r}+{!r}".format(d, x)
                 self.assertTrue(
-                    (d + x).equals(cf.Data(a0 + a1, "m"), verbose=1), message
+                    (d + x).equals(cf.Data(a0 + a1, "m"), verbose=1),
+                    f"Failed in {d!r}+{x!r}",
                 )
-                message = "Failed in {!r}*{!r}".format(d, x)
                 self.assertTrue(
-                    (d * x).equals(cf.Data(a0 * a1, "m2"), verbose=1), message
+                    (d * x).equals(cf.Data(a0 * a1, "m2"), verbose=1),
+                    f"Failed in {d!r}*{x!r}",
                 )
-                message = "Failed in {!r}/{!r}".format(d, x)
                 self.assertTrue(
-                    (d / x).equals(cf.Data(a0 / a1, "1"), verbose=1), message
+                    (d / x).equals(cf.Data(a0 / a1, "1"), verbose=1),
+                    f"Failed in {d!r}/{x!r}",
                 )
-                message = "Failed in {!r}-{!r}".format(d, x)
                 self.assertTrue(
-                    (d - x).equals(cf.Data(a0 - a1, "m"), verbose=1), message
+                    (d - x).equals(cf.Data(a0 - a1, "m"), verbose=1),
+                    f"Failed in {d!r}-{x!r}",
                 )
-                message = "Failed in {!r}//{!r}".format(d, x)
                 self.assertTrue(
-                    (d // x).equals(cf.Data(a0 // a1, "1"), verbose=1), message
+                    (d // x).equals(cf.Data(a0 // a1, "1"), verbose=1),
+                    f"Failed in {d!r}//{x!r}",
                 )
-
-                message = "Failed in {!r}.__truediv__//{!r}".format(d, x)
                 self.assertTrue(
                     d.__truediv__(x).equals(
                         cf.Data(array.__truediv__(array), "1"), verbose=1
                     ),
-                    message,
+                    f"Failed in {d!r}.__truediv__//{x!r}",
                 )
 
-                message = "Failed in {!r}__rtruediv__{!r}".format(d, x)
                 self.assertTrue(
                     d.__rtruediv__(x).equals(
                         cf.Data(array.__rtruediv__(array), "1"), verbose=1
                     ),
-                    message,
+                    f"Failed in {d!r}__rtruediv__{x!r}",
                 )
 
                 try:
@@ -2194,73 +2191,66 @@ class DataTest(unittest.TestCase):
                 except Exception:
                     pass
                 else:
-                    message = "Failed in {!r}**{!r}".format(d, x)
-                    self.assertTrue((d**x).all(), message)
+                    self.assertTrue((d**x).all(), f"Failed in {d!r}**{x!r}")
 
         for a0 in arrays:
             d = cf.Data(a0, "metre")
             for x in (2, 2.0):
-                message = "Failed in {!r}+{}".format(d, x)
                 self.assertTrue(
-                    (d + x).equals(cf.Data(a0 + x, "m"), verbose=1), message
+                    (d + x).equals(cf.Data(a0 + x, "m"), verbose=1),
+                    f"Failed in {d!r}+{x!r}",
                 )
-                message = "Failed in {!r}*{}".format(d, x)
                 self.assertTrue(
-                    (d * x).equals(cf.Data(a0 * x, "m"), verbose=1), message
+                    (d * x).equals(cf.Data(a0 * x, "m"), verbose=1),
+                    f"Failed in {d!r}*{x!r}",
                 )
-                message = "Failed in {!r}/{}".format(d, x)
                 self.assertTrue(
-                    (d / x).equals(cf.Data(a0 / x, "m"), verbose=1), message
+                    (d / x).equals(cf.Data(a0 / x, "m"), verbose=1),
+                    f"Failed in {d!r}/{x!r}",
                 )
-                message = "Failed in {!r}-{}".format(d, x)
                 self.assertTrue(
-                    (d - x).equals(cf.Data(a0 - x, "m"), verbose=1), message
+                    (d - x).equals(cf.Data(a0 - x, "m"), verbose=1),
+                    f"Failed in {d!r}-{x!r}",
                 )
-                message = "Failed in {!r}//{}".format(d, x)
                 self.assertTrue(
-                    (d // x).equals(cf.Data(a0 // x, "m"), verbose=1), message
+                    (d // x).equals(cf.Data(a0 // x, "m"), verbose=1),
+                    f"Failed in {d!r}//{x!r}",
                 )
-                message = "Failed in {!r}**{}".format(d, x)
                 self.assertTrue(
-                    (d**x).equals(cf.Data(a0**x, "m2"), verbose=1), message
+                    (d**x).equals(cf.Data(a0**x, "m2"), verbose=1),
+                    f"Failed in {d!r}**{x!r}",
                 )
-                message = "Failed in {!r}.__truediv__{}".format(d, x)
                 self.assertTrue(
                     d.__truediv__(x).equals(
                         cf.Data(a0.__truediv__(x), "m"), verbose=1
                     ),
-                    message,
+                    f"Failed in {d!r}.__truediv__{x!r}",
                 )
-                message = "Failed in {!r}.__rtruediv__{}".format(d, x)
                 self.assertTrue(
                     d.__rtruediv__(x).equals(
                         cf.Data(a0.__rtruediv__(x), "m-1"), verbose=1
                     ),
-                    message,
+                    f"Failed in {d!r}.__rtruediv__{x!r}",
                 )
-
-                message = "Failed in {}+{!r}".format(x, d)
                 self.assertTrue(
-                    (x + d).equals(cf.Data(x + a0, "m"), verbose=1), message
+                    (x + d).equals(cf.Data(x + a0, "m"), verbose=1),
+                    f"Failed in {x!r}+{d!r}",
                 )
-                message = "Failed in {}*{!r}".format(x, d)
                 self.assertTrue(
-                    (x * d).equals(cf.Data(x * a0, "m"), verbose=1), message
+                    (x * d).equals(cf.Data(x * a0, "m"), verbose=1),
+                    f"Failed in {x!r}*{d!r}",
                 )
-                message = "Failed in {}/{!r}".format(x, d)
                 self.assertTrue(
-                    (x / d).equals(cf.Data(x / a0, "m-1"), verbose=1), message
+                    (x / d).equals(cf.Data(x / a0, "m-1"), verbose=1),
+                    f"Failed in {x!r}/{d!r}",
                 )
-                message = "Failed in {}-{!r}".format(x, d)
                 self.assertTrue(
-                    (x - d).equals(cf.Data(x - a0, "m"), verbose=1), message
-                )
-                message = "Failed in {}//{!r}\n{!r}\n{!r}".format(
-                    x, d, x // d, x // a0
+                    (x - d).equals(cf.Data(x - a0, "m"), verbose=1),
+                    f"Failed in {x!r}-{d!r}",
                 )
                 self.assertTrue(
                     (x // d).equals(cf.Data(x // a0, "m-1"), verbose=1),
-                    message,
+                    f"Failed in {x!r}//{d!r}\n{x // d!r}\n{x // a0!r}",
                 )
 
                 try:
@@ -2268,8 +2258,7 @@ class DataTest(unittest.TestCase):
                 except Exception:
                     pass
                 else:
-                    message = "Failed in {}**{!r}".format(x, d)
-                    self.assertTrue((x**d).all(), message)
+                    self.assertTrue((x**d).all(), f"Failed in {x!r}**{d!r}")
 
                 a = a0.copy()
                 try:
@@ -2279,9 +2268,9 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e += x
-                    message = "Failed in {!r}+={}".format(d, x)
                     self.assertTrue(
-                        e.equals(cf.Data(a, "m"), verbose=1), message
+                        e.equals(cf.Data(a, "m"), verbose=1),
+                        f"Failed in {d!r}+={x!r}",
                     )
 
                 a = a0.copy()
@@ -2292,7 +2281,7 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e *= x
-                    message = "Failed in {!r}*={}".format(d, x)
+                    message = f"Failed in {d!r}*={x!r}".format(d, x)
                     self.assertTrue(
                         e.equals(cf.Data(a, "m"), verbose=1), message
                     )
@@ -2305,9 +2294,9 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e /= x
-                    message = "Failed in {!r}/={}".format(d, x)
                     self.assertTrue(
-                        e.equals(cf.Data(a, "m"), verbose=1), message
+                        e.equals(cf.Data(a, "m"), verbose=1),
+                        f"Failed in {d!r}/={x!r}",
                     )
 
                 a = a0.copy()
@@ -2318,9 +2307,9 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e -= x
-                    message = "Failed in {!r}-={}".format(d, x)
                     self.assertTrue(
-                        e.equals(cf.Data(a, "m"), verbose=1), message
+                        e.equals(cf.Data(a, "m"), verbose=1),
+                        f"Failed in {d!r}-={x!r}",
                     )
 
                 a = a0.copy()
@@ -2331,7 +2320,7 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e //= x
-                    message = "Failed in {!r}//={}".format(d, x)
+                    message = f"Failed in {d!r}//={x!r}".format(d, x)
                     self.assertTrue(
                         e.equals(cf.Data(a, "m"), verbose=1), message
                     )
@@ -2361,11 +2350,10 @@ class DataTest(unittest.TestCase):
                 else:
                     e = d.copy()
                     e.__itruediv__(x)
-                    message = "Failed in {!r}.__itruediv__({})".format(d, x)
                     self.assertTrue(
-                        e.equals(cf.Data(a, "m"), verbose=1), message
+                        e.equals(cf.Data(a, "m"), verbose=1),
+                        f"Failed in {d!r}.__itruediv__({x!r})",
                     )
-            # --- End: for
 
             for x in (cf.Data(2, "metre"), cf.Data(2.0, "metre")):
                 self.assertTrue(
@@ -2389,7 +2377,7 @@ class DataTest(unittest.TestCase):
                 except Exception:
                     pass
                 else:
-                    self.assertTrue((x**d).all(), "{}**{}".format(x, repr(d)))
+                    self.assertTrue((x**d).all(), f"{x!r}**{d!r}")
 
                 self.assertTrue(
                     d.__truediv__(x).equals(
