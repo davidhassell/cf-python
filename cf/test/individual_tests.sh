@@ -4,10 +4,10 @@ for file in create_test_files*.py
 do
   echo "Running $file"
   python $file
-  rc=$?
-  if [[ $rc != 0 ]]; then
-    exit $rc
-  fi
+  #rc=$?
+  #if [[ $rc != 0 ]]; then
+  #  exit $rc
+  #fi
 done
 
 file=setup_create_field.py

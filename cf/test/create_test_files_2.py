@@ -19,7 +19,6 @@ filename = os.path.join(
 )
 arrays = np.load(filename)
 
-
 # --------------------------------------------------------------------
 # Add a new array
 # --------------------------------------------------------------------
@@ -407,7 +406,6 @@ broken_bounds_file = _make_broken_bounds_cdl("broken_bounds.cdl")
 regrid_file = _make_regrid_file("regrid.nc")
 regrid_xyz_file = _make_regrid_xyz_file("regrid_xyz.nc")
 dsg_trajectory_file = _make_dsg_trajectory_file("dsg_trajectory.nc")
-
 cfa_file = _make_cfa_file("cfa.nc")
 
 if __name__ == "__main__":

@@ -244,7 +244,7 @@ class CFANetCDF(NetCDFMixin):
         """
         if value:
             if isinstance(value, str):
-                v = split("\s+", value)
+                v = split(r"\s+", value)
                 value = {term[:-1]: var for term, var in zip(v[::2], v[1::2])}
             else:
                 # 'value' is a dictionary
