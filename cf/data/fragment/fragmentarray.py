@@ -2,19 +2,23 @@ import cfdm
 
 from ..array.abstract import Array
 from ..array.mixin import FileArrayMixin, IndexMixin
-from .h5netcdffragmentarray import H5netcdfFragmentArray
+#from .h5netcdffragmentarray import H5netcdfFragmentArray
 from .mixin import FragmentArrayMixin
-from .netcdf4fragmentarray import NetCDF4FragmentArray
+#from .netcdf4fragmentarray import NetCDF4FragmentArray
 from .umfragmentarray import UMFragmentArray
+from .netcdffragmentarray import NetCDFFragmentArray
+from .fullfragmentarray import FullFragmentArray
 
-_fragment_backends = {
-    "netCDF4": NetCDF4FragmentArray,
-    "h5netcdf": H5netcdfFragmentArray,
+_fragment_file_backends = {
+ #   "netCDF4": NetCDF4FragmentArray,
     "um": UMFragmentArray,
+#    "full": FullFragmentArray,
+   "netCDF4": NetCDFFragmentArray,
+#    "h5netcdf": H5netcdfFragmentArray,
 }
 
 
-# REVIEW: TODO getitem: `NetCDFFragmentArray`: new inheritance to allow for different netCDF backends
+# REVIEW: TODO getitem: `FragmentArray`: new inheritance to allow for different netCDF backends
 class FragmentArray(
     FragmentArrayMixin,
     IndexMixin,
@@ -35,6 +39,7 @@ class FragmentArray(
         self,
         filename=None,
         address=None,
+            fill_value=None,
         dtype=None,
         shape=None,
         aggregated_units=False,
@@ -101,6 +106,11 @@ class FragmentArray(
                 address = None
 
             try:
+                fill_value = source._get_component("fill_value", None)
+            except AttributeError:
+                fill_value = None
+
+            try:
                 dtype = source._get_component("dtype", None)
             except AttributeError:
                 dtype = None
@@ -146,6 +156,9 @@ class FragmentArray(
                 address = tuple(address)
 
             self._set_component("address", address, copy=False)
+
+        if fill_value is not None:
+            self._set_component("fill_value", fill_value, copy=False)
 
         if storage_options is not None:
             self._set_component("storage_options", storage_options, copy=False)
@@ -203,6 +216,11 @@ class FragmentArray(
             "copy": False,
         }
 
+        fill_value = self._get_component('fill_value', None)
+        if fill_value is not None:
+            kwargs["fill_value"] =fill_value
+            return FullFragmentArray(**kwargs)._get_array(index)
+           
         # Loop round the files, returning as soon as we find one that
         # is accessible.
         filenames = self.get_filenames()
@@ -212,12 +230,13 @@ class FragmentArray(
             kwargs["storage_options"] = self.get_storage_options(
                 create_endpoint_url=False
             )
-
-            for name, backend in _fragment_backends.items():
+                
+            for name, backend in _fragment_file_backends.items():
                 try:
                     return backend(**kwargs)._get_array(index)
-                except FileNotFoundError:
+                except Exception: #FileNotFoundError:
                     pass
+                
 
         # Still here?
         if len(filenames) == 1:

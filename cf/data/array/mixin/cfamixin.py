@@ -7,6 +7,7 @@ import numpy as np
 from ...utils import chunk_locations, chunk_positions
 
 
+
 class CFAMixin:
     """Mixin class for a CFA array.
 
@@ -16,24 +17,30 @@ class CFAMixin:
 
     def __new__(cls, *args, **kwargs):
         """Store fragment array classes.
-
+    
         .. versionadded:: NEXTVERSION
-
+    
         """
-        # Import fragment array classes. Do this here (as opposed to
-        # outside the class) to avoid a circular import.
-        from ...fragment import (
-            FullFragmentArray,
-            NetCDFFragmentArray,
-            UMFragmentArray,
-        )
+        ## Import fragment array classes. Do this here (as opposed to
+        ## outside the class) to avoid a circular import.
+        #from ...fragment import (
+        #    FullFragmentArray,
+        #    NetCDFFragmentArray,
+        #    UMFragmentArray,
+        #)
+        #
+        #instance = super().__new__(cls)
+        #instance._FragmentArray = {
+        #    "nc": NetCDFFragmentArray,
+        #    "um": UMFragmentArray,
+        #    "full": FullFragmentArray,
+        #}
+        #return instance
+
+        from ...fragment import FragmentArray
 
         instance = super().__new__(cls)
-        instance._FragmentArray = {
-            "nc": NetCDFFragmentArray,
-            "um": UMFragmentArray,
-            "full": FullFragmentArray,
-        }
+        instance._FragmentArray = FragmentArray
         return instance
 
     # REVIEW: h5: `__init__`: replace units/calendar API with attributes
@@ -773,6 +780,98 @@ class CFAMixin:
         )
 
     def to_dask_array(self, chunks="auto"):
+        """Create a dask array with `FragmentArray` chunks.
+
+        .. versionadded:: 3.14.0
+
+        :Parameters:
+
+            chunks: `int`, `tuple`, `dict` or `str`, optional
+                Specify the chunking of the returned dask array.
+
+                Any value accepted by the *chunks* parameter of the
+                `dask.array.from_array` function is allowed.
+
+                The chunk sizes implied by *chunks* for a dimension that
+                has been fragmented are ignored and replaced with values
+                that are implied by that dimensions fragment sizes.
+
+        :Returns:
+
+            `dask.array.Array`
+
+        """
+        import dask.array as da
+        from dask.array.core import getter
+        from dask.base import tokenize
+
+        name = (f"{self.__class__.__name__}-{tokenize(self)}",)
+
+        dtype = self.dtype
+        units = self.get_units(None)
+        calendar = self.get_calendar(None)
+        aggregated_data = self.get_aggregated_data(copy=False)
+
+        # Set the chunk sizes for the dask array
+        chunks = self.subarray_shapes(chunks)
+
+#        fragment_arrays = self._FragmentArray
+#        if not self.get_mask():
+#            fragment_arrays = fragment_arrays.copy()
+#            fragment_arrays["nc"] = partial(fragment_arrays["nc"], mask=False)
+
+        storage_options = self.get_storage_options()
+
+        FragmentArray= self._FragmentArray
+        
+        dsk = {}
+        for (
+            u_indices,
+            u_shape,
+            f_indices,
+            chunk_location,
+            fragment_location,
+            fragment_shape,
+        ) in zip(*self.subarrays(chunks)):
+            kwargs = aggregated_data[fragment_location].copy()
+            kwargs.pop("location", None)
+            kwargs.pop("format", None)
+            print (kwargs)
+#            try:
+#                FragmentArray = fragment_arrays[fragment_format]
+#            except KeyError:
+#                raise ValueError(
+#                    "Can't get FragmentArray class for unknown "
+#                    f"fragment dataset format: {fragment_format!r}"
+#                )
+
+            if storage_options is not None:
+                # Pass on any file system options
+                kwargs["storage_options"] = storage_options
+
+#            print(1/0)
+            fragment = FragmentArray(
+                dtype=dtype,
+                shape=fragment_shape,
+                aggregated_units=units,
+                aggregated_calendar=calendar,
+                **kwargs,
+            )
+
+            key = f"{fragment.__class__.__name__}-{tokenize(fragment)}"
+            dsk[key] = fragment
+            dsk[name + chunk_location] = (
+                getter,
+                key,
+                f_indices,
+                False,
+                False,
+            )
+
+        # Return the dask array
+        return da.Array(dsk, name[0], chunks=chunks, dtype=dtype)
+
+    def to_dask_array_org(self, chunks="auto"):
         """Create a dask array with `FragmentArray` chunks.
 
         .. versionadded:: 3.14.0

@@ -1038,6 +1038,7 @@ class NetCDFWrite(cfdm.read_write.netcdf.NetCDFWrite):
         out = []
         out_append = out.append
         for a in data.todict().values():
+            print (repr(a))
             try:
                 out_append(
                     (a.get_filenames(), a.get_addresses(), a.get_formats())

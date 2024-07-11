@@ -1,3 +1,4 @@
+from .fragmentarray import FragmentArray
 from .fullfragmentarray import FullFragmentArray
 
 # REVIEW: h5: `__init__.py`: import `H5netcdfFragmentArray`
