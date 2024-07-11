@@ -6,6 +6,7 @@ Most of these functions are expected to be passed to
 parameters.
 
 """
+
 from functools import reduce
 from operator import mul
 

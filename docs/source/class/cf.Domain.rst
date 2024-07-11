@@ -207,17 +207,18 @@ Domain axes
    ~cf.Domain.direction
    ~cf.Domain.directions
    ~cf.Domain.iscyclic
+   ~cf.Domain.is_discrete_axis
 
 Subspacing
 ----------
 
 .. autosummary::
    :nosignatures:
-   :toctree: ../attribute/
-   :template: attribute.rst
+   :toctree: ../method/
+   :template: method.rst
 
-   ~cf.Domain.subspace
    ~cf.Domain.indices
+   ~cf.Domain.subspace
 
 NetCDF
 ------

@@ -17,8 +17,12 @@ class functionTest(unittest.TestCase):
     def setUp(self):
         self.test_only = ()
 
-    def test_example_field(self):
-        for f in cf.example_fields():
+    def test_example_field_example_fields(self):
+        e = cf.example_fields()
+        self.assertIsInstance(e, cf.FieldList)
+
+        for f in e:
+            self.assertIsInstance(f, cf.Field)
             f.dump(display=False)
 
         with self.assertRaises(ValueError):
@@ -357,6 +361,69 @@ class functionTest(unittest.TestCase):
 
     def test_CFA(self):
         self.assertEqual(cf.CFA(), cf.__cfa_version__)
+
+    def test_normalize_slice(self):
+        self.assertEqual(cf.normalize_slice(slice(1, 4), 8), slice(1, 4, 1))
+        self.assertEqual(cf.normalize_slice(slice(None), 8), slice(0, 8, 1))
+        self.assertEqual(
+            cf.normalize_slice(slice(6, None, -1), 8), slice(6, None, -1)
+        )
+        self.assertEqual(cf.normalize_slice(slice(-2, 4), 8), slice(6, 4, 1))
+
+        # Cyclic slices
+        self.assertEqual(
+            cf.normalize_slice(slice(-2, 3), 8, cyclic=True), slice(-2, 3, 1)
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(6, 3), 8, cyclic=True), slice(-2, 3, 1)
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(6, 3, 2), 8, cyclic=True), slice(-2, 3, 2)
+        )
+
+        self.assertEqual(
+            cf.normalize_slice(slice(2, -3, -1), 8, cyclic=True),
+            slice(2, -3, -1),
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(2, 5, -1), 8, cyclic=True),
+            slice(2, -3, -1),
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(2, 5, -2), 8, cyclic=True),
+            slice(2, -3, -2),
+        )
+
+        self.assertEqual(
+            cf.normalize_slice(slice(-8, 0, 1), 8, cyclic=True),
+            slice(-8, 0, 1),
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(0, 7, -1), 8, cyclic=True),
+            slice(0, -1, -1),
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(-1, -8, 1), 8, cyclic=True),
+            slice(-1, 0, 1),
+        )
+        self.assertEqual(
+            cf.normalize_slice(slice(-8, -1, -1), 8, cyclic=True),
+            slice(0, -1, -1),
+        )
+
+        with self.assertRaises(IndexError):
+            cf.normalize_slice([1, 2], 8)
+
+        for index in (
+            slice(1, 6),
+            slice(6, 1, -1),
+            slice(None, 4, None),
+            slice(1, 6, 0),
+            [1, 2],
+            5,
+        ):
+            with self.assertRaises(IndexError):
+                cf.normalize_slice(index, 8, cyclic=True)
 
 
 if __name__ == "__main__":

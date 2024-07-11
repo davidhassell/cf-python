@@ -81,8 +81,8 @@ installation and source code.
 """
 
 __Conventions__ = "CF-1.11"
-__date__ = "2024-??-??"
-__version__ = "3.17.0"
+__date__ = "2024-04-26"
+__version__ = "3.16.2"
 
 _requires = (
     "numpy",
@@ -174,7 +174,7 @@ if Version(psutil.__version__) < Version(_minimum_vn):
     )
 
 # Check the version of netCDF4
-_minimum_vn = "1.5.4"
+_minimum_vn = "1.6.5"
 if Version(netCDF4.__version__) < Version(_minimum_vn):
     raise RuntimeError(
         f"Bad netCDF4 version: cf requires netCDF4>={_minimum_vn}. "

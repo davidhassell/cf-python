@@ -1040,6 +1040,22 @@ class UMField:
             cf_properties["stash_code"] = str(stash)
             cf_properties["submodel"] = str(submodel)
 
+            # Convert the UM version to a string and provide it as a
+            # CF property. E.g. 405 -> '4.5', 606.3 -> '6.6.3', 1002
+            # -> '10.2'
+            #
+            # Note: We don't just do `divmod(self.um_version, 100)`
+            #       because if self.um_version has a fractional part
+            #       then it would likely get altered in the divmod
+            #       calculation.
+            a, b = divmod(int(self.um_version), 100)
+            fraction = str(self.um_version).split(".")[-1]
+            um = f"{a}.{b}"
+            if fraction != "0" and fraction != str(self.um_version):
+                um += f".{fraction}"
+
+            cf_properties["um_version"] = um
+
             # --------------------------------------------------------
             # Set the data and extra data
             # --------------------------------------------------------
@@ -3487,7 +3503,7 @@ class UMRead(cfdm.read_write.IORead):
                 considerably faster in cases when the contents are not
                 required.
 
-                .. versionadded:: NEXTVERSION
+                .. versionadded:: 3.16.2
 
         :Returns:
 
@@ -3575,7 +3591,7 @@ class UMRead(cfdm.read_write.IORead):
                 considerably faster in cases when the contents are not
                 required.
 
-                .. versionadded:: NEXTVERSION
+                .. versionadded:: 3.16.2
 
         :Returns:
 

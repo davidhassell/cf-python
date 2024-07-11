@@ -1,5 +1,5 @@
 import logging
-from collections import namedtuple
+from dataclasses import dataclass
 from functools import reduce
 from operator import mul as operator_mul
 from os import sep
@@ -190,11 +190,29 @@ _relational_methods = (
     "__ge__",
 )
 
-_xxx = namedtuple(
-    "data_dimension", ["size", "axis", "key", "coord", "coord_type", "scalar"]
-)
 
-# _empty_set = set()
+@dataclass()
+class _Axis_characterisation:
+    """Characterise a domain axis.
+
+    Used by `_binary_operation` to help with ascertaining if there is
+    a common axis in two fields.
+
+    .. versionaddedd:: NEXTVERSION
+
+    """
+
+    # The size of the axis, an integer.
+    size: int = -1
+    # The domain axis identifier. E.g. 'domainaxis0'
+    axis: str = ""
+    # The coordinate constructs that characterize the axis
+    coords: tuple = ()
+    # The identifiers of the coordinate
+    # constructs. E.g. ('dimensioncoordinate1',)
+    keys: tuple = ()
+    # Whether or not the axis is spanned by the field's data array
+    axis_in_data_axes: bool = True
 
 
 class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
@@ -983,80 +1001,127 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             data_axes = f.get_data_axes()
             for axis in f.domain_axes(todict=True):
                 identity = None
-                key = None
-                coord = None
-                coord_type = None
 
-                key, coord = f.dimension_coordinate(
-                    item=True, default=(None, None), filter_by_axis=(axis,)
-                )
-                if coord is not None:
-                    # This axis of the domain has a dimension
-                    # coordinate
-                    identity = coord.identity(strict=True, default=None)
-                    if identity is None:
-                        # Dimension coordinate has no identity, but it
-                        # may have a recognised axis.
-                        for ctype in ("T", "X", "Y", "Z"):
-                            if getattr(coord, ctype, False):
-                                identity = ctype
-                                break
-
-                    if identity is None and relaxed_identities:
-                        identity = coord.identity(relaxed=True, default=None)
-                else:
-                    key, coord = f.auxiliary_coordinate(
-                        item=True,
-                        default=(None, None),
+                if self.is_discrete_axis(axis):
+                    # This is a discrete axis whose identity is
+                    # inferred from all of its auxiliary coordinates
+                    x = {}
+                    for key, aux_coord in f.auxiliary_coordinates(
                         filter_by_axis=(axis,),
-                        axis_mode="exact",
+                        axis_mode="and",
+                        todict=True,
+                    ).items():
+                        identity = aux_coord.identity(
+                            strict=True, default=None
+                        )
+                        if identity is None and relaxed_identities:
+                            identity = aux_coord.identity(
+                                relaxed=True, default=None
+                            )
+                        if identity is not None:
+                            x[identity] = key
+
+                    if x:
+                        # Get the sorted identities (sorted so that
+                        # they're comparable between fields) and their
+                        # corresponding keys.
+                        #
+                        # E.g. {2:3, 4:6, 1:7} -> (1, 2, 4), (7, 3, 6)
+                        identity, keys = tuple(zip(*sorted(x.items())))
+                        coords = tuple(
+                            f.auxiliary_coordinate(key) for key in keys
+                        )
+                    else:
+                        identity = None
+                        keys = ()
+                        coords = ()
+                else:
+                    key, dim_coord = f.dimension_coordinate(
+                        item=True, default=(None, None), filter_by_axis=(axis,)
                     )
-                    if coord is not None:
-                        # This axis of the domain does not have a
-                        # dimension coordinate but it does have
-                        # exactly one 1-d auxiliary coordinate, so
-                        # that will do.
-                        identity = coord.identity(strict=True, default=None)
+                    if dim_coord is not None:
+                        # This non-discrete axis has a dimension
+                        # coordinate
+                        identity = dim_coord.identity(
+                            strict=True, default=None
+                        )
+                        if identity is None:
+                            # Dimension coordinate has no identity,
+                            # but it may have a recognised axis.
+                            for ctype in ("T", "X", "Y", "Z"):
+                                if getattr(dim_coord, ctype, False):
+                                    identity = ctype
+                                    break
 
                         if identity is None and relaxed_identities:
-                            identity = coord.identity(
+                            identity = dim_coord.identity(
                                 relaxed=True, default=None
                             )
 
+                        keys = (key,)
+                        coords = (dim_coord,)
+                    else:
+                        key, aux_coord = f.auxiliary_coordinate(
+                            item=True,
+                            default=(None, None),
+                            filter_by_axis=(axis,),
+                            axis_mode="exact",
+                        )
+                        if aux_coord is not None:
+                            # This non-discrete axis does not have a
+                            # dimension coordinate but it does have
+                            # exactly one 1-d auxiliary coordinate, so
+                            # that will do.
+                            coords = (aux_coord,)
+                            identity = aux_coord.identity(
+                                strict=True, default=None
+                            )
+                            if identity is None and relaxed_identities:
+                                identity = aux_coord.identity(
+                                    relaxed=True, default=None
+                                )
+
                 if identity is None:
                     identity = i
-                else:
-                    coord_type = coord.construct_type
 
-                out[identity] = _xxx(
+                out[identity] = _Axis_characterisation(
                     size=f.domain_axis(axis).get_size(),
                     axis=axis,
-                    key=key,
-                    coord=coord,
-                    coord_type=coord_type,
-                    scalar=(axis not in data_axes),
+                    keys=keys,
+                    coords=coords,
+                    axis_in_data_axes=axis in data_axes,
                 )
 
         for identity, y in tuple(out1.items()):
-            asdas = True
-            if y.scalar and identity in out0 and isinstance(identity, str):
+            missing_axis_inserted = False
+            if (
+                not y.axis_in_data_axes
+                and identity in out0
+                and isinstance(identity, str)
+            ):
                 a = out0[identity]
                 if a.size > 1:
+                    # Put missing axis into data axes
                     field1.insert_dimension(y.axis, position=0, inplace=True)
-                    asdas = False
+                    missing_axis_inserted = True
 
-            if y.scalar and asdas:
+            if not missing_axis_inserted and not y.axis_in_data_axes:
                 del out1[identity]
 
         for identity, a in tuple(out0.items()):
-            asdas = True
-            if a.scalar and identity in out1 and isinstance(identity, str):
+            missing_axis_inserted = False
+            if (
+                not a.axis_in_data_axes
+                and identity in out1
+                and isinstance(identity, str)
+            ):
                 y = out1[identity]
                 if y.size > 1:
+                    # Put missing axis into data axes
                     field0.insert_dimension(a.axis, position=0, inplace=True)
-                    asdas = False
+                    missing_axis_inserted = True
 
-            if a.scalar and asdas:
+            if not missing_axis_inserted and not a.axis_in_data_axes:
                 del out0[identity]
 
         squeeze1 = []
@@ -1067,15 +1132,14 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         axes_added_from_field1 = []
 
         # Dictionary of size > 1 axes from field1 which will replace
-        # matching size 1 axes in field0. E.g. {'domainaxis1':
-        #     data_dimension(
-        #         size=8,
-        #         axis='domainaxis1',
-        #         key='dimensioncoordinate1',
-        #         coord=<CF DimensionCoordinate: longitude(8) degrees_east>,
-        #         coord_type='dimension_coordinate',
-        #         scalar=False
-        #     )
+        # matching size 1 axes in field0.
+        #
+        # E.g. {'domainaxis1': _Axis_characterisation(
+        #   size=8,
+        #   axis='domainaxis1',
+        #   keys=('dimensioncoordinate1',),
+        #   coords=(CF DimensionCoordinate: longitude(8) degrees_east>,),
+        #   axis_in_data_axes=True)
         # }
         axes_to_replace_from_field1 = {}
 
@@ -1176,48 +1240,55 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     f"{a.size} {identity!r} axis"
                 )
 
-            # Ensure matching axis directions
-            if y.coord.direction() != a.coord.direction():
-                other.flip(y.axis, inplace=True)
+            for a_key, a_coord, y_key, y_coord in zip(
+                a.keys, a.coords, y.keys, y.coords
+            ):
+                # Ensure matching axis directions
+                if y_coord.direction() != a_coord.direction():
+                    other.flip(y.axis, inplace=True)
 
-            # Check for matching coordinate values
-            if not y.coord._equivalent_data(a.coord):
-                raise ValueError(
-                    f"Can't combine size {y.size} {identity!r} axes with "
-                    f"non-matching coordinate values"
+                # Check for matching coordinate values
+                if not y_coord._equivalent_data(a_coord):
+                    raise ValueError(
+                        f"Can't combine size {y.size} {identity!r} axes with "
+                        f"non-matching coordinate values"
+                    )
+
+                # Check coord refs
+                refs1 = field1.get_coordinate_reference(
+                    construct=y_key, key=True
+                )
+                refs0 = field0.get_coordinate_reference(
+                    construct=a_key, key=True
                 )
 
-            # Check coord refs
-            refs1 = field1.get_coordinate_reference(construct=y.key, key=True)
-            refs0 = field0.get_coordinate_reference(construct=a.key, key=True)
+                n_refs = len(refs1)
+                n0_refs = len(refs0)
 
-            n_refs = len(refs1)
-            n0_refs = len(refs0)
+                if n_refs != n0_refs:
+                    raise ValueError(
+                        f"Can't combine {self.__class__.__name__!r} with "
+                        f"{other.__class__.__name__!r} because the coordinate "
+                        f"references have different lengths: {n_refs} and "
+                        f"{n0_refs}."
+                    )
 
-            if n_refs != n0_refs:
-                raise ValueError(
-                    f"Can't combine {self.__class__.__name__!r} with "
-                    f"{other.__class__.__name__!r} because the coordinate "
-                    f"references have different lengths: {n_refs} and "
-                    f"{n0_refs}."
-                )
+                n_equivalent_refs = 0
+                for ref1 in refs1:
+                    for ref0 in refs0[:]:
+                        if field1._equivalent_coordinate_references(
+                            field0, key0=ref1, key1=ref0, axis_map=axis_map
+                        ):
+                            n_equivalent_refs += 1
+                            refs0.remove(ref0)
+                            break
 
-            n_equivalent_refs = 0
-            for ref1 in refs1:
-                for ref0 in refs0[:]:
-                    if field1._equivalent_coordinate_references(
-                        field0, key0=ref1, key1=ref0, axis_map=axis_map
-                    ):
-                        n_equivalent_refs += 1
-                        refs0.remove(ref0)
-                        break
-
-            if n_equivalent_refs != n_refs:
-                raise ValueError(
-                    f"Can't combine {self.__class__.__name__!r} with "
-                    f"{other.__class__.__name__!r} because the fields have "
-                    "incompatible coordinate references."
-                )
+                if n_equivalent_refs != n_refs:
+                    raise ValueError(
+                        f"Can't combine {self.__class__.__name__!r} with "
+                        f"{other.__class__.__name__!r} because the fields "
+                        "have incompatible coordinate references."
+                    )
 
         # Change the domain axis sizes in field0 so that they match
         # the broadcasted result data
@@ -2688,6 +2759,30 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         if constructs:
             for c in self.constructs.filter_by_data(todict=True).values():
                 c.cfa_update_file_substitutions(substitutions)
+
+    def get_domain(self):
+        """Return the domain.
+
+        .. versionadded:: 3.16.2
+
+        .. seealso:: `domain`
+
+        :Returns:
+
+            `Domain`
+                 The domain.
+
+        **Examples**
+
+        >>> d = f.get_domain()
+
+        """
+        domain = super().get_domain()
+
+        # Set axis cyclicity for the domain
+        domain._cyclic = self._cyclic
+
+        return domain
 
     def radius(self, default=None):
         """Return the radius of a latitude-longitude plane defined in
@@ -8856,7 +8951,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             inplace=inplace,
         )
 
-    def indices(self, *mode, **kwargs):
+    def indices(self, *config, **kwargs):
         """Create indices that define a subspace of the field construct.
 
         The subspace is defined by identifying indices based on the
@@ -8907,39 +9002,30 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         actually created, these masks are all automatically applied to
         the result.
 
+        **Halos**
+
+        {{subspace halos}}
+
+        For instance, ``f.indices(X=slice(10, 20))`` will give
+        identical results to each of ``f.indices(0, X=slice(10,
+        20))``, ``f.indices(1, X=slice(11, 19))``, ``f.indices(2,
+        X=slice(12, 18))``, etc.
+
+        If a halo has been defined (of any size, including 0), then no
+        ancillary masks will be created.
+
+        .. versionadded:: 1.0
+
         .. seealso:: `subspace`, `where`, `__getitem__`,
                      `__setitem__`, `cf.Domain.indices`
 
         :Parameters:
 
-            mode: `str`, *optional*
-                There are three modes of operation, each of which
-                provides indices for a different type of subspace:
+            {{config: optional}}
 
-                ==============  ======================================
-                *mode*          Description
-                ==============  ======================================
-                ``'compress'``  This is the default mode. Unselected
-                                locations are removed to create the
-                                returned subspace. Note that if a
-                                multi-dimensional metadata construct
-                                is being used to define the indices
-                                then some missing data may still be
-                                inserted at unselected locations.
+                {{subspace valid modes Field}}
 
-                ``'envelope'``  The returned subspace is the smallest
-                                that contains all of the selected
-                                indices. Missing data is inserted at
-                                unselected locations within the
-                                envelope.
-
-                ``'full'``      The returned subspace has the same
-                                domain as the original field
-                                construct. Missing data is inserted at
-                                unselected locations.
-                ==============  ======================================
-
-            kwargs: *optional*
+            kwargs: optional
                 A keyword name is an identity of a metadata construct,
                 and the keyword value provides a condition for
                 inferring indices that apply to the dimension (or
@@ -9062,7 +9148,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
          [-- -- -- -- -- -- 270.6 273.0 270.6]]]
 
         """
-        if "exact" in mode:
+        if "exact" in config:
             _DEPRECATION_ERROR_ARG(
                 self,
                 "indices",
@@ -9072,26 +9158,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 removed_at="4.0.0",
             )  # pragma: no cover
 
-        if len(mode) > 1:
-            raise ValueError(
-                "Can't provide more than one positional argument. "
-                f"Got: {', '.join(repr(x) for x in mode)}"
-            )
-
-        if not mode or "compress" in mode:
-            mode = "compress"
-        elif "envelope" in mode:
-            mode = "envelope"
-        elif "full" in mode:
-            mode = "full"
-        else:
-            raise ValueError(f"Invalid value for 'mode' argument: {mode[0]!r}")
-
         data_axes = self.get_data_axes()
 
         # Get the indices for every domain axis in the domain,
         # including any ancillary masks
-        domain_indices = self._indices(mode, data_axes, True, kwargs)
+        domain_indices = self._indices(config, data_axes, True, kwargs)
 
         # Initialise the output indices with any ancillary masks.
         # Ensure that each ancillary mask is broadcastable to the
@@ -9123,7 +9194,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         # spanned by the data
         if len(axis_indices) > len(data_axes):
             for axis, index in axis_indices.items():
-                if axis in data_axes or index == slice(None):
+                if axis in data_axes or (
+                    isinstance(index, slice) and index == slice(None)
+                ):
                     continue
 
                 import dask.array as da
@@ -10524,9 +10597,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     new_bounds[0 : length - lower_offset, 1:] = old_bounds[
                         lower_offset:length, 1:
                     ]
-                    new_bounds[
-                        length - lower_offset : length, 1:
-                    ] = old_bounds[length - 1, 1:]
+                    new_bounds[length - lower_offset : length, 1:] = (
+                        old_bounds[length - 1, 1:]
+                    )
 
                 coord.set_bounds(self._Bounds(data=new_bounds))
 
@@ -13339,44 +13412,33 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
           ``3:-2:-1``) is assumed to "wrap" around, rather then producing
           a null result.
 
+        **Halos**
 
-        .. seealso:: `indices`, `squeeze`, `where`, `__getitem__`
+        {{subspace halos}}
+
+        For instance, ``f.subspace(X=slice(10, 20))`` will give
+        identical results to each of ``f.subspace(0, X=slice(10,
+        20))``, ``f.subspace(1, X=slice(11, 19))``, ``f.subspace(2,
+        X=slice(12, 18))``, etc.
+
+        .. versionadded:: 1.0
+
+        .. seealso:: `indices`, `where`, `__getitem__`,
+                     `__setitem__`, `cf.Domain.subspace`
 
         :Parameters:
 
-            positional arguments: *optional*
-                There are three modes of operation, each of which provides
-                a different type of subspace:
+            {{config: optional}}
 
-                ==============  ==========================================
-                *argument*      Description
-                ==============  ==========================================
-                ``'compress'``  This is the default mode. Unselected
-                                locations are removed to create the
-                                returned subspace. Note that if a
-                                multi-dimensional metadata construct is
-                                being used to define the indices then some
-                                missing data may still be inserted at
-                                unselected locations.
+                {{subspace valid modes Field}}
 
-                ``'envelope'``  The returned subspace is the smallest that
-                                contains all of the selected
-                                indices. Missing data is inserted at
-                                unselected locations within the envelope.
+                In addition, an extra positional argument of ``'test'``
+                is allowed. When provided, the subspace is not
+                returned, instead `True` or `False` is returned
+                depending on whether or not it is possible for the
+                requested subspace to be created.
 
-                ``'full'``      The returned subspace has the same domain
-                                as the original field construct. Missing
-                                data is inserted at unselected locations.
-
-                ``'test'``      May be used on its own or in addition to
-                                one of the other positional arguments. Do
-                                not create a subspace, but return `True`
-                                or `False` depending on whether or not it
-                                is possible to create specified the
-                                subspace.
-                ==============  ==========================================
-
-            keyword parameters: *optional*
+            keyword parameters: optional
                 A keyword name is an identity of a metadata construct, and
                 the keyword value provides a condition for inferring
                 indices that apply to the dimension (or dimensions)
@@ -13568,6 +13630,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         z=None,
         ln_z=None,
         verbose=None,
+        return_esmpy_regrid_operator=False,
         inplace=False,
         i=False,
         _compute_field_mass=None,
@@ -13616,7 +13679,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         any other latitude-longitude grid, including other UGRID
         meshes and DSG feature types.
 
-        **DSG feature types*
+        **DSG feature types**
 
         Data on any latitude-longitude grid (including tripolar and
         UGRID meshes) may be regridded to any DSG feature type.
@@ -13768,7 +13831,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 Ignored if *dst* is a `RegridOperator`.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             dst_z: optional
                 If `None`, the default, then the regridding is 2-d in
@@ -13782,7 +13845,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 Ignored if *dst* is a `RegridOperator`.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             z: optional
                 The *z* parameter is a convenience that may be used to
@@ -13796,17 +13859,21 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 *Example:*
                   ``z='Z'`` is equivalent to ``src_z='Z', dst_z='Z'``.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             {{ln_z: `bool` or `None`, optional}}
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             {{verbose: `int` or `str` or `None`, optional}}
 
                 .. versionadded:: 3.16.0
 
             {{inplace: `bool`, optional}}
+
+            {{return_esmpy_regrid_operator: `bool`, optional}}
+
+                .. versionadded:: 3.16.2
 
             axis_order: sequence, optional
                 Deprecated at version 3.14.0.
@@ -13824,7 +13891,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             `Field` or `None` or `RegridOperator`
                 The regridded field construct; or `None` if the
                 operation was in-place; or the regridding operator if
-                *return_operator* is True.
+                *return_operator* is True; or the `esmpy.Regrid` operator
+                object if *return_esmpy_regrid_operator* is True.
 
         **Examples**
 
@@ -13899,6 +13967,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             dst_z=dst_z,
             z=z,
             ln_z=ln_z,
+            return_esmpy_regrid_operator=return_esmpy_regrid_operator,
             inplace=inplace,
         )
 
@@ -13922,6 +13991,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         dst_z=None,
         z=None,
         ln_z=None,
+        return_esmpy_regrid_operator=False,
         inplace=False,
         i=False,
         _compute_field_mass=None,
@@ -14067,7 +14137,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 Ignored if *dst* is a `RegridOperator`.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             dst_z: optional
                 If not `None` then *dst_z* specifies the identity of a
@@ -14077,7 +14147,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 Ignored if *dst* is a `RegridOperator`.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             z: optional
                 The *z* parameter is a convenience that may be used to
@@ -14089,13 +14159,17 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 *Example:*
                   ``z='Z'`` is equivalent to ``src_z='Z', dst_z='Z'``.
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             {{ln_z: `bool` or `None`, optional}}
 
-                .. versionadded:: NEXTRELEASE
+                .. versionadded:: 3.16.2
 
             {{inplace: `bool`, optional}}
+
+            {{return_esmpy_regrid_operator: `bool`, optional}}
+
+                .. versionadded:: 3.16.2
 
             axis_order: sequence, optional
                 Deprecated at version 3.14.0.
@@ -14113,7 +14187,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             `Field` or `None` or `RegridOperator`
                 The regridded field construct; or `None` if the
                 operation was in-place; or the regridding operator if
-                *return_operator* is True.
+                *return_operator* is True; or the `esmpy.Regrid` operator
+                object if *return_esmpy_regrid_operator* is True.
 
         **Examples**
 
@@ -14187,6 +14262,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             dst_z=dst_z,
             z=z,
             ln_z=ln_z,
+            return_esmpy_regrid_operator=return_esmpy_regrid_operator,
             inplace=inplace,
         )
 

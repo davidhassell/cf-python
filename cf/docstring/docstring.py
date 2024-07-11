@@ -20,6 +20,7 @@ Keys must be `str` or `re.Pattern` objects:
 .. versionadded:: 3.7.0
 
 """
+
 _docstring_substitution_definitions = {
     # ----------------------------------------------------------------
     # General substitutions (not indent-dependent)
@@ -80,6 +81,13 @@ _docstring_substitution_definitions = {
         Whether `esmpy` logging is enabled or not is determined by
         `cf.regrid_logging`. If it is enabled then logging takes place
         after every call. By default logging is disabled.""",
+    # subspace halos
+    "{{subspace halos}}": """If a halo is defined via a positional argument, then each
+        subspaced axis will be extended to include that many extra
+        elements at each "side" of the axis. The number of extra
+        elements will be automatically reduced if including the full
+        amount defined by the halo would extend the subspace beyond
+        the axis limits.""",
     # ----------------------------------------------------------------
     # Method description substitutions (3 levels of indentation)
     # ----------------------------------------------------------------
@@ -307,10 +315,10 @@ _docstring_substitution_definitions = {
                 any of the intermediate or final aggregation steps
                 operates on no more than ``split_every`` inputs. The
                 depth of the aggregation graph will be
-                :math:`log_{split_every}(input chunks along reduced
-                axes)`. Setting to a low value can reduce cache size
-                and network transfers, at the cost of more CPU and a
-                larger dask graph.
+                :math:`log_{split\_every}}(\textnormal{input chunks
+                along reduced axes})`. Setting to a low value can reduce
+                cache size and network transfers, at the cost of more
+                CPU and a larger dask graph.
 
                 By default, `dask` heuristically decides on a good
                 value. A default can also be set globally with the
@@ -651,6 +659,42 @@ _docstring_substitution_definitions = {
     "{{index: `tuple` or `None`, optional}}": """index: `tuple` or `None`, optional
                Provide the indices that define the subspace. If `None`
                then the `index` attribute is used.""",
+    # subspace config options
+    "{{config: optional}}": """config: optional
+                Configure the subspace by specifying the mode of
+                operation (``mode``) and any halo to be added to the
+                subspaced axes (``halo``), with positional arguments
+                in the format ``mode``, or ``halo``, or ``mode,
+                halo``, or with no positional arguments at all.
+
+                A mode of operation is given as a `str`, and a halo as
+                a non-negative `int` (or any object that can be
+                converted to one):
+
+                ==============  ======================================
+                *mode*          Description
+                ==============  ======================================
+                Not provided    If no positional arguments are
+                                provided then assume the
+                                ``'compress'`` mode of operation with
+                                no halo added to the subspaced axes.
+
+                ``mode``        Define the mode of operation with no
+                                halo added to the subspaced axes.
+
+                ``mode, halo``  Define a mode of operation, as well as
+                                a halo to be added to the subspaced
+                                axes.
+
+                ``halo``        Assume the ``'compress'`` mode of
+                                operation and define a halo to be
+                                added to the subspaced axes.
+                ==============  ======================================""",
+    # return_esmpy_regrid_operator
+    "{{return_esmpy_regrid_operator: `bool`, optional}}": """return_esmpy_regrid_operator: `bool`, optional
+                If True then do not perform the regridding, rather
+                return the `esmpy.Regrid` instance that defines the
+                regridding operation.""",
     # ----------------------------------------------------------------
     # Method description substitutions (4 levels of indentation)
     # ----------------------------------------------------------------
@@ -680,7 +724,7 @@ _docstring_substitution_definitions = {
                             only the computationally cheap tests are
                             performed (checking that the coordinate
                             system, cyclicity, grid shape, regridding
-                            dimesionality, mesh location, and feature
+                            dimensionality, mesh location, and feature
                             type are the same), with the grid
                             coordinates not being checked. The
                             coordinates check will be carried out,
@@ -701,4 +745,49 @@ _docstring_substitution_definitions = {
                 The removed CFA-netCDF file name substitution. If the
                 substitution was not defined then an empty dictionary
                 is returned.""",
+    # subspace valid modes Field
+    "{{subspace valid modes Field}}": """Valid modes are:
+
+                * ``'compress'`` This is the default.
+                     Unselected locations are removed to create the
+                     subspace. If the result is not hyperrectangular
+                     then the minimum amount of unselected locations
+                     required to make it so will also be specially
+                     selected. Missing data is inserted at the
+                     specially selected locations, unless a halo has
+                     been defined (of any size, including 0).
+
+                * ``'envelope'``
+                     The subspace is the smallest hyperrectangular
+                     subspace that contains all of the selected
+                     locations. Missing data is inserted at unselected
+                     locations within the envelope, unless a halo has
+                     been defined (of any size, including 0).
+
+                * ``'full'``
+                     The subspace has the same domain as the original
+                     construct. Missing data is inserted at unselected
+                     locations, unless a halo has been defined (of any
+                     size, including 0).
+
+                .. note:: Setting a halo size of `0` differs from not
+                          not defining a halo at all. The shape of the
+                          returned field will always be the same, but
+                          in the former case missing data will not be
+                          inserted at unselected locations (if any)
+                          within the output domain.""",
+    # subspace valid modes Domain
+    "{{subspace valid modes Domain}}": """Valid modes are:
+
+                * ``'compress'`` This is the default.
+                     Unselected locations are removed to create the
+                     subspace. If the result is not hyperrectangular
+                     then the minimum amount of unselected locations
+                     required to make it so will also be specially
+                     selected.
+
+                * ``'envelope'``
+                     The subspace is the smallest hyperrectangular
+                     subspace that contains all of the selected
+                     locations.""",
 }
