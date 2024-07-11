@@ -289,11 +289,7 @@ version 3.14.1
 
 ----
 
-<<<<<<< HEAD
 version 3.14.0 (*first Dask version*)
-=======
-version 3.14.0 (*first Dask release*)
->>>>>>> cafeee513aa48788978d65a96d57212d25549a55
 -------------------------------------
 
 **2023-01-31**
@@ -328,11 +324,7 @@ version 3.14.0 (*first Dask release*)
 
 ----
 
-<<<<<<< HEAD
 version 3.13.1 (*last LAMA version*)
-=======
-version 3.13.1 (*last LAMA release*)
->>>>>>> cafeee513aa48788978d65a96d57212d25549a55
 ------------------------------------
 
 **2022-10-17**

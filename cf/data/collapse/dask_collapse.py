@@ -1144,7 +1144,7 @@ def cf_sum_of_weights2_chunk(
     This function is passed to `dask.array.reduction` as its *chunk*
     parameter.
 
-    .. versionadded:: NEXTRELEASE
+    .. versionadded:: NEXTVERSION
 
     :Parameters:
 

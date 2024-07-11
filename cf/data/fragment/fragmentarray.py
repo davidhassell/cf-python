@@ -5,13 +5,17 @@ from ..array.mixin import FileArrayMixin, IndexMixin
 from .h5netcdffragmentarray import H5netcdfFragmentArray
 from .mixin import FragmentArrayMixin
 from .netcdf4fragmentarray import NetCDF4FragmentArray
+from .umfragmentarray import UMFragmentArray
 
 
-# REVIEW: getitem: `NetCDFFragmentArray`: new inheritance to allow for different netCDF backends
-class NetCDFFragmentArray(
+_fragment = {'netCDF4': NetCDF4FragmentArray
+             'h5netcdf': H5netcdfFragmentArray,
+             'um': UMFragmentArray}
+
+# REVIEW: TODO getitem: `NetCDFFragmentArray`: new inheritance to allow for different netCDF backends
+class FragmentArray(
     FragmentArrayMixin,
     IndexMixin,
-    cfdm.data.mixin.NetCDFFileMixin,
     FileArrayMixin,
     cfdm.data.mixin.FileArrayMixin,
     Array,
@@ -20,7 +24,7 @@ class NetCDFFragmentArray(
 
     Access will be with either `netCDF4` or `h5netcdf`.
 
-    .. versionadded:: 3.15.0
+    .. versionadded:: NEXTVERSION
 
     """
 
@@ -43,33 +47,24 @@ class NetCDFFragmentArray(
         :Parameters:
 
             filename: (sequence of `str`), optional
-                The names of the netCDF fragment files containing the
-                array.
+                The locations fragment datasets containing the array.
 
             address: (sequence of `str`), optional
-                The name of the netCDF variable containing the
-                fragment array. Required unless *varid* is set.
+                How to find the fragments in the fragment datasets.
 
             dtype: `numpy.dtype`, optional
                 The data type of the aggregated array. May be `None`
-                if the numpy data-type is not known (which can be the
-                case for netCDF string types, for example). This may
-                differ from the data type of the netCDF fragment
-                variable.
+                if is not known. This may differ from the data type of
+                the fragment's data.
 
             shape: `tuple`, optional
-                The shape of the fragment within the aggregated
-                array. This may differ from the shape of the netCDF
-                fragment variable in that the latter may have fewer
-                size 1 dimensions.
+                The shape of the fragment in its canonical form.
 
             {{init attributes: `dict` or `None`, optional}}
 
                 If *attributes* is `None`, the default, then the
-                attributes will be set from the netCDF variable during
-                the first `__getitem__` call.
-
-                .. versionadded:: NEXTVERSION
+                attributes will be set from the fragment dataset
+                during the first `__getitem__` call.
 
             {{aggregated_units: `str` or `None`, optional}}
 
@@ -77,19 +72,9 @@ class NetCDFFragmentArray(
 
             {{init storage_options: `dict` or `None`, optional}}
 
-                .. versionadded:: NEXTVERSION
-
             {{init source: optional}}
 
             {{init copy: `bool`, optional}}
-
-            units: `str` or `None`, optional
-                Deprecated at version NEXTVERSION. Use the
-                *attributes* parameter instead.
-
-            calendar: `str` or `None`, optional
-                Deprecated at version NEXTVERSION. Use the
-                *attributes* parameter instead.
 
         """
         super().__init__(
@@ -181,12 +166,14 @@ class NetCDFFragmentArray(
         """Returns a subspace of the dataset variable.
 
         The method acts as a factory for either a
-        `NetCDF4FragmentArray` or a `H5netcdfFragmentArray` class, and
-        it is the result of calling `!_get_array` on the newly created
-        instance that is returned.
+        `NetCDF4FragmentArray`, `H5netcdfFragmentArray`, or
+        `UMFragmentArray` class, and it is the result of calling
+        `!_get_array` on the newly created instance that is returned.
 
         `H5netcdfFragmentArray` will only be used if
-        `NetCDF4FragmentArray` returns a `FileNotFoundError` exception.
+        `NetCDF4FragmentArray` returns a `FileNotFoundError`
+        exception; and `UMFragmentArray` will only be used
+        if `H5netcdfFragmentArray` returns an `Exception`.
 
         .. versionadded:: NEXTVERSION
 
@@ -196,9 +183,8 @@ class NetCDFFragmentArray(
 
             {{index: `tuple` or `None`, optional}}
 
-               It is important that there is a distinct value for each
-               fragment dimension, which is guaranteed when the
-               default of the `index` attribute is being used.
+               When a `tuple`, there must be a distinct entry for each
+               fragment dimension.
 
         :Returns:
 
@@ -224,14 +210,15 @@ class NetCDFFragmentArray(
             kwargs["storage_options"] = self.get_storage_options(
                 create_endpoint_url=False
             )
-
-            try:
-                return NetCDF4FragmentArray(**kwargs)._get_array(index)
-            except FileNotFoundError:
-                pass
-            except Exception:
-                return H5netcdfFragmentArray(**kwargs)._get_array(index)
-
+            
+            for backend in dataset_backends:
+                try:
+                    return _fragment[backend](**kwargs)._get_array(index)
+                except FileNotFoundError:
+                    pass
+                except KeyError:
+                    raise ValueError("unknown backend: T sadasds TODO")
+                
         # Still here?
         if len(filenames) == 1:
             raise FileNotFoundError(f"No such fragment file: {filenames[0]}")
