@@ -7,10 +7,12 @@ from .mixin import FragmentArrayMixin
 from .netcdf4fragmentarray import NetCDF4FragmentArray
 from .umfragmentarray import UMFragmentArray
 
+_fragment_backends = {
+    "netCDF4": NetCDF4FragmentArray,
+    "h5netcdf": H5netcdfFragmentArray,
+    "um": UMFragmentArray,
+}
 
-_fragment = {'netCDF4': NetCDF4FragmentArray
-             'h5netcdf': H5netcdfFragmentArray,
-             'um': UMFragmentArray}
 
 # REVIEW: TODO getitem: `NetCDFFragmentArray`: new inheritance to allow for different netCDF backends
 class FragmentArray(
@@ -210,15 +212,13 @@ class FragmentArray(
             kwargs["storage_options"] = self.get_storage_options(
                 create_endpoint_url=False
             )
-            
-            for backend in dataset_backends:
+
+            for name, backend in _fragment_backends.items():
                 try:
-                    return _fragment[backend](**kwargs)._get_array(index)
+                    return backend(**kwargs)._get_array(index)
                 except FileNotFoundError:
                     pass
-                except KeyError:
-                    raise ValueError("unknown backend: T sadasds TODO")
-                
+
         # Still here?
         if len(filenames) == 1:
             raise FileNotFoundError(f"No such fragment file: {filenames[0]}")
