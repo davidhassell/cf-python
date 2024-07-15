@@ -16,7 +16,11 @@ version NEXTVERSION + 1
 * Changed dependency: ``cfunits>=3.3.7``
 
 ----
+<<<<<<< HEAD
   
+=======
+
+>>>>>>> 88cdbe6bbf66a170bda3d9ae173fab8b19f7fe6a
 version NEXTVERSION
 -------------------
 

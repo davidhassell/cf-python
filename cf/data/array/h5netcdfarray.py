@@ -2,7 +2,7 @@
 import cfdm
 
 from ...mixin_container import Container
-from .locks import netcdf_lock
+#from .locks import netcdf_lock
 from .mixin import ActiveStorageMixin, ArrayMixin, FileArrayMixin, IndexMixin
 
 
@@ -33,21 +33,21 @@ class H5netcdfArray(
         """
         return super().__dask_tokenize__() + (self.get_mask(),)
 
-    @property
-    def _lock(self):
-        """Set the lock for use in `dask.array.from_array`.
-
-        Returns a lock object because concurrent reads are not
-        currently supported by the HDF5 library. The lock object will
-        be the same for all `NetCDF4Array` and `H5netcdfArray`
-        instances, regardless of the dataset they access, which means
-        that access to all netCDF and HDF files coordinates around the
-        same lock.
-
-        .. versionadded:: NEXTVERSION
-
-        """
-        return netcdf_lock
+#    @property
+#    def _lock(self):
+#        """Set the lock for use in `dask.array.from_array`.
+#
+#        Returns a lock object because concurrent reads are not
+#        currently supported by the HDF5 library. The lock object will
+#        be the same for all `NetCDF4Array` and `H5netcdfArray`
+#        instances, regardless of the dataset they access, which means
+#        that access to all netCDF and HDF files coordinates around the
+#        same lock.
+#
+#        .. versionadded:: NEXTVERSION
+#
+#        """
+#        return netcdf_lock
 
     # REVIEW: h5: `_get_array`: Ignore this for h5 review
     # REVIEW: getitem: `_get_array`: new method to convert subspace to numpy array.
@@ -71,9 +71,9 @@ class H5netcdfArray(
         if index is None:
             index = self.index()
 
-        # Note: We need to lock because the netCDF file is about to be
-        #       accessed.
-        self._lock.acquire()
+#        # Note: We need to lock because the netCDF file is about to be
+#        #       accessed.
+#        self._lock.acquire()
 
         # Note: It's cfdm.H5netcdfArray.__getitem__ that we want to
         #       call here, but we use 'Container' in super because
@@ -81,5 +81,5 @@ class H5netcdfArray(
         #       the method resolution order.
         array = super(Container, self).__getitem__(index)
 
-        self._lock.release()
+#        self._lock.release()
         return array
