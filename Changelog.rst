@@ -16,7 +16,7 @@ version NEXTVERSION + 1
 * Changed dependency: ``cfunits>=3.3.7``
 
 ----
-  
+
 version NEXTVERSION
 -------------------
 

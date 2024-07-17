@@ -2,23 +2,19 @@ import cfdm
 
 from ..array.abstract import Array
 from ..array.mixin import FileArrayMixin, IndexMixin
-#from .h5netcdffragmentarray import H5netcdfFragmentArray
+from .h5netcdffragmentarray import H5netcdfFragmentArray
 from .mixin import FragmentArrayMixin
-#from .netcdf4fragmentarray import NetCDF4FragmentArray
+from .netcdf4fragmentarray import NetCDF4FragmentArray
 from .umfragmentarray import UMFragmentArray
 from .netcdffragmentarray import NetCDFFragmentArray
 from .fullfragmentarray import FullFragmentArray
 
-_fragment_file_backends = {
- #   "netCDF4": NetCDF4FragmentArray,
-    "um": UMFragmentArray,
-#    "full": FullFragmentArray,
-   "netCDF4": NetCDFFragmentArray,
-#    "h5netcdf": H5netcdfFragmentArray,
-}
+_fragment = {'netCDF4': NetCDF4FragmentArray
+             'h5netcdf': H5netcdfFragmentArray,
+             'um': UMFragmentArray}
 
+# REVIEW: TODO getitem: `NetCDFFragmentArray`: new inheritance to allow for different netCDF backends
 
-# REVIEW: TODO getitem: `FragmentArray`: new inheritance to allow for different netCDF backends
 class FragmentArray(
     FragmentArrayMixin,
     IndexMixin,
@@ -230,13 +226,14 @@ class FragmentArray(
             kwargs["storage_options"] = self.get_storage_options(
                 create_endpoint_url=False
             )
-                
-            for name, backend in _fragment_file_backends.items():
+
+            for backend in dataset_backends:
                 try:
-                    return backend(**kwargs)._get_array(index)
-                except Exception: #FileNotFoundError:
+                    return _fragment[backend](**kwargs)._get_array(index)
+                except FileNotFoundError:
                     pass
-                
+                except KeyError:
+                    raise ValueError("unknown backend: T sadasds TODO")
 
         # Still here?
         if len(filenames) == 1:
