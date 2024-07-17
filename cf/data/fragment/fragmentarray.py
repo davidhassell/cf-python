@@ -9,7 +9,7 @@ from .umfragmentarray import UMFragmentArray
 from .netcdffragmentarray import NetCDFFragmentArray
 from .fullfragmentarray import FullFragmentArray
 
-_fragment = {'netCDF4': NetCDF4FragmentArray
+_fragment = {'netCDF4': NetCDF4FragmentArray,
              'h5netcdf': H5netcdfFragmentArray,
              'um': UMFragmentArray}
 
