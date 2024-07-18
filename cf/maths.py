@@ -92,7 +92,7 @@ def relative_vorticity(
     )  # pragman: no cover
 
 
-def histogram(*digitized, denisty=False):
+def histogram(*digitized):
     """Return the distribution of a set of variables in the form of an
     N-dimensional histogram.
 
@@ -197,7 +197,7 @@ def histogram(*digitized, denisty=False):
      [0.1174 0.1317]
      [0.1317 0.146 ]]
     >>> h = cf.histogram(indices)
-    >>> print(h)
+    >>> rint(h)
     Field: number_of_observations
     -----------------------------
     Data            : number_of_observations(specific_humidity(10)) 1
@@ -264,20 +264,7 @@ def histogram(*digitized, denisty=False):
     f = digitized[0].copy()
     f.clear_properties()
 
-    out = f.bin("sample_size", digitized=digitized)
-
-    if density:
-        dims = tuple(out.dimension_coordinates().values())
-        bin_measures = dims[0].cellsize outerproduct
-        for dim in dims[1:]:
-            bin_measures *= dim.cellsize
-        
-        out = out / (out.sum() * bin_measures)
-
-        out.del_property('standard_name', None)
-        out.set_property('long_name', f"probability density function")
-    
-    return out
+    return f.bin("sample_size", digitized=digitized)
 
 
 def curl_xy(fx, fy, x_wrap=None, one_sided_at_boundary=False, radius=None):

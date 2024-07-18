@@ -110,7 +110,8 @@ def active_chunk(method, x, **kwargs):
             print("START  unlocked", x.index(), datetime.datetime.now())
             d = active[x.index()]
             print(
-                "FINISH unlocked",
+                "FINISH unlocked:",
+                f"d = {d}",
                 x.index(),
                 datetime.datetime.now(),
                 time.time() - start,
