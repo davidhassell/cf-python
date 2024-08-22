@@ -41,6 +41,7 @@ def write(
     group=True,
     coordinates=False,
     omit_data=None,
+    hdf5_chunks="4 MiB",        
     cfa_options=None,
 ):
     """Write field constructs to a netCDF file.
@@ -106,13 +107,14 @@ def write(
     netCDF interface will, by default, be recreated in the output
     dataset. See the *group* parameter for details.
 
+    **NetCDF4 HDF5 chunks**
 
-    **NetCDF4 HDF chunk sizes**
-
-    HDF5 chunksizes may be set on contruct's data. See the
-    `~cf.Data.nc_hdf5_chunksizes`,
-    `~cf.Data.nc_clear_hdf5_chunksizes` and
-    `~cf.Data.nc_set_hdf5_chunksizes` methods of a `Data` instance.
+    HDF5 chunking is configured by the *hdf5_chunks* parameter, which
+    defines the chunking strategy for all output data, including the
+    option of no chunking. However, this may be overridden for any
+    data that defines its own chunking strategy. See
+    `cf.Field.nc_set_hdf5_chunksizes`,
+    `cf.Data.nc_set_hdf5_chunksizes`, and `cf.read`.
 
     .. seealso:: `cf.read`
 
@@ -586,6 +588,72 @@ def write(
 
             .. versionadded:: 3.14.0
 
+        hdf5_chunks: `str` or `int` or `float`, optional
+            The HDF5 chunking strategy for data arrays being written
+            to the file.
+
+            If any data being written already stores its own chunking
+            stragey (i.e. its `nc_hdf5_chunksizes` method returns
+            something other than `None`) then, for that data alone, it
+            is used in preference to the strategy defined by the
+            *hdf5_chunks* parameter.
+
+            .. note:: By default, a data array returned by `cf.read`
+                      stores its HDF5 chunking strategy from the file
+                      being read. When this happens, that same HDF5
+                      chunking strategy will be used when the data is
+                      written to an output netCDF4 file (unless the
+                      strategy was modified or removed prior to
+                      writing). To prevent the HDF5 chunking strategy
+                      from the original file being stored, see the
+                      *store_hdf5_chunks* parameter to `cf.read`.
+
+            Ignored for netCDF3 output formats, for which all data is
+            always written out contiguously.
+
+            The *hdf5_chunks* parameter may be one of:
+
+            * ``'contiguous'``: The data will written to the file
+              contiguously, i.e. no chunking.
+
+            * `int` or `float` or `str`: The size in bytes of the HDF5
+              chunks. A floating point value is rounded down to the
+              nearest integer, and a string represents a quantity of
+              byte units. "Square-like" chunk shapes are preferred,
+              maximising the amount of chunks that are completely
+              filled with data values. For instance a chunksize of
+              1024 bytes may be specified with any of ``1024``,
+              ``1024.9``, ``'1024'``, ``'1024.9'``, ``'1024 B'``, ``'1
+              KiB'``, ``'0.0009765625 MiB'``, etc. Recognised byte
+              units are (case insensitive): ``B``, ``KiB``, ``MiB``,
+              ``GiB``, ``TiB``, ``PiB``, ``KB``, ``MB``, ``GB``,
+              ``TB``, and ``PB``. Spaces in strings are optional.
+
+            By default, *hdf5_chunks* is ``'4 MiB'`` (i.e. 4194304
+            bytes).
+
+            When the HDF5 chunk size is defined by a number of bytes
+            (taken either the *hdf5_chunks* parameter, or as stored by
+            the data itself), "square-like" HDF5 chunk shapes are
+            preferred that maximise the amount of chunks that are
+            completely filled with data values. For example, with
+            *hdf_chunks* of ``'4 MiB'``, a data array of 64-bit floats
+            with shape (400, 300, 60) will be written with 20 HDF5
+            chunks, each of which contains 3.9592 MiB: the first axis
+            is split across 5 chunks containing 93, 93, 93, 93, and 28
+            elements; the second axis across 4 chunks containing 93,
+            93, 93, and 21 elements; and the third axis across 1 chunk
+            containing 60 elements. 12 of these chunks are completely
+            filled with 93*93*60 data values (93*93*60*8 B = 3.9592
+            MiB), whilst the remaining 8 chunks at the "edges" of the
+            array contain only 93*21*60, 28*93*60, or 28*21*60 data
+            values. The shape of the HDF5 chunks is based only on the
+            shape of the data aray and its data type. The use of
+            native compression (see the *compress* parameter) does not
+            affect the HDF5 chunk size.
+
+            .. versionadded:: NEXTVERSION
+
         cfa: `bool` or `dict`, optional
             If True or a (possibly empty) dictionary then write the
             constructs as CFA-netCDF aggregation variables, where
@@ -829,4 +897,5 @@ def write(
             coordinates=coordinates,
             extra_write_vars=extra_write_vars,
             omit_data=omit_data,
+            hdf5_chunks=hdf5_chunks,
         )
