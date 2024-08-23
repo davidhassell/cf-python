@@ -1009,9 +1009,11 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         for mask in ancillary_mask:
             new.where(mask, cf_masked, None, inplace=True)
 
-        if new.shape != self.shape:
-            # Delete hdf5 chunksizes when the shape has changed.
-            new.nc_clear_hdf5_chunksizes()
+        # Update the HDF5 chunking strategy
+        if self.__keepdims_indexing__:
+            chunksizes = new.nc_hdf5_chunksizes()
+            if isinstance(chunksizes, tuple) and new.shape != self.shape:
+                new.nc_set_hdf5_chunksizes(chunksizes)
 
         return new
 
@@ -3879,23 +3881,23 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 for _ in range(diff):
                     axes.insert(0, new_axis_identifier(tuple(axes)))
 
-        if inplace:  # in-place so concerns original self
-            self._set_dask(result)
-            self.override_units(new_Units, inplace=True)
-            if axes is not None:
-                self._axes = axes
+        if inplace:
+            data0 = self
 
-            self._update_deterministic(other)
-            return self
+        data0._set_dask(result)
+        data0.override_units(new_Units, inplace=True)
+        if axes is not None:
+            data0._axes = axes
 
-        else:  # not, so concerns a new Data object copied from self, data0
-            data0._set_dask(result)
-            data0.override_units(new_Units, inplace=True)
-            if axes is not None:
-                data0._axes = axes
+        # Update the HDF5 chunking strategy
+        if (
+            isinstance(self.nc_hdf5_chunksizes(), tuple)
+            and result.shape != self.shape
+        ):
+            data0.nc_clear_hdf5_chunksizes()
 
-            data0._update_deterministic(other)
-            return data0
+        data0._update_deterministic(other)
+        return data0
 
     def _parse_indices(self, *args, **kwargs):
         """'cf.Data._parse_indices' is not available.
@@ -8294,6 +8296,10 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         d.hardmask = _DEFAULT_HARDMASK
 
+        # Update the HDF5 chunking strategy
+        if isinstance(d.nc_hdf5_chunksizes(), tuple) and d.shape != self.shape:
+            d.nc_clear_hdf5_chunksizes()
+
         return d
 
     @_display_or_return
@@ -8649,6 +8655,13 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         data_axes = list(d._axes)
         data_axes.insert(position, axis)
         d._axes = data_axes
+
+        # Update the HDF5 chunking strategy
+        chunksizes = d.nc_hdf5_chunksizes()
+        if isinstance(chunksizes, tuple):
+            chunksizes = list(chunksizes)
+            chunksizes.insert(position, 1)
+            d.nc_set_hdf5_chunksizes(chunksizes)
 
         return d
 
@@ -9646,6 +9659,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
           [18 21 24 27]]]
 
         """
+        original_shape = self.shape
         d = _inplace_enabled_define_and_cleanup(self)
 
         # Cast 'a' as a Data object so that it definitely has sensible
@@ -9676,6 +9690,13 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # Make sure that cyclic axes in 'a' are still cyclic in 'd'
         for a_axis in a._cyclic:
             d.cyclic(ndim + a._axes.index(a_axis))
+
+        # Update the HDF5 chunking strategy
+        if (
+            isinstance(d.nc_hdf5_chunksizes(), tuple)
+            and d.shape != original_shape
+        ):
+            d.nc_clear_hdf5_chunksizes()
 
         d._update_deterministic(a)
         return d
@@ -11891,6 +11912,14 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # Remove the squeezed axes names
         d._axes = [axis for i, axis in enumerate(d._axes) if i not in iaxes]
 
+        # Update the HDF5 chunking strategy
+        chunksizes = d.nc_hdf5_chunksizes()
+        if isinstance(chunksizes, tuple):
+            chunksizes = [
+                size for i, size in enumerate(chunksizes) if i not in iaxes
+            ]
+            d.nc_set_hdf5_chunksizes(chunksizes)
+
         return d
 
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
@@ -12130,13 +12159,20 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         dx = d.to_dask_array()
         try:
-            dx = da.transpose(dx, axes=axes)
+            dx = da.transpose(dx, axes=iaxes)
         except ValueError:
             raise ValueError(
                 f"Can't transpose: Axes don't match array: {axes}"
             )
 
         d._set_dask(dx)
+
+        # Update the HDF5 chunking strategy
+        chunksizes = d.nc_hdf5_chunksizes()
+        if isinstance(chunksizes, tuple):
+            chunksizes = [chunksizes[i] for i in iaxes]
+            d.nc_set_hdf5_chunksizes(chunksizes)
+
         return d
 
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")

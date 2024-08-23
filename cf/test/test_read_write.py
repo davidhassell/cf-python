@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 
+import netCDF4
 import numpy as np
 
 faulthandler.enable()  # to debug seg faults and timeouts
@@ -552,14 +553,19 @@ class read_writeTest(unittest.TestCase):
 
     def test_read_write_netCDF4_compress_shuffle(self):
         f = cf.read(self.filename)[0]
-        # TODODASK: reinstate "CFA4" at version > 3.14
-        for fmt in ("NETCDF4", "NETCDF4_CLASSIC"):  # , "CFA4"):
-            cf.write(f, tmpfile, fmt=fmt, compress=1, shuffle=True)
-            g = cf.read(tmpfile)[0]
-            self.assertTrue(
-                f.equals(g, verbose=2),
-                f"Bad read/write with lossless compression: {fmt}",
-            )
+        cf.write(f, "delme.nc", compress=1)
+        for fmt in self.netcdf4_fmts:
+            for shuffle in (True,):
+                for compress in (4,):  # range(10):
+                    cf.write(
+                        f, tmpfile, fmt=fmt, compress=compress, shuffle=shuffle
+                    )
+                    g = cf.read(tmpfile)[0]
+                    self.assertTrue(
+                        f.equals(g, verbose=3),
+                        "Bad read/write with lossless compression: "
+                        f"{fmt}, {compress}, {shuffle}",
+                    )
 
     # REVIEW: h5: `test_write_datatype`: rename numpy to np
     def test_write_datatype(self):
@@ -932,6 +938,64 @@ class read_writeTest(unittest.TestCase):
             # Check that cf can access it
             f = cf.read(remote)
             self.assertEqual(len(f), 1)
+
+    def test_write_hdf5_chunks(self):
+        """Test the 'hdf5_chunks' parameter to `cf.write`."""
+        f = cf.example_field(5)
+        f.nc_set_variable("data")
+
+        # Good hdf5_chunks values
+        for hdf5_chunks, chunking in zip(
+            ("4MiB", "8KiB", "5000", 314.159, 1, "contiguous"),
+            (
+                [118, 5, 8],
+                [25, 5, 8],
+                [15, 5, 8],
+                [3, 3, 3],
+                [1, 1, 1],
+                "contiguous",
+            ),
+        ):
+            cf.write(f, tmpfile, hdf5_chunks=hdf5_chunks)
+            nc = netCDF4.Dataset(tmpfile, "r")
+            self.assertEqual(nc.variables["data"].chunking(), chunking)
+            nc.close()
+
+        # Bad hdf5_chunks values
+        for hdf5_chunks in ("bad_value", None):
+            with self.assertRaises(ValueError):
+                cf.write(f, tmpfile, hdf5_chunks=hdf5_chunks)
+
+        # Check that user-set chunks are not overridden
+        for chunking in ([5, 4, 3], "contiguous"):
+            f.nc_set_hdf5_chunksizes(chunking)
+            for hdf5_chunks in ("4MiB", "contiguous"):
+                cf.write(f, tmpfile, hdf5_chunks=hdf5_chunks)
+                nc = netCDF4.Dataset(tmpfile, "r")
+                self.assertEqual(nc.variables["data"].chunking(), chunking)
+                nc.close()
+
+        f.nc_set_hdf5_chunksizes("120 B")
+        for hdf5_chunks in ("contiguous", "4MiB"):
+            cf.write(f, tmpfile, hdf5_chunks=hdf5_chunks)
+            nc = netCDF4.Dataset(tmpfile, "r")
+            self.assertEqual(nc.variables["data"].chunking(), [2, 2, 2])
+            nc.close()
+
+        # store_hdf5_chunks
+        f = cf.read(tmpfile)[0]
+        self.assertEqual(f.nc_hdf5_chunksizes(), (2, 2, 2))
+
+        f = cf.read(tmpfile, store_hdf5_chunks=False)[0]
+        self.assertIsNone(f.nc_hdf5_chunksizes())
+
+        # Scalar data is written contiguously
+        f = cf.example_field(0)
+        f = f[0, 0].squeeze()
+        cf.write(f, tmpfile)
+        nc = netCDF4.Dataset(tmpfile, "r")
+        self.assertEqual(nc.variables["q"].chunking(), "contiguous")
+        nc.close()
 
 
 if __name__ == "__main__":

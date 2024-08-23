@@ -69,6 +69,7 @@ def read(
     # REVIEW: h5: `read`: new 'storage_options' parameter to control access to S3
     storage_options=None,
     # REVIEW: h5: `read`: 'cache' parameter to control whether or not to get to cache selected data elements
+    store_hdf5_chunks=True,
     cache=True,
 ):
     """Read field or domain constructs from files.
@@ -744,6 +745,28 @@ def read(
 
            .. versionadded:: NEXTVERSION
 
+        store_hdf5_chunks: `bool`, optional
+            If True (the default) then store the HDF5 chunking
+            strategy for each returned data array. The HDF5 chunking
+            strategy is then accessible via an object's
+            `nc_hdf5_chunksizes` method. When the HDF5 chunking
+            strategy is stored, it will be used when the data is
+            written to a new netCDF4 file with `cf.write` (unless the
+            strategy was modified prior to writing).
+
+            If False, or if the file being read is not in netCDF4
+            format, then no HDF5 chunking strategy is stored.
+            (i.e. an `nc_hdf5_chunksizes` method will return `None`
+            for all `Data` objects). In this case, when the data is
+            written to a new netCDF4 file, the HDF5 chunking strategy
+            will be determined by `cf.write`.
+
+            See the `cf.write` *hdf5_chunks* parameter for details on
+            how the HDF5 chunking strategy is determined at the time
+            of writing.
+
+            .. versionadded:: NEXTVERSION
+
         cache: `bool`, optional
             If True, the default, then cache the first and last array
             elements of metadata constructs (not field constructs) for
@@ -1051,6 +1074,7 @@ def read(
                 cfa_options=cfa_options,
                 netcdf_backend=netcdf_backend,
                 storage_options=storage_options,
+                store_hdf5_chunks=store_hdf5_chunks,
                 cache=cache,
             )
 
@@ -1169,6 +1193,7 @@ def _read_a_file(
     cfa_options=None,
     netcdf_backend=None,
     storage_options=None,
+    store_hdf5_chunks=True,
     cache=True,
 ):
     """Read the contents of a single file into a field list.
@@ -1300,6 +1325,7 @@ def _read_a_file(
                 domain=domain,
                 storage_options=storage_options,
                 netcdf_backend=netcdf_backend,
+                store_hdf5_chunks=store_hdf5_chunks,
             )
         except MaskError:
             # Some data required for field interpretation is missing,
