@@ -798,6 +798,8 @@ class UMField:
         self.iz = iz
         self.it = it
 
+        self.has_1d_aux_coord = {}
+
         self.cf_info = {}
 
         # Set a identifying name based on the submodel and STASHcode
@@ -1059,6 +1061,7 @@ class UMField:
             # --------------------------------------------------------
             # Set the data and extra data
             # --------------------------------------------------------
+            print (self.field)
             data = self.create_data()
 
             # --------------------------------------------------------
@@ -1419,7 +1422,9 @@ class UMField:
         ac = self.coord_data(ac, array, bounds, units=_Units["m"])
         ac.id = "UM_atmosphere_hybrid_height_coordinate_ak"
         ac.long_name = "atmosphere_hybrid_height_coordinate_ak"
-        #        field.insert_aux(ac, axes=[zdim], copy=False)
+
+        self.has_1d_aux_coord["z"] = True
+
         self.implementation.set_auxiliary_coordinate(
             field,
             ac,
@@ -1427,6 +1432,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
+        self.has_1d_aux_coord["z"] = True
 
         array = np.array(
             [rec.real_hdr[bhlev] for rec in self.z_recs],
@@ -1454,6 +1460,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
+        self.has_1d_aux_coord["z"] = True
 
         return dc
 
@@ -1551,6 +1558,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
+        self.has_1d_aux_coord["z"] = True
 
         ac = self.implementation.initialise_AuxiliaryCoordinate()
         ac = self.coord_data(ac, bk_array, bk_bounds, units=_Units["1"])
@@ -1562,9 +1570,12 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
+        self.has_1d_aux_coord["z"] = True
 
         ac.id = "UM_atmosphere_hybrid_sigma_pressure_coordinate_bk"
         ac.long_name = "atmosphere_hybrid_sigma_pressure_coordinate_bk"
+
+        self.has_1d_aux_coord["z"] = True
 
         return dc
 
@@ -1991,10 +2002,19 @@ class UMField:
         klass_name = UMArray().__class__.__name__
 
         fmt = self.fmt
+        
+        # Find the shape of the T and Z axes
+        tz_shape = []
+        data_needs_size1_axis = {}
+        for n, axis in zip((nt, nz), ("t", "z")):
+            if n> 1:
+                tz_shape.append(n)            
+            elif n == 1 and self.has_1d_aux_coord.get(axis):
+                data_needs_size1_axis[axis] = True
 
         if len(recs) == 1:
             # --------------------------------------------------------
-            # 0-d partition matrix
+            # 2-d data
             # --------------------------------------------------------
             pmaxes = []
             file_data_types = set()
@@ -2004,13 +2024,17 @@ class UMField:
             fill_value = rec.real_hdr.item(bmdi)
             if fill_value == _BMDI_no_missing_data_value:
                 fill_value = None
-
-            data_shape = yx_shape
-
+            
+            data_shape = list(yx_shape)
+            for axis in ("z", "t"):
+                if data_needs_size1_axis[axis]:
+                    data_shape.insert(0, 1)
+                    pmaxes.insert(0, _axis[axis])
+                    
             subarray = UMArray(
                 filename=filename,
                 address=rec.hdr_offset,
-                shape=yx_shape,
+                shape=tuple(data_shape),
                 dtype=data_type_in_file(rec),
                 fmt=fmt,
                 word_size=self.word_size,
@@ -2021,30 +2045,38 @@ class UMField:
 
             key = f"{klass_name}-{tokenize(subarray)}"
             dsk[key] = subarray
-            dsk[name + (0, 0)] = (getter, key, full_slice, False, False)
+            dsk[name + (0,)*len(data_shape)] = (getter, key, full_slice, False, False)
 
             dtype = data_type_in_file(rec)
-            chunks = normalize_chunks((-1, -1), shape=data_shape, dtype=dtype)
+            chunks = normalize_chunks(-1, shape=data_shape, dtype=dtype)
         else:
             # --------------------------------------------------------
-            # 1-d or 2-d partition matrix
+            # 3-d or 4-d data
             # --------------------------------------------------------
             file_data_types = set()
 
-            # Find the partition matrix shape
-            pmshape = [n for n in (nt, nz) if n > 1]
-
-            if len(pmshape) == 1:
+            if len(tz_shape) == 1:
                 # ----------------------------------------------------
-                # 1-d partition matrix
+                # 3-d data
                 # ----------------------------------------------------
                 z_axis = _axis.get(self.z_axis)
+
+                data_needs_size1_z = data_needs_size1_axis.get("z")
+                data_needs_size1_t = data_needs_size1_axis.get("t")
                 if nz > 1:
                     pmaxes = [z_axis]
-                    data_shape = (nz, LBROW, LBNPT)
+                    data_shape = [nz, LBROW, LBNPT]
+                    if  data_needs_size1_t:
+                        data_shape.insert(0, 1)
+                        pmaxes.insert(0, _axis["t"])
                 else:
                     pmaxes = [_axis["t"]]
-                    data_shape = (nt, LBROW, LBNPT)
+                    data_shape = [nt, LBROW, LBNPT]
+                    if  data_needs_size1_z:
+                        data_shape.insert(1, 1)     
+                        pmaxes.insert(1, _axis["z"])                   
+
+                n_size_1_axes = len(data_shape) - 2
 
                 word_size = self.word_size
                 byte_ordering = self.byte_ordering
@@ -2058,8 +2090,8 @@ class UMField:
                     # Find the data type of the array in the file
                     file_data_type = data_type_in_file(rec)
                     file_data_types.add(file_data_type)
-
-                    shape = (1,) + yx_shape
+                    
+                    shape = (1,) * n_size_1_axes + yx_shape
 
                     subarray = UMArray(
                         filename=filename,
@@ -2073,9 +2105,16 @@ class UMField:
                         calendar=calendar,
                     )
 
+                    if data_needs_size1_t:
+                        index = (1, i, 0, 0)
+                    elif data_needs_size1_z:
+                        index = (i, 1, 0, 0)
+                    else:
+                        index = (i, 0,0)
+
                     key = f"{klass_name}-{tokenize(subarray)}"
                     dsk[key] = subarray
-                    dsk[name + (i, 0, 0)] = (
+                    dsk[name + index] = (
                         getter,
                         key,
                         full_slice,
@@ -2085,11 +2124,11 @@ class UMField:
 
                 dtype = np.result_type(*file_data_types)
                 chunks = normalize_chunks(
-                    (1, -1, -1), shape=data_shape, dtype=dtype
+                    (1,) * n_size_1_axes  + (-1, -1), shape=data_shape, dtype=dtype
                 )
             else:
                 # ----------------------------------------------------
-                # 2-d partition matrix
+                # 4-d data
                 # ----------------------------------------------------
                 z_axis = _axis[self.z_axis]
                 pmaxes = [_axis["t"], z_axis]
@@ -2422,6 +2461,7 @@ class UMField:
                     copy=True,
                     autocyclic=_autocyclic_false,
                 )
+                self.has_1d_aux_coord["z"] = True            
             else:
                 self.implementation.set_dimension_coordinate(
                     self.field,
@@ -2451,7 +2491,7 @@ class UMField:
                     copy=False,
                     autocyclic=_autocyclic_false,
                 )
-
+                self.has_1d_aux_coord["z"] = True
             else:
                 dc = self.implementation.initialise_DimensionCoordinate()
                 dc = self.coord_data(dc, array, units=Units("1"))
@@ -3260,6 +3300,7 @@ class UMField:
                 copy=False,
                 autocyclic=_autocyclic_false,
             )
+            self.has_1d_aux_coord["site_axis"] = True        
 
         array = self.extra.get("domain_title", None)
         if array is not None:
@@ -3274,6 +3315,7 @@ class UMField:
                 copy=False,
                 autocyclic=_autocyclic_false,
             )
+            self.has_1d_aux_coord["site_axis"] = True
 
     @_manage_log_level_via_verbose_attr
     def z_coordinate(self, axiscode):
