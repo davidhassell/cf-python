@@ -491,6 +491,7 @@ class UMField:
         implementation=None,
         select=None,
         info=False,
+                size_1_axes=True,
         **kwargs,
     ):
         """**Initialisation**
@@ -557,6 +558,7 @@ class UMField:
         self.height_at_top_of_model = height_at_top_of_model
         self.byte_ordering = byte_ordering
         self.word_size = word_size
+        self.size_1_axes = size_1_axes
 
         self.atol = cf_atol()
 
@@ -798,7 +800,7 @@ class UMField:
         self.iz = iz
         self.it = it
 
-        self.has_1d_aux_coord = {}
+        self.has_aux_coords = {}
 
         self.cf_info = {}
 
@@ -1061,7 +1063,6 @@ class UMField:
             # --------------------------------------------------------
             # Set the data and extra data
             # --------------------------------------------------------
-            print (self.field)
             data = self.create_data()
 
             # --------------------------------------------------------
@@ -1163,11 +1164,12 @@ class UMField:
                 Aggregation axis indices. See `create_data` for
                 details.
 
-            z_axis: `int`
+            z_axis: `str`
                 The identifier of the Z axis.
 
-            pmaxes: sequence of `int`
-                The aggregation axes, which include the Z axis.
+            pmaxes: sequence of `str`
+                The identifiers of the aggregation axes, which include
+                the *z_axis*.
 
         :Returns:
 
@@ -1175,7 +1177,12 @@ class UMField:
 
         **Examples**
 
-        >>> _reorder_z_axis([(0, <Rec A>), (1, <Rec B>)], 0, [0])
+        >>> _reorder_z_axis(
+        ...      [(0, <Rec A>),
+        ...       (1, <Rec B>)], 
+        ...      'domainaxis1',
+        ...      ['domainaxis1']
+        ... )
         [(0, <Rec B>), (1, <Rec A>)]
 
         >>> _reorder_z_axis(
@@ -1183,7 +1190,8 @@ class UMField:
         ...      (0, 1, <Rec B>),
         ...      (1, 0, <Rec C>),
         ...      (1, 1, <Rec D>)],
-        ...     1, [0, 1]
+        ...     'domainaxis1',
+        ...     ['domainaxis0', 'domainaxis1']
         ... )
         [(0, 0, <Rec B>), (0, 1, <Rec A>), (1, 0, <Rec D>), (1, 1, <Rec C>)]
 
@@ -1423,7 +1431,7 @@ class UMField:
         ac.id = "UM_atmosphere_hybrid_height_coordinate_ak"
         ac.long_name = "atmosphere_hybrid_height_coordinate_ak"
 
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         self.implementation.set_auxiliary_coordinate(
             field,
@@ -1432,7 +1440,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         array = np.array(
             [rec.real_hdr[bhlev] for rec in self.z_recs],
@@ -1460,7 +1468,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         return dc
 
@@ -1558,7 +1566,7 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         ac = self.implementation.initialise_AuxiliaryCoordinate()
         ac = self.coord_data(ac, bk_array, bk_bounds, units=_Units["1"])
@@ -1570,12 +1578,12 @@ class UMField:
             copy=False,
             autocyclic=_autocyclic_false,
         )
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         ac.id = "UM_atmosphere_hybrid_sigma_pressure_coordinate_bk"
         ac.long_name = "atmosphere_hybrid_sigma_pressure_coordinate_bk"
 
-        self.has_1d_aux_coord["z"] = True
+        self.has_aux_coords["z"] = True
 
         return dc
 
@@ -2002,15 +2010,16 @@ class UMField:
         klass_name = UMArray().__class__.__name__
 
         fmt = self.fmt
-        
+
         # Find the shape of the T and Z axes
         tz_shape = []
         data_needs_size1_axis = {}
-        for n, axis in zip((nt, nz), ("t", "z")):
-            if n> 1:
-                tz_shape.append(n)            
-            elif n == 1 and self.has_1d_aux_coord.get(axis):
-                data_needs_size1_axis[axis] = True
+        if self.size_1_axes:
+            for n, axis in zip((nt, nz), ("t", "z")):
+                if n > 1:
+                    tz_shape.append(n)
+                elif n == 1 and self.has_aux_coords.get(axis):
+                    data_needs_size1_axis[axis] = True
 
         if len(recs) == 1:
             # --------------------------------------------------------
@@ -2024,13 +2033,16 @@ class UMField:
             fill_value = rec.real_hdr.item(bmdi)
             if fill_value == _BMDI_no_missing_data_value:
                 fill_value = None
-            
+
             data_shape = list(yx_shape)
+
+            # Work out if we need to include in the data any extra
+            # size 1 axes that span an auxiliary coordinate
             for axis in ("z", "t"):
-                if data_needs_size1_axis[axis]:
+                if data_needs_size1_axis.get(axis):
                     data_shape.insert(0, 1)
                     pmaxes.insert(0, _axis[axis])
-                    
+
             subarray = UMArray(
                 filename=filename,
                 address=rec.hdr_offset,
@@ -2045,14 +2057,17 @@ class UMField:
 
             key = f"{klass_name}-{tokenize(subarray)}"
             dsk[key] = subarray
-            dsk[name + (0,)*len(data_shape)] = (getter, key, full_slice, False, False)
+            dsk[name + (0,) * len(data_shape)] = (
+                getter,
+                key,
+                full_slice,
+                False,
+                False,
+            )
 
             dtype = data_type_in_file(rec)
             chunks = normalize_chunks(-1, shape=data_shape, dtype=dtype)
         else:
-            # --------------------------------------------------------
-            # 3-d or 4-d data
-            # --------------------------------------------------------
             file_data_types = set()
 
             if len(tz_shape) == 1:
@@ -2061,21 +2076,25 @@ class UMField:
                 # ----------------------------------------------------
                 z_axis = _axis.get(self.z_axis)
 
-                data_needs_size1_z = data_needs_size1_axis.get("z")
-                data_needs_size1_t = data_needs_size1_axis.get("t")
+                # Work out if we need to include in the data an extra
+                # size 1 axis that spans an auxiliary coordinate
+                if self.size_1_axes:
+                    data_needs_size1_z = data_needs_size1_axis.get("z")
+                    data_needs_size1_t = data_needs_size1_axis.get("t")
+                    
                 if nz > 1:
                     pmaxes = [z_axis]
                     data_shape = [nz, LBROW, LBNPT]
-                    if  data_needs_size1_t:
+                    if data_needs_size1_t:
                         data_shape.insert(0, 1)
                         pmaxes.insert(0, _axis["t"])
                 else:
                     pmaxes = [_axis["t"]]
                     data_shape = [nt, LBROW, LBNPT]
-                    if  data_needs_size1_z:
-                        data_shape.insert(1, 1)     
-                        pmaxes.insert(1, _axis["z"])                   
-
+                    if data_needs_size1_z:
+                        data_shape.insert(1, 1)
+                        pmaxes.insert(1, _axis["z"])
+                        
                 n_size_1_axes = len(data_shape) - 2
 
                 word_size = self.word_size
@@ -2090,7 +2109,7 @@ class UMField:
                     # Find the data type of the array in the file
                     file_data_type = data_type_in_file(rec)
                     file_data_types.add(file_data_type)
-                    
+
                     shape = (1,) * n_size_1_axes + yx_shape
 
                     subarray = UMArray(
@@ -2105,12 +2124,12 @@ class UMField:
                         calendar=calendar,
                     )
 
-                    if data_needs_size1_t:
-                        index = (1, i, 0, 0)
-                    elif data_needs_size1_z:
+                    if data_needs_size1_z:
                         index = (i, 1, 0, 0)
+                    elif data_needs_size1_t:
+                        index = (1, i, 0, 0)
                     else:
-                        index = (i, 0,0)
+                        index = (i, 0, 0)
 
                     key = f"{klass_name}-{tokenize(subarray)}"
                     dsk[key] = subarray
@@ -2124,7 +2143,9 @@ class UMField:
 
                 dtype = np.result_type(*file_data_types)
                 chunks = normalize_chunks(
-                    (1,) * n_size_1_axes  + (-1, -1), shape=data_shape, dtype=dtype
+                    (1,) * n_size_1_axes + (-1, -1),
+                    shape=data_shape,
+                    dtype=dtype,
                 )
             else:
                 # ----------------------------------------------------
@@ -2432,6 +2453,9 @@ class UMField:
             )
             keys.append(key)
 
+        self.has_aux_coords["y"] = True
+        self.has_aux_coords["x"] = True
+
         return keys
 
     def model_level_number_coordinate(self, aux=False):
@@ -2461,7 +2485,7 @@ class UMField:
                     copy=True,
                     autocyclic=_autocyclic_false,
                 )
-                self.has_1d_aux_coord["z"] = True            
+                self.has_aux_coords["z"] = True
             else:
                 self.implementation.set_dimension_coordinate(
                     self.field,
@@ -2491,7 +2515,7 @@ class UMField:
                     copy=False,
                     autocyclic=_autocyclic_false,
                 )
-                self.has_1d_aux_coord["z"] = True
+                self.has_aux_coords["z"] = True
             else:
                 dc = self.implementation.initialise_DimensionCoordinate()
                 dc = self.coord_data(dc, array, units=Units("1"))
@@ -3300,7 +3324,7 @@ class UMField:
                 copy=False,
                 autocyclic=_autocyclic_false,
             )
-            self.has_1d_aux_coord["site_axis"] = True        
+            self.has_aux_coords["site_axis"] = True
 
         array = self.extra.get("domain_title", None)
         if array is not None:
@@ -3315,7 +3339,7 @@ class UMField:
                 copy=False,
                 autocyclic=_autocyclic_false,
             )
-            self.has_1d_aux_coord["site_axis"] = True
+            self.has_aux_coords["site_axis"] = True
 
     @_manage_log_level_via_verbose_attr
     def z_coordinate(self, axiscode):
@@ -3395,6 +3419,7 @@ class UMRead(cfdm.read_write.IORead):
         set_standard_name=True,
         height_at_top_of_model=None,
         fmt=None,
+        size_1_axes=True,
         chunk=True,
         verbose=None,
         select=None,
@@ -3460,6 +3485,14 @@ class UMRead(cfdm.read_write.IORead):
             select='stash_code=3236')`` is equivalent to ``fl =
             cf.read(file).select_by_identity('stash_code=3236')``.
 
+        
+        size_1_axes: `bool`
+
+           If True, the default , then size 1 domain axes (typically
+           for time or vertical dimensions) are included in the field
+           construct's data array. Otherwise they are not.
+           default to `True` in future versions).
+
         :Returns:
 
             `list`
@@ -3515,6 +3548,7 @@ class UMRead(cfdm.read_write.IORead):
                 implementation=self.implementation,
                 select=select,
                 info=info,
+                size_1_axes=size_1_axes
             )
             for var in f.vars
         ]
