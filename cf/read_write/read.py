@@ -524,16 +524,6 @@ def read(
                                              can then be re-read with
                                              this height as a *um*
                                              parameter.
-
-            ``'size_1_axes'``             A `bool` that controls
-                                          whether or not size 1 domain
-                                          axes (typically for time or
-                                          vertical dimensions) are
-                                          included in the field
-                                          construct's data
-                                          array. Defaults to `False`
-                                          (but may default to `True`
-                                          in future versions).
             ============================  =====================================
 
             If format is specified as ``'PP'`` then the word size and
@@ -1129,7 +1119,6 @@ def _read_a_file(
     endian = None
     height_at_top_of_model = None
     umversion = 405
-    size_1_axes = False
 
     if um:
         fmt = um.get("fmt")
@@ -1137,7 +1126,6 @@ def _read_a_file(
         endian = um.get("endian")
         umversion = um.get("version", umversion)
         height_at_top_of_model = um.get("height_at_top_of_model")
-        size_1_axes = um.get("size_1_axes", False)
 
         if fmt is not None:
             fmt = fmt.upper()
@@ -1220,7 +1208,6 @@ def _read_a_file(
             fmt=fmt,
             word_size=word_size,
             endian=endian,
-            size_1_axes=size_1_axes,
             select=select,
         )
 

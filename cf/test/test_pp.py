@@ -36,7 +36,7 @@ class ppTest(unittest.TestCase):
         os.path.dirname(os.path.abspath(__file__)), "wgdos_packed.pp"
     )
     ppfile2 = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "file2.pp"
+        os.path.dirname(os.path.abspath(__file__)), "ppfile2.pp"
     )
 
     ppextradata = os.path.join(
@@ -108,7 +108,7 @@ class ppTest(unittest.TestCase):
 
     def test_PP_WGDOS_UNPACKING(self):
         f = cf.read(self.ppfile)[0]
-        
+
         self.assertEqual(f.data.mean(), 3.8080420658506196)
 
         array = f.array
@@ -116,9 +116,9 @@ class ppTest(unittest.TestCase):
         f = cf.read(self.ppfile)[0]
 
         for cfa in (False, True):
-            print (999910, cfa)
+            print(999910, cfa)
             cf.write(f, tmpfile, cfa=cfa)
-            print (99991, cfa)
+            print(99991, cfa)
             g = cf.read(tmpfile)[0]
 
             self.assertTrue((f.array == array).all())
@@ -154,9 +154,10 @@ class ppTest(unittest.TestCase):
         # Check that an axis with an auxiliary coordinate is also an
         # axis of the data
         f = cf.read(self.ppfile2)[0]
-        self.assertEqual(f.ndim, 2)
-        f = cf.read(self.ppfile2, um={'size_1_axes': True})[0]
         self.assertEqual(f.ndim, 3)
+        z_axis = f.domain_axis("Z", key=True)
+        self.assertEqual(f.get_data_axes()[0], z_axis)
+
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())

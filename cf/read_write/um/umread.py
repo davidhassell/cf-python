@@ -491,7 +491,6 @@ class UMField:
         implementation=None,
         select=None,
         info=False,
-                size_1_axes=True,
         **kwargs,
     ):
         """**Initialisation**
@@ -558,7 +557,6 @@ class UMField:
         self.height_at_top_of_model = height_at_top_of_model
         self.byte_ordering = byte_ordering
         self.word_size = word_size
-        self.size_1_axes = size_1_axes
 
         self.atol = cf_atol()
 
@@ -800,6 +798,8 @@ class UMField:
         self.iz = iz
         self.it = it
 
+        # Dictionary that records of an axis is spanned by any
+        # auxiliary coordinates
         self.has_aux_coords = {}
 
         self.cf_info = {}
@@ -1179,7 +1179,7 @@ class UMField:
 
         >>> _reorder_z_axis(
         ...      [(0, <Rec A>),
-        ...       (1, <Rec B>)], 
+        ...       (1, <Rec B>)],
         ...      'domainaxis1',
         ...      ['domainaxis1']
         ... )
@@ -2014,16 +2014,15 @@ class UMField:
         # Find the shape of the T and Z axes
         tz_shape = []
         data_needs_size1_axis = {}
-        if self.size_1_axes:
-            for n, axis in zip((nt, nz), ("t", "z")):
-                if n > 1:
-                    tz_shape.append(n)
-                elif n == 1 and self.has_aux_coords.get(axis):
-                    data_needs_size1_axis[axis] = True
+        for n, axis in zip((nt, nz), ("t", "z")):
+            if n > 1:
+                tz_shape.append(n)
+            elif n == 1 and self.has_aux_coords.get(axis):
+                data_needs_size1_axis[axis] = True
 
         if len(recs) == 1:
             # --------------------------------------------------------
-            # 2-d data
+            # No UM field aggregation
             # --------------------------------------------------------
             pmaxes = []
             file_data_types = set()
@@ -2072,30 +2071,36 @@ class UMField:
 
             if len(tz_shape) == 1:
                 # ----------------------------------------------------
-                # 3-d data
+                # UM field aggregation over 1 axis (typically T or Z)
                 # ----------------------------------------------------
                 z_axis = _axis.get(self.z_axis)
 
                 # Work out if we need to include in the data an extra
                 # size 1 axis that spans an auxiliary coordinate
-                if self.size_1_axes:
-                    data_needs_size1_z = data_needs_size1_axis.get("z")
-                    data_needs_size1_t = data_needs_size1_axis.get("t")
-                    
+                data_needs_size1_z = data_needs_size1_axis.get("z")
+                data_needs_size1_t = data_needs_size1_axis.get("t")
+
+                n_size_1_axes = 1
                 if nz > 1:
+                    # Aggregation is over Z axis
                     pmaxes = [z_axis]
                     data_shape = [nz, LBROW, LBNPT]
                     if data_needs_size1_t:
+                        # Insert size 1 T axis in position 0 (as it is
+                        # varies slower than Z)
                         data_shape.insert(0, 1)
                         pmaxes.insert(0, _axis["t"])
+                        n_size_1_axes += 1
                 else:
+                    # Aggregation is over T axis
                     pmaxes = [_axis["t"]]
                     data_shape = [nt, LBROW, LBNPT]
                     if data_needs_size1_z:
+                        # Insert size 1 Z axis in position 1 (as it is varies
+                        # faster than T)
                         data_shape.insert(1, 1)
                         pmaxes.insert(1, _axis["z"])
-                        
-                n_size_1_axes = len(data_shape) - 2
+                        n_size_1_axes += 1
 
                 word_size = self.word_size
                 byte_ordering = self.byte_ordering
@@ -2105,12 +2110,11 @@ class UMField:
                 if nz > 1 and z_axis in self.down_axes:
                     indices = self._reorder_z_axis(indices, z_axis, pmaxes)
 
+                shape = (1,) * n_size_1_axes + yx_shape
                 for i, rec in indices:
                     # Find the data type of the array in the file
                     file_data_type = data_type_in_file(rec)
                     file_data_types.add(file_data_type)
-
-                    shape = (1,) * n_size_1_axes + yx_shape
 
                     subarray = UMArray(
                         filename=filename,
@@ -2149,7 +2153,7 @@ class UMField:
                 )
             else:
                 # ----------------------------------------------------
-                # 4-d data
+                # UM field aggregation over 2 axes (typically T and Z)
                 # ----------------------------------------------------
                 z_axis = _axis[self.z_axis]
                 pmaxes = [_axis["t"], z_axis]
@@ -3419,7 +3423,6 @@ class UMRead(cfdm.read_write.IORead):
         set_standard_name=True,
         height_at_top_of_model=None,
         fmt=None,
-        size_1_axes=True,
         chunk=True,
         verbose=None,
         select=None,
@@ -3485,14 +3488,6 @@ class UMRead(cfdm.read_write.IORead):
             select='stash_code=3236')`` is equivalent to ``fl =
             cf.read(file).select_by_identity('stash_code=3236')``.
 
-        
-        size_1_axes: `bool`
-
-           If True, the default , then size 1 domain axes (typically
-           for time or vertical dimensions) are included in the field
-           construct's data array. Otherwise they are not.
-           default to `True` in future versions).
-
         :Returns:
 
             `list`
@@ -3548,7 +3543,6 @@ class UMRead(cfdm.read_write.IORead):
                 implementation=self.implementation,
                 select=select,
                 info=info,
-                size_1_axes=size_1_axes
             )
             for var in f.vars
         ]
