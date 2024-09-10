@@ -42,33 +42,23 @@ from ..functions import (
 from ..mixin2 import CFANetCDF, Container
 from ..units import Units
 from .collapse import Collapse
-from .creation import generate_axis_identifiers, to_dask
 
-# REVIEW: getitem: `data.py`: import cf_asanyarray, cf_filled, cf_is_masked
 from .dask_utils import (
     _da_ma_allclose,
-    cf_asanyarray,
     cf_contains,
     cf_dt2rt,
     cf_filled,
-    cf_harden_mask,
     cf_is_masked,
     cf_percentile,
     cf_rt2dt,
-    cf_soften_mask,
     cf_units,
-    cf_where,
+    cfdm_where
 )
 from .mixin import DataClassDeprecationsMixin
 from .utils import (
     YMDhms,
     collapse,
     conform_units,
-    convert_to_datetime,
-    convert_to_reftime,
-    first_non_missing_value,
-    is_numeric_dtype,
-    new_axis_identifier,
     scalar_masked_array,
 )
 
@@ -93,20 +83,7 @@ _dtype_float32 = np.dtype("float32")
 _dtype_float = np.dtype(float)
 _dtype_bool = np.dtype(bool)
 
-_DEFAULT_CHUNKS = "auto"
-_DEFAULT_HARDMASK = True
-
-# Contstants used to specify which `Data` components should be cleared
-# when a new dask array is set. See `Data._clear_after_dask_update`
-# for details.
-_NONE = 0  # =  0b0000
-_ARRAY = 1  # = 0b0001
-_CACHE = 2  # = 0b0010
-_CFA = 4  # =   0b0100
-_ALL = 15  # =  0b1111
-
-
-class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
+class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
     """An N-dimensional data array with units and masked values.
 
     * Contains an N-dimensional, indexable and broadcastable array with
@@ -491,7 +468,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 f"not {value!r}"
             )
 
-        # REVIEW: getitem: `cf_contains`: set 'asanyarray'
         # If value is a scalar Data object then conform its units
         if isinstance(value, self.__class__):
             self_units = self.Units
@@ -505,11 +481,11 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 # are incompatible
                 return False
 
-            # 'cf_contains' has its own calls to 'cf_asanyarray', so
+            # 'cf_contains' has its own calls to 'asanyarray', so
             # we can set 'asanyarray=False'.
             value = value.to_dask_array(asanyarray=False)
 
-        # 'cf_contains' has its own calls to 'cf_asanyarray', so we
+        # 'cf_contains' has its own calls to 'asanyarray', so we
         # can set 'asanyarray=False'.
         dx = self.to_dask_array(asanyarray=False)
 
@@ -612,12 +588,10 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         axes = self._axes
         cyclic_axes = self._cyclic
-
-        # ------------------------------------------------------------
-        # Roll axes with cyclic slices
-        # ------------------------------------------------------------
-        # REVIEW: getitem: `__getitem__`: set 'asanyarray'
+    
         if roll:
+            # Roll axes with cyclic slices
+            #
             # For example, if slice(-2, 3) has been requested on a
             # cyclic axis, then we roll that axis by two points and
             # apply the slice(0, 5) instead.
@@ -626,110 +600,26 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                     "Can't take a cyclic slice of a non-cyclic axis"
                 )
 
-            new = self.roll(
+            d = self.roll(
                 axis=tuple(roll.keys()), shift=tuple(roll.values())
             )
-            dx = new.to_dask_array(asanyarray=False)
         else:
-            new = self.copy()
-            dx = self.to_dask_array(asanyarray=False)
+            d = self
 
-        # ------------------------------------------------------------
-        # Subspace the dask array
-        # ------------------------------------------------------------
-        if self.__orthogonal_indexing__:
-            # Apply 'orthogonal indexing': indices that are 1-d arrays
-            # or lists subspace along each dimension
-            # independently. This behaviour is similar to Fortran, but
-            # different to dask.
-            axes_with_list_indices = [
-                i
-                for i, x in enumerate(indices)
-                if isinstance(x, list) or getattr(x, "shape", False)
-            ]
-            n_axes_with_list_indices = len(axes_with_list_indices)
+        new = super(cfdm.Data, d).__getitem__(indices)
 
-            if n_axes_with_list_indices < 2:
-                # At most one axis has a list/1-d array index so do a
-                # normal dask subspace
-                dx = dx[tuple(indices)]
-            else:
-                # At least two axes have list/1-d array indices so we
-                # can't do a normal dask subspace
+        # Cyclic axes
+        new_axes = new._axes
+        cyclic = new._cyclic.copy()
+        for axis, index, size in zip(d._axes, indices, d.shape):
+            if axis in new_axes and indices not in (slice(None), slice(0, size)): NOT RIGHT - indices may haave fewer elements that shape
+                cyclic.remove(axis)
 
-                # Subspace axes which have list/1-d array indices
-                for axis in axes_with_list_indices:
-                    dx = da.take(dx, indices[axis], axis=axis)
-
-                if n_axes_with_list_indices < len(indices):
-                    # Subspace axes which don't have list/1-d array
-                    # indices. (Do this after subspacing axes which do
-                    # have list/1-d array indices, in case
-                    # __keepdims_indexing__ is False.)
-                    slice_indices = [
-                        slice(None) if i in axes_with_list_indices else x
-                        for i, x in enumerate(indices)
-                    ]
-                    dx = dx[tuple(slice_indices)]
-        else:
-            raise NotImplementedError(
-                "Non-orthogonal indexing has not yet been implemented"
-            )
-
-        # REVIEW: getitem: `__getitem__`: set 'asanyarray=True' because subspaced chunks might not be in memory
-        # ------------------------------------------------------------
-        # Set the subspaced dask array
-        #
-        # * A subpspaced chunk might not result in an array in memory,
-        #   so we set asanyarray=True to ensure that, if required,
-        #   they are converted at compute time.
-        # ------------------------------------------------------------
-        new._set_dask(dx, asanyarray=True)
-
-        # ------------------------------------------------------------
-        # Get the axis identifiers for the subspace
-        # ------------------------------------------------------------
-        shape0 = shape
-        if keepdims:
-            new_axes = axes
-        else:
-            new_axes = [
-                axis
-                for axis, x in zip(axes, indices)
-                if not isinstance(x, Integral) and getattr(x, "shape", True)
-            ]
-            if new_axes != axes:
-                new._axes = new_axes
-                cyclic_axes = new._cyclic
-                if cyclic_axes:
-                    shape0 = [
-                        n for n, axis in zip(shape, axes) if axis in new_axes
-                    ]
-
-        # ------------------------------------------------------------
-        # Cyclic axes that have been reduced in size are no longer
-        # considered to be cyclic
-        # ------------------------------------------------------------
-        if cyclic_axes:
-            x = [
-                axis
-                for axis, n0, n1 in zip(new_axes, shape0, new.shape)
-                if axis in cyclic_axes and n0 != n1
-            ]
-            if x:
-                # Never change the value of the _cyclic attribute
-                # in-place
-                new._cyclic = cyclic_axes.difference(x)
-
-        # ------------------------------------------------------------
+        new._cyclic = cyclic
+            
         # Apply ancillary masks
-        # ------------------------------------------------------------
         for mask in ancillary_mask:
             new.where(mask, cf_masked, None, inplace=True)
-
-        if new.shape != self.shape:
-            # Delete hdf5 chunksizes when the shape has changed.
-            new.nc_clear_hdf5_chunksizes()
 
         return new
 
@@ -1846,8 +1736,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         else:
             axes = tuple(sorted(d._parse_axes(axes)))
 
-        # REVIEW: getitem: `percentile`: set 'asanyarray'
-        # 'cf_percentile' has its own call to 'cf_asanyarray', so we
+        # 'cf_percentile' has its own call to 'asanyarray', so we
         # can set 'asanyarray=False'.
         dx = d.to_dask_array(asanyarray=False)
         dtype = dx.dtype
@@ -2142,7 +2031,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         dx = d.to_dask_array()
 
-        # REVIEW: getitem: `percentile`: rectify comment
         # Cast to float to ensure that NaNs can be stored (so
         # map_overlap can correctly assign the halos)
         if dx.dtype != float:
@@ -2306,8 +2194,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             )
 
         if not d._isdatetime():
-            # REVIEW: getitem: `_asdatetime`: set 'asanyarray'
-            # 'cf_rt2dt' has its own call to 'cf_asanyarray', so we
+            # 'cf_rt2dt' has its own call to 'asanyarray', so we
             # can set 'asanyarray=False'.
             dx = d.to_dask_array(asanyarray=False)
             dx = dx.map_blocks(cf_rt2dt, units=units, dtype=object)
@@ -2364,8 +2251,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             )
 
         if d._isdatetime():
-            # REVIEW: getitem: `_asreftime`: set 'asanyarray'
-            # 'cf_dt2rt' has its own call to 'cf_asanyarray', so we
+            # 'cf_dt2rt' has its own call to 'asanyarray', so we
             # can set 'asanyarray=False'.
             dx = d.to_dask_array(asanyarray=False)
             dx = dx.map_blocks(cf_dt2rt, units=units, dtype=float)
@@ -2977,8 +2863,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 f"the shape of the regrid operator: {operator.src_shape}"
             )
 
-        # REVIEW: getitem: `_regrid`: set 'asanyarray'
-        # 'regrid' has its own calls to 'cf_asanyarray', so we can set
+        # 'regrid' has its own calls to 'asanyarray', so we can set
         # 'asanyarray=False'.
         dx = self.to_dask_array(asanyarray=False)
 
@@ -3426,7 +3311,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         cf_func = partial(cf_units, from_units=old_units, to_units=value)
 
-        # 'cf_units' has its own call to 'cf_asanyarray', so we can
+        # 'cf_units' has its own call to 'asanyarray', so we can
         # set 'asanyarray=False'.
         dx = self.to_dask_array(asanyarray=False)
         dx = dx.map_blocks(cf_func, dtype=dtype)
@@ -3513,8 +3398,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         True
 
         """
-        # REVIEW: getitem: `is_masked`: set 'asanyarray'
-        # 'cf_is_masked' has its own call to 'cf_asanyarray', so we
+        # 'cf_is_masked' has its own call to 'asanyarray', so we
         # can set 'asanyarray=False'.
         dx = self.to_dask_array(asanyarray=False)
 
@@ -4221,8 +4105,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 )
                 d.Units = units0
 
-        # REVIEW: getitem: `convert_reference_time`: set 'asanyarray'
-        # 'cf_rt2dt' its own call to 'cf_asanyarray', so we can set
+        # 'cf_rt2dt' its own call to 'asanyarray', so we can set
         # 'asanyarray=False'.
         dx = d.to_dask_array(asanyarray=False)
 
@@ -4302,7 +4185,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         units = self._Units
 
-        # REVIEW: getitem: `get_deterministic_name`: set 'asanyarray'
         # The dask graph is never going to be computed, so we can set
         # 'asanyarray=False'.
         return tokenize(
@@ -5601,7 +5483,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         d.soften_mask()
 
         # The applicable chunk function will have its own call to
-        # 'cf_asanyarray', so we can set 'asanyarray=False'.
+        # 'asanyarray', so we can set 'asanyarray=False'.
         dx = d.to_dask_array(asanyarray=False)
         dx = Collapse().unique(dx, split_every=split_every)
         d._set_dask(dx)
@@ -6113,7 +5995,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         out = set()
 
-        # REVIEW: getitem: `file_locations`: set 'asanyarray'
         # The dask graph is never going to be computed, so we can set
         # 'asanyarray=False'.
         for key, a in self.todict(asanyarray=False).items():
@@ -6658,7 +6539,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         updated = False
 
-        # REVIEW: getitem: `del_file_location`: set 'asanyarray'
         # The dask graph is never going to be computed, so we can set
         # 'asanyarray=False'.
         dsk = self.todict(asanyarray=False)
@@ -6986,6 +6866,8 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         only allows for reshapings that collapse or merge dimensions
         like ``(1, 2, 3, 4) -> (1, 6, 4)`` or ``(64,) -> (4, 4, 4)``.
 
+        .. versionadded:: 3.14.0
+
         :Parameters:
 
             shape: `tuple` of `int`, or any number of `int`
@@ -7038,28 +6920,10 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         >>> print(d.reshape(1, 1, -1).array)
         [[[[ 0  1  2  3  4  5  6  7  8  9 10 11]]]]
 
-        """
+        """        
         d = _inplace_enabled_define_and_cleanup(self)
-        dx = d.to_dask_array()
-        dx = dx.reshape(*shape, merge_chunks=merge_chunks, limit=limit)
-
-        # Set axes when the new array has more dimensions than self
-        axes = None
-        ndim0 = self.ndim
-        if not ndim0:
-            axes = generate_axis_identifiers(dx.ndim)
-        else:
-            diff = dx.ndim - ndim0
-            if diff > 0:
-                axes = list(self._axes)
-                for _ in range(diff):
-                    axes.insert(0, new_axis_identifier(tuple(axes)))
-
-        if axes is not None:
-            d._axes = axes
-
-        d._set_dask(dx)
-
+        super().reshape(*shape, merge_chunks=merge_chunks, limit=limit, inplace=True)
+        del d._cyclic
         return d
 
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
@@ -7740,8 +7604,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # Missing values could be affected, so make sure that the mask
         # hardness has been applied.
         #
-        # REVIEW: getitem: `where`: set 'asanyarray'
-        # 'cf_where' has its own calls to 'cf_asanyarray', so we can
+        # 'cfdm_where' has its own calls to 'asanyarray', so we can
         # set 'asanyarray=False'.
         dx = d.to_dask_array(apply_mask_hardness=True, asanyarray=False)
 
@@ -7758,8 +7621,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         condition = type(self).asdata(condition)
         condition = where_broadcastable(d, condition, "condition")
-        # REVIEW: getitem: `where`: set 'asanyarray'
-        # 'cf_where' has its own calls to 'cf_asanyarray', so we can
+        # 'cfdm_where' has its own calls to 'asanyarray', so we can
         # set 'asanyarray=False'.
         condition = condition.to_dask_array(asanyarray=False)
 
@@ -7804,9 +7666,8 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         x, y = xy
 
-        # REVIEW: getitem: `where`: 'da.asanyarray' is no longer required
         # Apply the where operation
-        dx = da.core.elemwise(cf_where, dx, condition, x, y, d.hardmask)
+        dx = da.core.elemwise(cfdm_where, dx, condition, x, y, d.hardmask)
         d._set_dask(dx)
 
         # Don't know (yet) if 'x' and 'y' have a deterministic names

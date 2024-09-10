@@ -12,6 +12,8 @@ import numpy as np
 from dask.core import flatten
 from scipy.ndimage import convolve1d
 
+from cfdm.data.dask_utils import cfdm_where
+
 from ..cfdatetime import dt, dt2rt, rt2dt
 from ..functions import atol as cf_atol
 from ..functions import rtol as cf_rtol

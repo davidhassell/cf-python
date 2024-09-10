@@ -863,8 +863,6 @@ def collapse(
         "keepdims": keepdims,
         "split_every": split_every,
         "mtol": mtol,
-        # REVIEW: active: `collapse`: pass the active storage status onto the collapse functions
-        #        "active_storage": d.active_storage,
     }
 
     weights = parse_weights(d, weights, axis)
@@ -874,14 +872,27 @@ def collapse(
     if ddof is not None:
         kwargs["ddof"] = ddof
 
-    # REVIEW: getitem: `collapse`: set 'asanyarray'
     # The applicable chunk function will have its own call to
-    # 'cf_asanyarray', so we can set 'asanyarray=False'. Also, setting
+    # 'sanyarray', so we can set 'asanyarray=False'. Also, setting
     # asanyarray=False will ensure that any active storage operations
     # are not compromised.
     dx = d.to_dask_array(asanyarray=False)
     dx = func(dx, **kwargs)
     d._set_dask(dx)
+
+    # Update the HDF5 chunking strategy
+    chunksizes = d.nc_hdf5_chunksizes()
+    if (
+        chunksizes
+        and isinstance(chunksizes, tuple)
+        and dx.shape != original_shape
+    ):
+        if not keepdims:
+            chunksizes = [
+                size for i, size in enumerate(chunksizes) if i not in iaxes
+            ]
+
+        d.nc_set_hdf5_chunksizes(chunksizes)
 
     return d, weights
 
