@@ -170,14 +170,20 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
     """
 
+    def __new__(cls, *args, **kwargs):
+        """Store component classes. TODODATA"""
+        instance = super().__new__(cls)
+        instance._Units_class = Units
+        return instance
+
     def __init__(
         self,
         array=None,
         units=None,
         calendar=None,
         fill_value=None,
-        hardmask=_DEFAULT_HARDMASK,
-        chunks=_DEFAULT_CHUNKS,
+        hardmask=True,
+        chunks="auto".
         dt=False,
         source=None,
         copy=True,
@@ -354,7 +360,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         >>> d = cf.Data([1,2,3], units='K')
         >>> import numpy
         >>> d = cf.Data(numpy.arange(10).reshape(2,5),
-        ...             units=Units('m/s'), fill_value=-999)
+        ...             units=cf.Units('m/s'), fill_value=-999)
         >>> d = cf.Data('fly')
         >>> d = cf.Data(tuple('fly'))
 
@@ -966,7 +972,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         return data1
 
     @classmethod
-    def _concatenate_xxx(cls, data, processed_data):
+    def _concatenate_post_process(cls, data, axis, processed_data):
         """Check and conform the units of the data.
 
         This method is a helper function for `concatenate` that may be
@@ -1137,7 +1143,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         #       whenever that issue is resolved.
         units = self.Units
         if units.isreftime:
-            units = Units(units._units_since_reftime)
+            units = self._Units_class(units._units_since_reftime)
             d.override_units(units, inplace=True)
 
         return d
@@ -2481,7 +2487,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                         if not units0.equals(units1):
                             data1 = data1.copy()
                             data1.Units = units0
-                        return data0, data1, Units(_ut_unit=units0._ut_unit)
+                        return data0, data1, self._Units_class(_ut_unit=units0._ut_unit)
                     else:
                         # Non-equivalent reference_times: raise an
                         # exception
@@ -2489,7 +2495,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 elif units1.istime:
                     # reference_time minus time: the output units are
                     # reference_time
-                    time0 = Units(_ut_unit=units0._ut_unit)
+                    time0 = self._Units_class(_ut_unit=units0._ut_unit)
                     if not units1.equals(time0):
                         data1 = data1.copy()
                         data1.Units = time0
@@ -2507,7 +2513,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 if units1.istime:
                     # reference_time plus regular_time: the output
                     # units are reference_time
-                    time0 = Units(_ut_unit=units0._ut_unit)
+                    time0 = self._Units_class(_ut_unit=units0._ut_unit)
                     if not units1.equals(time0):
                         data1 = data1.copy()
                         data1.Units = time0
@@ -2533,7 +2539,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 if units0.istime:
                     # Time plus reference_time: the output units are
                     # reference_time
-                    time1 = Units(_ut_unit=units1._ut_unit)
+                    time1 = self._Units_class(_ut_unit=units1._ut_unit)
                     if not units0.equals(time1):
                         if not inplace:
                             data0 = data0.copy()
@@ -3300,206 +3306,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         return self._binary_operation(other, "__rmod__")
 
-    def __eq__(self, other):
-        """The rich comparison operator ``==``
-
-        x.__eq__(y) <==> x==y
-
-        """
-        return self._binary_operation(other, "__eq__")
-
-    def __ne__(self, other):
-        """The rich comparison operator ``!=``
-
-        x.__ne__(y) <==> x!=y
-
-        """
-        return self._binary_operation(other, "__ne__")
-
-    def __ge__(self, other):
-        """The rich comparison operator ``>=``
-
-        x.__ge__(y) <==> x>=y
-
-        """
-        return self._binary_operation(other, "__ge__")
-
-    def __gt__(self, other):
-        """The rich comparison operator ``>``
-
-        x.__gt__(y) <==> x>y
-
-        """
-        return self._binary_operation(other, "__gt__")
-
-    def __le__(self, other):
-        """The rich comparison operator ``<=``
-
-        x.__le__(y) <==> x<=y
-
-        """
-        return self._binary_operation(other, "__le__")
-
-    def __lt__(self, other):
-        """The rich comparison operator ``<``
-
-        x.__lt__(y) <==> x<y
-
-        """
-        return self._binary_operation(other, "__lt__")
-
-    def __and__(self, other):
-        """The binary bitwise operation ``&``
-
-        x.__and__(y) <==> x&y
-
-        """
-        return self._binary_operation(other, "__and__")
-
-    def __iand__(self, other):
-        """The augmented bitwise assignment ``&=``
-
-        x.__iand__(y) <==> x&=y
-
-        """
-        return self._binary_operation(other, "__iand__")
-
-    def __rand__(self, other):
-        """The binary bitwise operation ``&`` with reflected operands.
-
-        x.__rand__(y) <==> y&x
-
-        """
-        return self._binary_operation(other, "__rand__")
-
-    def __or__(self, other):
-        """The binary bitwise operation ``|``
-
-        x.__or__(y) <==> x|y
-
-        """
-        return self._binary_operation(other, "__or__")
-
-    def __ior__(self, other):
-        """The augmented bitwise assignment ``|=``
-
-        x.__ior__(y) <==> x|=y
-
-        """
-        return self._binary_operation(other, "__ior__")
-
-    def __ror__(self, other):
-        """The binary bitwise operation ``|`` with reflected operands.
-
-        x.__ror__(y) <==> y|x
-
-        """
-        return self._binary_operation(other, "__ror__")
-
-    def __xor__(self, other):
-        """The binary bitwise operation ``^``
-
-        x.__xor__(y) <==> x^y
-
-        """
-        return self._binary_operation(other, "__xor__")
-
-    def __ixor__(self, other):
-        """The augmented bitwise assignment ``^=``
-
-        x.__ixor__(y) <==> x^=y
-
-        """
-        return self._binary_operation(other, "__ixor__")
-
-    def __rxor__(self, other):
-        """The binary bitwise operation ``^`` with reflected operands.
-
-        x.__rxor__(y) <==> y^x
-
-        """
-        return self._binary_operation(other, "__rxor__")
-
-    def __lshift__(self, y):
-        """The binary bitwise operation ``<<``
-
-        x.__lshift__(y) <==> x<<y
-
-        """
-        return self._binary_operation(y, "__lshift__")
-
-    def __ilshift__(self, y):
-        """The augmented bitwise assignment ``<<=``
-
-        x.__ilshift__(y) <==> x<<=y
-
-        """
-        return self._binary_operation(y, "__ilshift__")
-
-    def __rlshift__(self, y):
-        """The binary bitwise operation ``<<`` with reflected operands.
-
-        x.__rlshift__(y) <==> y<<x
-
-        """
-        return self._binary_operation(y, "__rlshift__")
-
-    def __rshift__(self, y):
-        """The binary bitwise operation ``>>``
-
-        x.__lshift__(y) <==> x>>y
-
-        """
-        return self._binary_operation(y, "__rshift__")
-
-    def __irshift__(self, y):
-        """The augmented bitwise assignment ``>>=``
-
-        x.__irshift__(y) <==> x>>=y
-
-        """
-        return self._binary_operation(y, "__irshift__")
-
-    def __rrshift__(self, y):
-        """The binary bitwise operation ``>>`` with reflected operands.
-
-        x.__rrshift__(y) <==> y>>x
-
-        """
-        return self._binary_operation(y, "__rrshift__")
-
-    def __abs__(self):
-        """The unary arithmetic operation ``abs``
-
-        x.__abs__() <==> abs(x)
-
-        """
-        return self._unary_operation("__abs__")
-
-    def __neg__(self):
-        """The unary arithmetic operation ``-``
-
-        x.__neg__() <==> -x
-
-        """
-        return self._unary_operation("__neg__")
-
-    def __invert__(self):
-        """The unary bitwise operation ``~``
-
-        x.__invert__() <==> ~x
-
-        """
-        return self._unary_operation("__invert__")
-
-    def __pos__(self):
-        """The unary arithmetic operation ``+``
-
-        x.__pos__() <==> +x
-
-        """
-        return self._unary_operation("__pos__")
-
     def __query_isclose__(self, value, rtol, atol):
         """Query interface method for an "is close" condition.
 
@@ -3518,37 +3324,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         """
         return self.isclose(value, rtol=rtol, atol=atol)
-
-    @property
-    def _Units(self):
-        """Storage for the units.
-
-        The units are stored in a `Units` object, and reflect the
-        units of the (yet to be computed) elements of the underlying
-        data.
-
-        .. warning:: Assigning to `_Units` does *not* trigger a units
-                     conversion of the underlying data
-                     values. Therefore assigning to `_Units` should
-                     only be done in cases when it is known that the
-                     intrinsic units represented by the data values
-                     are inconsistent with the existing value of
-                     `_Units`. Before assigning to `_Units`, first
-                     consider if assigning to `Units`, or calling the
-                     `override_units` or `override_calendar` method is
-                     a more appropriate course of action, and use one
-                     of those if possible.
-
-        """
-        return self._custom["_Units"]
-
-    @_Units.setter
-    def _Units(self, value):
-        self._custom["_Units"] = value
-
-    @_Units.deleter
-    def _Units(self):
-        self._custom["_Units"] = _units_None
 
     @property
     def _cyclic(self):
@@ -3601,36 +3376,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             # Never change the value of the _cyclic attribute in-place
             self._cyclic = cyclic.intersection(value)
 
-    # ----------------------------------------------------------------
-    # Dask attributes
-    # ----------------------------------------------------------------
-    @property
-    def chunks(self):
-        """The `dask` chunk sizes for each dimension.
-
-        .. versionadded:: 3.14.0
-
-        .. seealso:: `npartitions`, `numblocks`, `rechunk`
-
-        **Examples**
-
-        >>> d = cf.Data.ones((6, 5), chunks=(2, 4))
-        >>> d.chunks
-        ((2, 2, 2), (4, 1))
-        >>> d.numblocks
-        (3, 2)
-        >>> d.npartitions
-        6
-
-        """
-        # REVIEW: getitem: `chunks`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        return self.to_dask_array(asanyarray=False).chunks
-
-    # ----------------------------------------------------------------
-    # Attributes
-    # ----------------------------------------------------------------
     @property
     def Units(self):
         """The `cf.Units` object containing the units of the data array.
@@ -3681,7 +3426,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         cf_func = partial(cf_units, from_units=old_units, to_units=value)
 
-        # REVIEW: getitem: `Units`: set 'asanyarray'
         # 'cf_units' has its own call to 'cf_asanyarray', so we can
         # set 'asanyarray=False'.
         dx = self.to_dask_array(asanyarray=False)
@@ -3690,7 +3434,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # Setting equivalent units doesn't affect the CFA write
         # status. Nor does it invalidate any cached values, but only
         # because we'll adjust those, too.
-        self._set_dask(dx, clear=_ALL ^ _CACHE ^ _CFA)
+        self._set_dask(dx, clear=self._ALL ^ self._CACHE ^ self._CFA)
 
         # Adjust cached values for the new units
         cache = self._get_cached_elements()
@@ -3722,51 +3466,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         return self
 
     @property
-    def dtype(self):
-        """The `numpy` data-type of the data.
-
-        Always returned as a `numpy` data-type instance, but may be set
-        as any object that converts to a `numpy` data-type.
-
-        **Examples**
-
-        >>> d = cf.Data([1, 2.5, 3.9])
-        >>> d.dtype
-        dtype('float64')
-        >>> print(d.array)
-        [1.  2.5 3.9]
-        >>> d.dtype = int
-        >>> d.dtype
-        dtype('int64')
-        >>> print(d.array)
-        [1 2 3]
-        >>> d.dtype = 'float32'
-        >>> print(d.array)
-        [1. 2. 3.]
-        >>> import numpy as np
-        >>> d.dtype = np.dtype('int32')
-        >>> d.dtype
-        dtype('int32')
-        >>> print(d.array)
-        [1 2 3]
-
-        """
-        # REVIEW: getitem: `dtype`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        return dx.dtype
-
-    @dtype.setter
-    def dtype(self, value):
-        # Only change the datatype if it's different to that of the
-        # dask array
-        if self.dtype != value:
-            dx = self.to_dask_array()
-            dx = dx.astype(value)
-            self._set_dask(dx)
-
-    @property
     def fill_value(self):
         """The data array missing data value.
 
@@ -3795,59 +3494,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
     @fill_value.deleter
     def fill_value(self):
         self.del_fill_value(None)
-
-    @property
-    def hardmask(self):
-        """Hardness of the mask.
-
-        If the `hardmask` attribute is `True`, i.e. there is a hard
-        mask, then unmasking an entry will silently not occur. This is
-        the default, and prevents overwriting the mask.
-
-        If the `hardmask` attribute is `False`, i.e. there is a soft
-        mask, then masked entries may be overwritten with non-missing
-        values.
-
-        .. note:: Setting the `hardmask` attribute does not
-                  immediately change the mask hardness, rather its
-                  value indicates to other methods (such as `where`,
-                  `transpose`, etc.) whether or not the mask needs
-                  hardening or softening prior to an operation being
-                  defined, and those methods will reset the mask
-                  hardness if required.
-
-                  By contrast, the `harden_mask` and `soften_mask`
-                  methods immediately reset the mask hardness of the
-                  underlying `dask` array, and also set the value of
-                  the `hardmask` attribute.
-
-        .. seealso:: `harden_mask`, `soften_mask`, `to_dask_array`,
-                     `where`, `__setitem__`
-
-        **Examples**
-
-        >>> d = cf.Data([1, 2, 3])
-        >>> d.hardmask
-        True
-        >>> d[0] = cf.masked
-        >>> print(d.array)
-        [-- 2 3]
-        >>> d[...] = 999
-        >>> print(d.array)
-        [-- 999 999]
-        >>> d.hardmask = False
-        >>> d.hardmask
-        False
-        >>> d[...] = -1
-        >>> print(d.array)
-        [-1 -1 -1]
-
-        """
-        return self._custom.get("hardmask", _DEFAULT_HARDMASK)
-
-    @hardmask.setter
-    def hardmask(self, value):
-        self._custom["hardmask"] = value
 
     @property
     def is_masked(self):
@@ -3885,206 +3531,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         )
 
         return bool(dx.any())
-
-    @property
-    def nbytes(self):
-        """Total number of bytes consumed by the elements of the array.
-
-        Does not include bytes consumed by the array mask
-
-        **Performance**
-
-        If the number of bytes is unknown then it is calculated
-        immediately by executing all delayed operations.
-
-        **Examples**
-
-        >>> d = cf.Data([[1, 1.5, 2]])
-        >>> d.dtype
-        dtype('float64')
-        >>> d.size, d.dtype.itemsize
-        (3, 8)
-        >>> d.nbytes
-        24
-        >>> d[0] = cf.masked
-        >>> print(d.array)
-        [[-- 1.5 2.0]]
-        >>> d.nbytes
-        24
-
-        """
-        # REVIEW: getitem: `nbytes`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        if math.isnan(dx.size):
-            logger.debug("Computing data nbytes: Performance may be degraded")
-            dx.compute_chunk_sizes()
-
-        return dx.nbytes
-
-    @property
-    def ndim(self):
-        """Number of dimensions in the data array.
-
-        **Examples**
-
-        >>> d = cf.Data([[1, 2, 3], [4, 5, 6]])
-        >>> d.ndim
-        2
-
-        >>> d = cf.Data([[1, 2, 3]])
-        >>> d.ndim
-        2
-
-        >>> d = cf.Data([[3]])
-        >>> d.ndim
-        2
-
-        >>> d = cf.Data([3])
-        >>> d.ndim
-        1
-
-        >>> d = cf.Data(3)
-        >>> d.ndim
-        0
-
-        """
-        # REVIEW: getitem: `ndim`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        return dx.ndim
-
-    @property
-    def npartitions(self):
-        """The total number of chunks.
-
-        .. versionadded:: 3.14.0
-
-        .. seealso:: `chunks`, `numblocks`, `rechunk`
-
-        **Examples**
-
-        >>> d = cf.Data.ones((6, 5), chunks=(2, 4))
-        >>> d.chunks
-        ((2, 2, 2), (4, 1))
-        >>> d.numblocks
-        (3, 2)
-        >>> d.npartitions
-        6
-
-        """
-        # REVIEW: getitem: `npartitions`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        return self.to_dask_array(asanyarray=False).npartitions
-
-    @property
-    def numblocks(self):
-        """The number of chunks along each dimension.
-
-        .. versionadded:: 3.14.0
-
-        .. seealso:: `chunks`, `npartitions`, `rechunk`
-
-        **Examples**
-
-        >>> d = cf.Data.ones((6, 5), chunks=(2, 4))
-        >>> d.chunks
-        ((2, 2, 2), (4, 1))
-        >>> d.numblocks
-        (3, 2)
-        >>> d.npartitions
-        6
-
-        """
-        # REVIEW: getitem: `numblocks` set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        return self.to_dask_array(asanyarray=False).numblocks
-
-    @property
-    def shape(self):
-        """Tuple of the data array's dimension sizes.
-
-        **Performance**
-
-        If the shape of the data is unknown then it is calculated
-        immediately by executing all delayed operations.
-
-        **Examples**
-
-        >>> d = cf.Data([[1, 2, 3], [4, 5, 6]])
-        >>> d.shape
-        (2, 3)
-
-        >>> d = cf.Data([[1, 2, 3]])
-        >>> d.shape
-        (1, 3)
-
-        >>> d = cf.Data([[3]])
-        >>> d.shape
-        (1, 1)
-
-        >>> d = cf.Data(3)
-        >>> d.shape
-        ()
-
-        """
-        # REVIEW: getitem: `shape`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        if math.isnan(dx.size):
-            logger.debug("Computing data shape: Performance may be degraded")
-            dx.compute_chunk_sizes()
-
-        return dx.shape
-
-    @property
-    def size(self):
-        """Number of elements in the data array.
-
-        **Performance**
-
-        If the size of the data is unknown then it is calculated
-        immediately by executing all delayed operations.
-
-        **Examples**
-
-        >>> d = cf.Data([[1, 2, 3], [4, 5, 6]])
-        >>> d.size
-        6
-
-        >>> d = cf.Data([[1, 2, 3]])
-        >>> d.size
-        3
-
-        >>> d = cf.Data([[3]])
-        >>> d.size
-        1
-
-        >>> d = cf.Data([3])
-        >>> d.size
-        1
-
-        >>> d = cf.Data(3)
-        >>> d.size
-        1
-
-        """
-        # REVIEW: getitem: `size` set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        size = dx.size
-        if math.isnan(size):
-            logger.debug("Computing data size: Performance may be degraded")
-            dx.compute_chunk_sizes()
-            size = dx.size
-
-        return size
 
     @_inplace_enabled(default=False)
     def arctan(self, inplace=False):
@@ -4742,7 +4188,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             # By default, set the target units to "days since
             # <reference time of units0>, calendar=<calendar of
             # units0>"
-            units = Units(
+            units = self._Units_class(
                 "days since " + units0.units.split(" since ")[1],
                 calendar=units0._calendar,
             )
@@ -4754,22 +4200,22 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         units0_since_reftime = units0._units_since_reftime
         if units0_since_reftime in _month_units:
             if calendar_months:
-                units0 = Units(
+                units0 = self._Units_class(
                     "calendar_" + units0.units, calendar=units0._calendar
                 )
             else:
-                units0 = Units(
+                units0 = self._Units_class(
                     "days since " + units0.units.split(" since ")[1],
                     calendar=units0._calendar,
                 )
                 d.Units = units0
         elif units0_since_reftime in _year_units:
             if calendar_years:
-                units0 = Units(
+                units0 = self._Units_class(
                     "calendar_" + units0.units, calendar=units0._calendar
                 )
             else:
-                units0 = Units(
+                units0 = self._Units_class(
                     "days since " + units0.units.split(" since ")[1],
                     calendar=units0._calendar,
                 )
@@ -4865,103 +4311,11 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             units._canonical_calendar,
         )
 
-    def get_units(self, default=ValueError()):
-        """Return the units.
-
-        .. seealso:: `del_units`, `set_units`
-
-        :Parameters:
-
-            default: optional
-                Return the value of the *default* parameter if the units
-                have not been set. If set to an `Exception` instance then
-                it will be raised instead.
-
-        :Returns:
-
-                The units.
-
-        **Examples**
-
-        >>> d.set_units('metres')
-        >>> d.get_units()
-        'metres'
-        >>> d.del_units()
-        >>> d.get_units()
-        ValueError: Can't get non-existent units
-        >>> print(d.get_units(None))
-        None
-
-        """
-        try:
-            return self.Units.units
-        except AttributeError:
-            return super().get_units(default=default)
-
-    def get_calendar(self, default=ValueError()):
-        """Return the calendar.
-
-        .. seealso:: `del_calendar`, `set_calendar`
-
-        :Parameters:
-
-            default: optional
-                Return the value of the *default* parameter if the
-                calendar has not been set. If set to an `Exception`
-                instance then it will be raised instead.
-
-        :Returns:
-
-                The calendar.
-
-        **Examples**
-
-        >>> d.set_calendar('julian')
-        >>> d.get_calendar
-        'metres'
-        >>> d.del_calendar()
-        >>> d.get_calendar()
-        ValueError: Can't get non-existent calendar
-        >>> print(d.get_calendar(None))
-        None
-
-        """
-        try:
-            return self.Units.calendar
-        except (AttributeError, KeyError):
-            return super().get_calendar(default=default)
-
-    def set_calendar(self, calendar):
-        """Set the calendar.
-
-        .. seealso:: `override_calendar`, `override_units`,
-                     `del_calendar`, `get_calendar`
-
-        :Parameters:
-
-            value: `str`
-                The new calendar.
-
-        :Returns:
-
-            `None`
-
-        **Examples**
-
-        >>> d.set_calendar('none')
-        >>> d.get_calendar
-        'none'
-        >>> d.del_calendar()
-        >>> d.get_calendar()
-        ValueError: Can't get non-existent calendar
-        >>> print(d.get_calendar(None))
-        None
-
-        """
-        self.Units = Units(self.get_units(default=None), calendar)
-
     def add_file_location(self, location):
         """Add a new file location in-place.
+
+        Deprecated at version NEXTVERSION. Use the
+        `add_file_directory` method instead.
 
         All data definitions that reference files are additionally
         referenced from the given location.
@@ -4987,60 +4341,13 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         '/data/model'
 
         """
-        location = abspath(location).rstrip(sep)
-
-        updated = False
-
-        # REVIEW: getitem: `add_file_location`: set 'asanyarray'
-        # The dask graph is never going to be computed, so we can set
-        # 'asanyarray=False'.
-        dsk = self.todict(asanyarray=False)
-        for key, a in dsk.items():
-            try:
-                dsk[key] = a.add_file_location(location)
-            except AttributeError:
-                # This chunk doesn't contain a file array
-                continue
-
-            # This chunk contains a file array and the dask graph has
-            # been updated
-            updated = True
-
-        if updated:
-            dx = self.to_dask_array(asanyarray=False)
-            dx = da.Array(dsk, dx.name, dx.chunks, dx.dtype, dx._meta)
-            self._set_dask(dx, clear=_NONE, asanyarray=None)
-
-        return location
-
-    def set_units(self, value):
-        """Set the units.
-
-        .. seealso:: `override_units`, `del_units`, `get_units`,
-                     `has_units`, `Units`
-
-        :Parameters:
-
-            value: `str`
-                The new units.
-
-        :Returns:
-
-            `None`
-
-        **Examples**
-
-        >>> d.set_units('watt')
-        >>> d.get_units()
-        'watt'
-        >>> d.del_units()
-        >>> d.get_units()
-        ValueError: Can't get non-existent units
-        >>> print(d.get_units(None))
-        None
-
-        """
-        self.Units = Units(value, self.get_calendar(default=None))
+        _DEPRECATION_ERROR_METHOD(
+            self,
+            'add_file_location',
+            message="Use the 'add_file_directory' method instead.",
+            version="NEXTVERSION",
+            removed_at="TODODATA"
+        )
 
     @_inplace_enabled(default=False)
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
@@ -5223,7 +4530,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         >>> d[1, 1] = cf.masked
         >>> print(d.array)
         [[0 1 2]
-         [3 -- 5]
+         [3 -- 5]g
          [6 7 8]
          [9 10 11]]
         >>> d.min()
@@ -5709,7 +5016,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         if units is not None:
             # Convert the limits to the same units as the data array
-            units = Units(units)
+            units = self._Units_class(units)
             self_units = self.Units
             if self_units != units:
                 a_min = Units.conform(np.asanyarray(a_min), units, self_units)
@@ -6246,93 +5553,8 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         return YMDhms(self, "second")
 
-    @property
-    def sparse_array(self):
-        """Return an independent `scipy` sparse array of the data.
-
-        In-place changes to the returned sparse array do not affect
-        the underlying dask array.
-
-        An `AttributeError` is raised if a sparse array representation
-        is not available.
-
-        **Performance**
-
-        `sparse_array` causes all delayed operations to be
-        computed. The returned sparse array is a deep copy of that
-        returned by created `compute`.
-
-        .. versionadded:: 3.16.0
-
-        .. seealso:: `array`
-
-        :Returns:
-
-                An independent `scipy` sparse array of the data.
-
-        **Examples**
-
-        >>> from scipy.sparse import issparse
-        >>> issparse(d.sparse_array)
-        True
-
-        """
-        array = self.compute()
-        if issparse(array):
-            return array.copy()
-
-        raise AttributeError(
-            "A sparse array representation of the data is not available"
-        )
-
     @_inplace_enabled(default=False)
-    def uncompress(self, inplace=False):
-        """Uncompress the data.
-
-        Only affects data that is compressed by convention, i.e.
-
-          * Ragged arrays for discrete sampling geometries (DSG) and
-            simple geometry cell definitions.
-
-          * Compression by gathering.
-
-          * Compression by coordinate subsampling.
-
-        Data that is already uncompressed is returned
-        unchanged. Whether the data is compressed or not does not
-        alter its functionality nor external appearance, but may
-        affect how the data are written to a dataset on disk.
-
-        .. versionadded:: 3.0.6
-
-        .. seealso:: `array`, `compressed_array`, `source`
-
-        :Parameters:
-
-            {{inplace: `bool`, optional}}
-
-        :Returns:
-
-            `Data` or `None`
-                The uncompressed data, or `None` if the operation was
-                in-place.
-
-        **Examples**
-
-        >>> d.get_compression_type()
-        'ragged contiguous'
-        >>> d.uncompress()
-        >>> d.get_compression_type()
-        ''
-
-        """
-        d = _inplace_enabled_define_and_cleanup(self)
-        if d.get_compression_type():
-            d._del_Array(None)
-
-        return d
-
-    def unique(self, split_every=None):
+    def unique(self, split_every=None, inplace=False):
         """The unique elements of the data.
 
         Returns the sorted unique elements of the array.
@@ -6341,10 +5563,13 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
             {{split_every: `int` or `dict`, optional}}
 
+            {{inplace: `bool`, optional}}
+
         :Returns:
 
-            `Data`
-                The unique values in a 1-d array.
+            `Data` or `None`
+                The unique values in a 1-d array, or `None` if the
+                operation was in-place.
 
         **Examples**
 
@@ -6366,8 +5591,8 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         [1 2 3 --]
 
         """
-        d = self.copy()
-
+        d = _inplace_enabled_define_and_cleanup(self)
+      
         # Soften the hardmask so that the result doesn't contain a
         # seperate missing value for each input chunk that contains
         # missing values. For any number greater than 0 of missing
@@ -6375,16 +5600,13 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         # in the result.
         d.soften_mask()
 
-        # REVIEW: getitem: `unique`: set 'asanyarray'
         # The applicable chunk function will have its own call to
         # 'cf_asanyarray', so we can set 'asanyarray=False'.
         dx = d.to_dask_array(asanyarray=False)
         dx = Collapse().unique(dx, split_every=split_every)
-
         d._set_dask(dx)
 
-        d.hardmask = _DEFAULT_HARDMASK
-
+        d.hardmask = self._DEFAULT_HARDMASK
         return d
 
     @_display_or_return
@@ -6462,194 +5684,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         """
         return product(*[range(0, r) for r in self.shape])
 
-    @_deprecated_kwarg_check("traceback", version="3.0.0", removed_at="4.0.0")
-    @_manage_log_level_via_verbosity
-    def equals(
-        self,
-        other,
-        rtol=None,
-        atol=None,
-        ignore_fill_value=False,
-        ignore_data_type=False,
-        ignore_type=False,
-        verbose=None,
-        traceback=False,
-        ignore_compression=False,
-    ):
-        """True if two data arrays are logically equal, False otherwise.
-
-        {{equals tolerance}}
-
-        :Parameters:
-
-            other:
-                The object to compare for equality.
-
-            {{rtol: number, optional}}
-
-            {{atol: number, optional}}
-
-            ignore_fill_value: `bool`, optional
-                If True then data arrays with different fill values are
-                considered equal. By default they are considered unequal.
-
-            {{ignore_data_type: `bool`, optional}}
-
-            {{ignore_type: `bool`, optional}}
-
-            {{verbose: `int` or `str` or `None`, optional}}
-
-            traceback: deprecated at version 3.0.0
-                Use the *verbose* parameter instead.
-
-            {{ignore_compression: `bool`, optional}}
-
-        :Returns:
-
-            `bool`
-                Whether or not the two instances are equal.
-
-        **Examples**
-
-        >>> d.equals(d)
-        True
-        >>> d.equals(d + 1)
-        False
-
-        """
-        # Set default tolerances
-        if rtol is None:
-            rtol = self._rtol
-
-        if atol is None:
-            atol = self._atol
-
-        if not super().equals(
-            other,
-            rtol=rtol,
-            atol=atol,
-            verbose=verbose,
-            ignore_data_type=ignore_data_type,
-            ignore_fill_value=ignore_fill_value,
-            ignore_type=ignore_type,
-            _check_values=False,
-        ):
-            # TODODASK: consistency with cfdm Data.equals needs to be verified
-            # possibly via a follow-up PR to cfdm to implement any changes.
-            return False
-
-        # ------------------------------------------------------------
-        # Check that each instance has equal array values
-        # ------------------------------------------------------------
-        self_dx = self.to_dask_array()
-        other_dx = other.to_dask_array()
-
-        # Check that each instance has the same units. Do this before
-        # any other possible short circuits.
-        self_Units = self.Units
-        other_Units = other.Units
-        if self_Units != other_Units:
-            if is_log_level_info(logger):
-                logger.info(
-                    f"{self.__class__.__name__}: Different Units "
-                    f"({self_Units!r}, {other_Units!r})"
-                )
-
-            return False
-
-        rtol = float(rtol)
-        atol = float(atol)
-
-        # Return False if there are different cached elements. This
-        # provides a possible short circuit for that case that two
-        # arrays are not equal (but not in the case that they are).
-        cache0 = self._get_cached_elements()
-        if cache0:
-            cache1 = other._get_cached_elements()
-            if cache1 and sorted(cache0) == sorted(cache1):
-                a = []
-                b = []
-                for key, value0 in cache0.items():
-                    value1 = cache1[key]
-                    if value0 is np.ma.masked or value1 is np.ma.masked:
-                        # Don't test on masked values - this logic is
-                        # determined elsewhere.
-                        continue
-
-                    # Make sure strings are unicode
-                    try:
-                        value0 = value0.decode()
-                        value1 = value1.decode()
-                    except AttributeError:
-                        pass
-
-                    a.append(value0)
-                    b.append(value1)
-
-                if a and not _numpy_allclose(a, b, rtol=rtol, atol=atol):
-                    if is_log_level_info(logger):
-                        logger.info(
-                            f"{self.__class__.__name__}: Different array "
-                            f"values (atol={atol}, rtol={rtol})"
-                        )
-
-                    return False
-
-        # Now check that corresponding elements are equal within a tolerance.
-        # We assume that all inputs are masked arrays. Note we compare the
-        # data first as this may return False due to different dtype without
-        # having to wait until the compute call.
-        self_is_numeric = is_numeric_dtype(self_dx)
-        other_is_numeric = is_numeric_dtype(other_dx)
-        if self_is_numeric and other_is_numeric:
-            data_comparison = _da_ma_allclose(
-                self_dx,
-                other_dx,
-                masked_equal=True,
-                rtol=rtol,
-                atol=atol,
-            )
-        elif not self_is_numeric and not other_is_numeric:
-            # If the array (say d) is fully masked, then the output of
-            # np.all(d == d) and therefore da.all(d == d) will be a
-            # np.ma.masked object which has dtype('float64'), and not
-            # a Boolean, causing issues later. To ensure data_comparison
-            # is Boolean, we must do an early compute to check if it is
-            # a masked object and if so, force the desired result (True).
-            #
-            # This early compute won't degrade performance because it
-            # would be performed towards result.compute() below anyway.
-            data_comparison = da.all(self_dx == other_dx).compute()
-            if data_comparison is np.ma.masked:
-                data_comparison = True
-
-        else:  # one is numeric and other isn't => not equal (incompat. dtype)
-            if is_log_level_info(logger):
-                logger.info(
-                    f"{self.__class__.__name__}: Different data types:"
-                    f"{self_dx.dtype} != {other_dx.dtype}"
-                )
-
-            return False
-
-        mask_comparison = da.all(
-            da.equal(da.ma.getmaskarray(self_dx), da.ma.getmaskarray(other_dx))
-        )
-
-        # Apply a (dask) logical 'and' to confirm if both the mask and the
-        # data are equal for the pair of masked arrays:
-        result = da.logical_and(data_comparison, mask_comparison)
-        if not result.compute():
-            if is_log_level_info(logger):
-                logger.info(
-                    f"{self.__class__.__name__}: Different array values ("
-                    f"atol={atol}, rtol={rtol})"
-                )
-
-            return False
-        else:
-            return True
-
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
     @_inplace_enabled(default=False)
     def exp(self, inplace=False, i=False):
@@ -6683,63 +5717,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         dx = d.to_dask_array()
         dx = da.exp(dx)
         d._set_dask(dx)
-
-        return d
-
-    @_inplace_enabled(default=False)
-    def insert_dimension(self, position=0, inplace=False):
-        """Expand the shape of the data array in place.
-
-        .. seealso:: `flip`, `squeeze`, `swapaxes`, `transpose`
-
-        :Parameters:
-
-            position: `int`, optional
-                Specify the position that the new axis will have in the data
-                array axes. By default the new axis has position 0, the
-                slowest varying position.
-
-            {{inplace: `bool`, optional}}
-
-        :Returns:
-
-            `Data` or `None`
-
-        **Examples**
-
-        """
-        # TODODASKAPI bring back expand_dims alias (or rather alias this to
-        # that)
-
-        d = _inplace_enabled_define_and_cleanup(self)
-
-        # Parse position
-        if not isinstance(position, int):
-            raise ValueError("Position parameter must be an integer")
-
-        ndim = d.ndim
-        if -ndim - 1 <= position < 0:
-            position += ndim + 1
-        elif not 0 <= position <= ndim:
-            raise ValueError(
-                f"Can't insert dimension: Invalid position {position!r}"
-            )
-
-        shape = list(d.shape)
-        shape.insert(position, 1)
-
-        dx = d.to_dask_array()
-        dx = dx.reshape(shape)
-
-        # Inserting a dimension doesn't affect the cached elements nor
-        # the CFA write status
-        d._set_dask(dx, clear=_ALL ^ _CACHE ^ _CFA)
-
-        # Expand _axes
-        axis = new_axis_identifier(d._axes)
-        data_axes = list(d._axes)
-        data_axes.insert(position, axis)
-        d._axes = data_axes
 
         return d
 
@@ -7089,74 +6066,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         return d
 
-    def harden_mask(self):
-        """Force the mask to hard.
-
-        Whether the mask of a masked array is hard or soft is
-        determined by its `hardmask` property. `harden_mask` sets
-        `hardmask` to `True`.
-
-        .. versionadded:: 3.14.0
-
-        .. seealso:: `hardmask`, `soften_mask`
-
-        **Examples**
-
-        >>> d = cf.Data([1, 2, 3], hardmask=False)
-        >>> d.hardmask
-        False
-        >>> d.harden_mask()
-        >>> d.hardmask
-        True
-
-        >>> d = cf.Data([1, 2, 3], mask=[False, True, False])
-        >>> d.hardmask
-        True
-        >>> d[1] = 999
-        >>> print(d.array)
-        [1 -- 3]
-
-        """
-        # REVIEW: getitem: `hardmask`: set 'asanyarray'
-        # 'cf_harden_mask' has its own call to 'cf_asanyarray', so we
-        # can set 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        dx = dx.map_blocks(cf_harden_mask, dtype=self.dtype)
-        self._set_dask(dx, clear=_NONE)
-        self.hardmask = True
-
-    def has_calendar(self):
-        """Whether a calendar has been set.
-
-        .. seealso:: `del_calendar`, `get_calendar`, `set_calendar`,
-                     `has_units`, `Units`
-
-        :Returns:
-
-            `bool`
-                True if the calendar has been set, otherwise False.
-
-        **Examples**
-
-        >>> d = cf.Data(1, "days since 2000-1-1", calendar="noleap")
-        >>> d.has_calendar()
-        True
-
-        >>> d = cf.Data(1, calendar="noleap")
-        >>> d.has_calendar()
-        True
-
-        >>> d = cf.Data(1, "days since 2000-1-1")
-        >>> d.has_calendar()
-        False
-
-        >>> d = cf.Data(1, "m")
-        >>> d.has_calendar()
-        False
-
-        """
-        return hasattr(self.Units, "calendar")
-
     def has_deterministic_name(self):
         """Whether there is a deterministic name for the data.
 
@@ -7179,74 +6088,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         """
         return self._custom["deterministic"]
-
-    def has_units(self):
-        """Whether units have been set.
-
-        .. seealso:: `del_units`, `get_units`, `set_units`,
-                     `has_calendar`, `Units`
-
-        :Returns:
-
-            `bool`
-                True if units have been set, otherwise False.
-
-        **Examples**
-
-        >>> d = cf.Data(1, "")
-        >>> d.has_units()
-        True
-
-        >>> d = cf.Data(1, "m")
-        >>> d.has_units()
-        True
-
-        >>> d = cf.Data(1)
-        >>> d.has_units()
-        False
-
-        >>> d = cf.Data(1, calendar='noleap')
-        >>> d.has_units()
-        False
-
-        """
-        return hasattr(self.Units, "units")
-
-    def soften_mask(self):
-        """Force the mask to soft.
-
-        Whether the mask of a masked array is hard or soft is
-        determined by its `hardmask` property. `soften_mask` sets
-        `hardmask` to `False`.
-
-        .. versionadded:: 3.14.0
-
-        .. seealso:: `hardmask`, `harden_mask`
-
-        **Examples**
-
-        >>> d = cf.Data([1, 2, 3])
-        >>> d.hardmask
-        True
-        >>> d.soften_mask()
-        >>> d.hardmask
-        False
-
-        >>> d = cf.Data([1, 2, 3], mask=[False, True, False], hardmask=False)
-        >>> d.hardmask
-        False
-        >>> d[1] = 999
-        >>> print(d.array)
-        [  1 999   3]
-
-        """
-        # REVIEW: getitem: `soften_mask`: set 'asanyarray'
-        # 'cf_soften_mask' has its own call to 'cf_asanyarray', so we
-        # can set 'asanyarray=False'.
-        dx = self.to_dask_array(asanyarray=False)
-        dx = dx.map_blocks(cf_soften_mask, dtype=self.dtype)
-        self._set_dask(dx, clear=_NONE)
-        self.hardmask = False
 
     def file_locations(self):
         """The locations of files containing parts of the data.
@@ -7283,191 +6124,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                 pass
 
         return out
-
-    @_inplace_enabled(default=False)
-    def filled(self, fill_value=None, inplace=False):
-        """Replace masked elements with a fill value.
-
-        .. versionadded:: 3.4.0
-
-        :Parameters:
-
-            fill_value: scalar, optional
-                The fill value. By default the fill returned by
-                `get_fill_value` is used, or if this is not set then the
-                netCDF default fill value for the data type is used (as
-                defined by `netCDF.fillvals`).
-
-            {{inplace: `bool`, optional}}
-
-        :Returns:
-
-            `Data` or `None`
-                The filled data, or `None` if the operation was in-place.
-
-        **Examples**
-
-        >>> d = cf.Data([[1, 2, 3]])
-        >>> print(d.filled().array)
-        [[1 2 3]]
-        >>> d[0, 0] = cf.masked
-        >>> print(d.filled().array)
-        [-9223372036854775806                    2                    3]
-        >>> d.set_fill_value(-99)
-        >>> print(d.filled().array)
-        [[-99   2   3]]
-
-        """
-        d = _inplace_enabled_define_and_cleanup(self)
-
-        if fill_value is None:
-            fill_value = d.get_fill_value(None)
-            if fill_value is None:  # still...
-                fill_value = default_netCDF_fillvals().get(d.dtype.str[1:])
-                if fill_value is None and d.dtype.kind in ("SU"):
-                    fill_value = default_netCDF_fillvals().get("S1", None)
-
-                if fill_value is None:
-                    raise ValueError(
-                        "Can't determine fill value for "
-                        f"data type {d.dtype.str!r}"
-                    )
-
-        # REVIEW: getitem: `filled`: set 'asanyarray'
-        # 'cf_filled' has its own call to 'cf_asanyarray', so we can
-        # set 'asanyarray=False'.
-        dx = d.to_dask_array(asanyarray=False)
-        dx = dx.map_blocks(cf_filled, fill_value=fill_value, dtype=d.dtype)
-        d._set_dask(dx)
-
-        return d
-
-    def first_element(self):
-        """Return the first element of the data as a scalar.
-
-        .. seealso:: `last_element`, `second_element`
-
-        **Performance**
-
-        If possible, a cached value is returned. Otherwise the delayed
-        operations needed to compute the element are executed, and
-        cached for subsequent calls.
-
-        :Returns:
-
-                The first element of the data.
-
-        **Examples**
-
-        >>> d = {{package}}.{{class}}(9.0)
-        >>> x = d.first_element()
-        >>> print(x, type(x))
-        9.0 <class 'float'>
-
-        >>> d = {{package}}.{{class}}([[1, 2], [3, 4]])
-        >>> x = d.first_element()
-        >>> print(x, type(x))
-        1 <class 'int'>
-        >>> d[0, 0] = {{package}}.masked
-        >>> y = d.first_element()
-        >>> print(y, type(y))
-        -- <class 'numpy.ma.core.MaskedConstant'>
-
-        >>> d = {{package}}.{{class}}(['foo', 'bar'])
-        >>> x = d.first_element()
-        >>> print(x, type(x))
-        foo <class 'str'>
-
-        """
-        try:
-            return self._custom["cached_elements"][0]
-        except KeyError:
-            item = super().first_element()
-            self._set_cached_elements({0: item})
-            return item
-
-    def second_element(self):
-        """Return the second element of the data as a scalar.
-
-        .. seealso:: `first_element`, `last_element`
-
-        **Performance**
-
-        If possible, a cached value is returned. Otherwise the delayed
-        operations needed to compute the element are executed, and
-        cached for subsequent calls.
-
-        :Returns:
-
-                The second element of the data.
-
-        **Examples**
-
-        >>> d = {{package}}.{{class}}([[1, 2], [3, 4]])
-        >>> x = d.second_element()
-        >>> print(x, type(x))
-        2 <class 'int'>
-        >>> d[0, 1] = {{package}}.masked
-        >>> y = d.second_element()
-        >>> print(y, type(y))
-        -- <class 'numpy.ma.core.MaskedConstant'>
-
-        >>> d = {{package}}.{{class}}(['foo', 'bar'])
-        >>> x = d.second_element()
-        >>> print(x, type(x))
-        bar <class 'str'>
-
-        """
-        try:
-            return self._custom["cached_elements"][1]
-        except KeyError:
-            item = super().second_element()
-            self._set_cached_elements({1: item})
-            return item
-
-    def last_element(self):
-        """Return the last element of the data as a scalar.
-
-        .. seealso:: `first_element`, `second_element`
-
-        **Performance**
-
-        If possible, a cached value is returned. Otherwise the delayed
-        operations needed to compute the element are executed, and
-        cached for subsequent calls.
-
-        :Returns:
-
-                The last element of the data.
-
-        **Examples**
-
-        >>> d = {{package}}.{{class}}(9.0)
-        >>> x = d.last_element()
-        >>> print(x, type(x))
-        9.0 <class 'float'>
-
-        >>> d = {{package}}.{{class}}([[1, 2], [3, 4]])
-        >>> x = d.last_element()
-        >>> print(x, type(x))
-        4 <class 'int'>
-        >>> d[-1, -1] = {{package}}.masked
-        >>> y = d.last_element()
-        >>> print(y, type(y))
-        -- <class 'numpy.ma.core.MaskedConstant'>
-
-        >>> d = {{package}}.{{class}}(['foo', 'bar'])
-        >>> x = d.last_element()
-        >>> print(x, type(x))
-        bar <class 'str'>
-
-        """
-        try:
-            return self._custom["cached_elements"][-1]
-        except KeyError:
-            item = super().last_element()
-            self._set_cached_elements({-1: item})
-            return item
 
     def flat(self, ignore_masked=True):
         """Return a flat iterator over elements of the data array.
@@ -7517,137 +6173,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
                     yield self[index].array.item()
                 else:
                     yield cf_masked
-
-    @_inplace_enabled(default=False)
-    def flatten(self, axes=None, inplace=False):
-        """Flatten specified axes of the data.
-
-        Any subset of the axes may be flattened.
-
-        The shape of the data may change, but the size will not.
-
-        The flattening is executed in row-major (C-style) order. For
-        example, the array ``[[1, 2], [3, 4]]`` would be flattened across
-        both dimensions to ``[1 2 3 4]``.
-
-        .. versionadded:: 3.0.2
-
-        .. seealso:: `compressed`, `flat`, `insert_dimension`, `flip`,
-                     `swapaxes`, `transpose`
-
-        :Parameters:
-
-            axes: (sequence of) `int`
-                Select the axes to be flattened. By default all axes
-                are flattened. Each axis is identified by its integer
-                position. No axes are flattened if *axes* is an empty
-                sequence.
-
-            {{inplace: `bool`, optional}}
-
-        :Returns:
-
-            `Data` or `None`
-                The flattened data, or `None` if the operation was
-                in-place.
-
-        **Examples**
-
-        >>> import numpy as np
-        >>> d = cf.Data(np.arange(24).reshape(1, 2, 3, 4))
-        >>> d
-        <CF Data(1, 2, 3, 4): [[[[0, ..., 23]]]]>
-        >>> print(d.array)
-        [[[[ 0  1  2  3]
-           [ 4  5  6  7]
-           [ 8  9 10 11]]
-          [[12 13 14 15]
-           [16 17 18 19]
-           [20 21 22 23]]]]
-
-        >>> e = d.flatten()
-        >>> e
-        <CF Data(24): [0, ..., 23]>
-        >>> print(e.array)
-        [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23]
-
-        >>> e = d.flatten([])
-        >>> e
-        <CF Data(1, 2, 3, 4): [[[[0, ..., 23]]]]>
-
-        >>> e = d.flatten([1, 3])
-        >>> e
-        <CF Data(1, 8, 3): [[[0, ..., 23]]]>
-        >>> print(e.array)
-        [[[ 0  4  8]
-          [ 1  5  9]
-          [ 2  6 10]
-          [ 3  7 11]
-          [12 16 20]
-          [13 17 21]
-          [14 18 22]
-          [15 19 23]]]
-
-        >>> d.flatten([0, -1], inplace=True)
-        >>> d
-        <CF Data(4, 2, 3): [[[0, ..., 23]]]>
-        >>> print(d.array)
-        [[[ 0  4  8]
-          [12 16 20]]
-         [[ 1  5  9]
-          [13 17 21]]
-         [[ 2  6 10]
-          [14 18 22]]
-         [[ 3  7 11]
-          [15 19 23]]]
-
-        """
-        d = _inplace_enabled_define_and_cleanup(self)
-
-        ndim = d.ndim
-        if not ndim:
-            if axes or axes == 0:
-                raise ValueError(
-                    "Can't flatten: Can't remove axes from "
-                    f"scalar {self.__class__.__name__}"
-                )
-
-            return d
-
-        if axes is None:
-            axes = list(range(ndim))
-        else:
-            axes = sorted(d._parse_axes(axes))
-
-        n_axes = len(axes)
-        if n_axes <= 1:
-            return d
-
-        dx = d.to_dask_array()
-
-        # It is important that the first axis in the list is the
-        # left-most flattened axis.
-        #
-        # E.g. if the shape is (10, 20, 30, 40, 50, 60) and the axes
-        #      to be flattened are [2, 4], then the data must be
-        #      transposed with order [0, 1, 2, 4, 3, 5]
-        order = [i for i in range(ndim) if i not in axes]
-        order[axes[0] : axes[0]] = axes
-        dx = dx.transpose(order)
-
-        # Find the flattened shape.
-        #
-        # E.g. if the *transposed* shape is (10, 20, 30, 50, 40, 60)
-        #      and *transposed* axes [2, 3] are to be flattened then
-        #      the new shape will be (10, 20, 1500, 40, 60)
-        shape = d.shape
-        new_shape = [n for i, n in enumerate(shape) if i not in axes]
-        new_shape.insert(axes[0], reduce(mul, [shape[i] for i in axes], 1))
-
-        dx = dx.reshape(new_shape)
-        d._set_dask(dx)
-
-        return d
 
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
     @_inplace_enabled(default=False)
@@ -7839,46 +6364,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         return d
 
-    def chunk_indices(self):
-        """Return indices that define each dask compute chunk.
-
-        .. versionadded:: 3.15.0
-
-        .. seealso:: `chunks`
-
-        :Returns:
-
-            `itertools.product`
-                An iterator over tuples of indices of the data array.
-
-        **Examples**
-
-        >>> d = cf.Data(np.arange(405).reshape(3, 9, 15),
-        ...             chunks=((1, 2), (9,), (4, 5, 6)))
-        >>> d.npartitions
-        6
-        >>> for index in d.chunk_indices():
-        ...     print(index)
-        ...
-        (slice(0, 1, None), slice(0, 9, None), slice(0, 4, None))
-        (slice(0, 1, None), slice(0, 9, None), slice(4, 9, None))
-        (slice(0, 1, None), slice(0, 9, None), slice(9, 15, None))
-        (slice(1, 3, None), slice(0, 9, None), slice(0, 4, None))
-        (slice(1, 3, None), slice(0, 9, None), slice(4, 9, None))
-        (slice(1, 3, None), slice(0, 9, None), slice(9, 15, None))
-
-        """
-        from dask.utils import cached_cumsum
-
-        chunks = self.chunks
-
-        cumdims = [cached_cumsum(bds, initial_zero=True) for bds in chunks]
-        indices = [
-            [slice(s, s + dim) for s, dim in zip(starts, shapes)]
-            for starts, shapes in zip(cumdims, chunks)
-        ]
-        return product(*indices)
-
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
     @_inplace_enabled(default=False)
     def override_units(self, units, inplace=False, i=False):
@@ -7920,7 +6405,7 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         """
         d = _inplace_enabled_define_and_cleanup(self)
-        d._Units = Units(units)
+        d._Units = self._Units_class(units)
         return d
 
     @_deprecated_kwarg_check("i", version="3.0.0", removed_at="4.0.0")
@@ -7962,83 +6447,8 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
 
         """
         d = _inplace_enabled_define_and_cleanup(self)
-        d._Units = Units(d.Units._units, calendar)
+        d._Units = self._Units_class(d.Units._units, calendar)
         return d
-
-    # REVIEW: getitem: `to_dask_array`: new keyword 'asanyarray'
-    def to_dask_array(self, apply_mask_hardness=False, asanyarray=None):
-        """Convert the data to a `dask` array.
-
-        .. warning:: By default, the mask hardness of the returned
-                     dask array might not be the same as that
-                     specified by the `hardmask` attribute.
-
-                     This could cause problems if a subsequent
-                     operation on the returned dask array involves the
-                     un-masking of masked values (such as by indexed
-                     assignment).
-
-                     To guarantee that the mask hardness of the
-                     returned dask array is correct, set the
-                     *apply_mask_hardness* parameter to True.
-
-        .. versionadded:: 3.14.0
-
-        :Parameters:
-
-            apply_mask_hardness: `bool`, optional
-                If True then force the mask hardness of the returned
-                array to be that given by the `hardmask` attribute.
-
-            {{asanyarray: `bool` or `None`, optional}}
-
-                .. versionadded:: NEXTVERSION
-
-        :Returns:
-
-            `dask.array.Array`
-                The dask array contained within the `Data` instance.
-
-        **Examples**
-
-        >>> d = cf.Data([1, 2, 3, 4], 'm')
-        >>> dx = d.to_dask_array()
-        >>> dx
-        >>> dask.array<array, shape=(4,), dtype=int64, chunksize=(4,), chunktype=numpy.ndarray>
-        >>> dask.array.asanyarray(d) is dx
-        True
-
-        >>> d.to_dask_array(apply_mask_hardness=True)
-        dask.array<cf_harden_mask, shape=(4,), dtype=int64, chunksize=(4,), chunktype=numpy.ndarray>
-
-        >>> d = cf.Data([1, 2, 3, 4], 'm', hardmask=False)
-        >>> d.to_dask_array(apply_mask_hardness=True)
-        dask.array<cf_soften_mask, shape=(4,), dtype=int64, chunksize=(4,), chunktype=numpy.ndarray>
-
-        """
-        dx = self._custom.get("dask")
-        if dx is None:
-            raise ValueError(f"{self.__class__.__name__} object has no data")
-
-        if apply_mask_hardness:
-            if self.hardmask:
-                self.harden_mask()
-            else:
-                self.soften_mask()
-
-            dx = self._custom["dask"]
-            # Note: The mask hardness functions have their own calls
-            #       to 'cf_asanyarray', so we can don't need worry about
-            #       setting another one.
-        else:
-            if asanyarray is None:
-                asanyarray = self.__asanyarray__
-
-            if asanyarray:
-                # Add a new cf_asanyarray layer to the output graph
-                dx = dx.map_blocks(cf_asanyarray, dtype=dx.dtype)
-
-        return dx
 
     def datum(self, *index):
         """Return an element of the data array as a standard Python
@@ -8217,55 +6627,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         d._set_dask(dx)
         return d
 
-    def del_calendar(self, default=ValueError()):
-        """Delete the calendar.
-
-        .. seealso:: `get_calendar`, `has_calendar`, `set_calendar`,
-                     `del_units`, `Units`
-
-        :Parameters:
-
-            default: optional
-                Return the value of the *default* parameter if the
-                calendar has not been set. If set to an `Exception`
-                instance then it will be raised instead.
-
-        :Returns:
-
-            `str`
-                The value of the deleted calendar.
-
-        **Examples**
-
-        >>> d = cf.Data(1, "days since 2000-1-1", calendar="noleap")
-        >>> d.del_calendar()
-        'noleap'
-        >>> print(d.del_calendar())
-        None
-
-        >>> d = cf.Data(1, "days since 2000-1-1")
-        >>> print(d.del_calendar())
-        None
-
-        >>> d = cf.Data(1, "m")
-        Traceback (most recent call last):
-            ...
-        ValueError: Units <Units: m> have no calendar
-
-        """
-        units = self.Units
-        if not units.isreftime:
-            return self._default(default, f"Units {units!r} have no calendar")
-
-        calendar = getattr(units, "calendar", None)
-        if calendar is None:
-            return self._default(
-                default, f"{self.__class__.__name__} has no calendar"
-            )
-
-        self.override_calendar(None, inplace=True)
-        return calendar
-
     def del_file_location(self, location):
         """Remove a file location in-place.
 
@@ -8318,55 +6679,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
             self._set_dask(dx, clear=_NONE, asanyarray=None)
 
         return location
-
-    def del_units(self, default=ValueError()):
-        """Delete the units.
-
-        .. seealso:: `get_units`, `has_units`, `set_units`,
-                     `del_calendar`, `Units`
-
-        :Parameters:
-
-            default: optional
-                Return the value of the *default* parameter if the
-                units has not been set. If set to an `Exception`
-                instance then it will be raised instead.
-
-        :Returns:
-
-            `str`
-                The value of the deleted units.
-
-        **Examples**
-
-        >>> d = cf.Data(1, "m")
-        >>> d.del_units()
-        'm'
-        >>> d.Units
-        <Units: >
-        >>> d.del_units()
-        Traceback (most recent call last):
-            ...
-        ValueError: Data has no units
-
-        >>> d = cf.Data(1, "days since 2000-1-1", calendar="noleap")
-        >>> d.del_units()
-        'days since 2000-1-1'
-        >>> d.Units
-        <Units: noleap>
-
-        """
-        u = self.Units
-        units = getattr(u, "units", None)
-        calendar = getattr(u, "calendar", None)
-        self.override_units(Units(None, calendar), inplace=True)
-
-        if units is not None:
-            return units
-
-        return self._default(
-            default, f"{self.__class__.__name__} has no units"
-        )
 
     @classmethod
     def masked_all(
@@ -8429,60 +6741,6 @@ class Data(DataClassDeprecationsMixin, CFANetCDF, Container, cfdm.Data):
         )
         dx = d.to_dask_array()
         dx = dx.map_blocks(partial(np.ma.array, mask=True, copy=False))
-        d._set_dask(dx)
-        return d
-
-    @_inplace_enabled(default=False)
-    def masked_values(self, value, rtol=None, atol=None, inplace=False):
-        """Mask using floating point equality.
-
-        Masks the data where elements are approximately equal to the
-        given value. For integer types, exact equality is used.
-
-        .. versionadded:: 3.16.0
-
-        .. seealso:: `mask`
-
-        :Parameters:
-
-            value: number
-                Masking value.
-
-            {{rtol: number, optional}}
-
-            {{atol: number, optional}}
-
-            {{inplace: `bool`, optional}}
-
-        :Returns:
-
-            `{{class}}` or `None`
-                The result of masking the data where approximately
-                equal to *value*, or `None` if the operation was
-                in-place.
-
-        **Examples**
-
-        >>> d = {{package}}.{{class}}([1, 1.1, 2, 1.1, 3])
-        >>> e = d.masked_values(1.1)
-        >>> print(e.array)
-        [1.0 -- 2.0 -- 3.0]
-
-        """
-        d = _inplace_enabled_define_and_cleanup(self)
-
-        if rtol is None:
-            rtol = self._rtol
-        else:
-            rtol = float(rtol)
-
-        if atol is None:
-            atol = self._atol
-        else:
-            atol = float(atol)
-
-        dx = d.to_dask_array()
-        dx = da.ma.masked_values(dx, value, rtol=rtol, atol=atol)
         d._set_dask(dx)
         return d
 
