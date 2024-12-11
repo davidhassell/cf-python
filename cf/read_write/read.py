@@ -514,7 +514,11 @@ class read(cfdm.read):
         ignore_read_error=False,
         fmt=None,
     ):
-        """Read field or domain constructs from a dataset."""
+        """Read field or domain constructs from datasets.
+
+        .. versionadded:: NEXTVERSION
+
+        """
         if field:
             _DEPRECATION_ERROR_FUNCTION_KWARGS(
                 "cf.read",
@@ -582,66 +586,13 @@ class read(cfdm.read):
                 removed_at="5.0.0",
             )  # pragma: no cover
 
-        info = cfdm.is_log_level_info(logger)
-
-        cls.netcdf = NetCDFRead(cls.implementation)
-        cls.um = UMRead(cls.implementation)
-
-        # ------------------------------------------------------------
-        # Parse the 'select' keyword parameter
-        # ------------------------------------------------------------
-        if isinstance(select, (str, Query, Pattern)):
-            select = (select,)
-
-        # ------------------------------------------------------------
-        # Parse the 'aggregate' keyword parameter
-        # ------------------------------------------------------------
-        if isinstance(aggregate, dict):
-            aggregate_options = aggregate.copy()
-            aggregate = True
-        else:
-            aggregate_options = {}
-
-        aggregate_options["copy"] = False
-
-        # ------------------------------------------------------------
-        # Parse the 'file_type' keyword parameter
-        # ------------------------------------------------------------
-        netCDF_file_types = set(("netCDF", "CDL"))
-        UM_file_types = set(("UM",))
-        if file_type is not None:
-            if isinstance(file_type, str):
-                file_type = (file_type,)
-
-            file_type = set(file_type)
-
-        # ------------------------------------------------------------
-        # Parse the 'um' keyword parameter
-        # ------------------------------------------------------------
-        if not um:
-            um = {}
+        return super().__new__(cls)
 
         # ------------------------------------------------------------
         # Parse the 'cdl_string' keyword parameter
         # ------------------------------------------------------------
         if cdl_string and file_type is not None:
             raise ValueError("Can't set file_type when cdl_string=True")
-
-        # ------------------------------------------------------------
-        # Parse the 'follow_symlinks' and 'recursive' keyword
-        # parameters
-        # ------------------------------------------------------------
-        if follow_symlinks and not recursive:
-            raise ValueError(
-                f"Can't set follow_symlinks={follow_symlinks!r} "
-                f"when recursive={recursive!r}"
-            )
-
-        # Initialise the output list of fields/domains
-        if domain:
-            out = DomainList()
-        else:
-            out = FieldList()
 
         # Count the number of fields (in all files) and the number of
         # files
@@ -657,203 +608,184 @@ class read(cfdm.read):
             ]
             file_type = set(("CDL",))
 
-        for file_glob in flat(files):
-            # Expand variables
-            file_glob = os.path.expanduser(os.path.expandvars(file_glob))
-
-            scheme = urlparse(file_glob).scheme
-            if scheme in ("https", "http", "s3"):
-                # Do not glob a remote URL
-                files2 = (file_glob,)
-            else:
-                # Glob files on disk
-                files2 = glob(file_glob)
-
-                if not files2:
-                    # Trigger a FileNotFoundError error
-                    open(file_glob)
-
-                files3 = []
-                for x in files2:
-                    if isdir(x):
-                        # Walk through directories, possibly recursively
-                        for path, subdirs, filenames in os.walk(
-                            x, followlinks=followlinks
-                        ):
-                            files3.extend(
-                                os.path.join(path, f) for f in filenames
-                            )
-                            if not recursive:
-                                break
-                    else:
-                        files3.append(x)
-
-                files2 = files3
-
-            # The types of all of the input files
-            ftypes = set()
-
-            for filename in files2:
-                if info:
-                    logger.info(f"File: {filename}")  # pragma: no cover
-
-                # ----------------------------------------------------
-                # Read the file
-                # ----------------------------------------------------
-                file_contents = []
-
-                # The type of this file
-                ftype = None
-
-                # Record file type errors
-                file_format_errors = []
-
-                if ftype is None and (
-                    file_type is None
-                    or file_type.intersection(netCDF_file_types)
-                ):
-                    # Try to read as netCDF
-                    try:
-                        file_contents = super().__new__(
-                            cls,
-                            filename=filename,
-                            external=external,
-                            extra=extra,
-                            verbose=verbose,
-                            warnings=warnings,
-                            mask=mask,
-                            unpack=unpack,
-                            warn_valid=warn_valid,
-                            domain=domain,
-                            storage_options=storage_options,
-                            netcdf_backend=netcdf_backend,
-                            dask_chunks=dask_chunks,
-                            store_hdf5_chunks=store_hdf5_chunks,
-                            cache=cache,
-                            cfa=cfa,
-                            cfa_write=cfa_write,
-                            to_memory=to_memory,
-                            squeeze=squeeze,
-                            unsqueeze=unsqueeze,
-                            file_type=file_type,
-                        )
-                    except FileTypeError as error:
-                        if file_type is None:
-                            file_format_errors.append(error)
-                    else:
-                        file_format_errors = []
-                        ftype = "netCDF"
-
-                if ftype is None and (
-                    file_type is None or file_type.intersection(UM_file_types)
-                ):
-                    # Try to read as UM
-                    try:
-                        file_contents = cls.um.read(
-                            filename,
-                            um_version=um.get("version"),
-                            verbose=verbose,
-                            set_standard_name=False,
-                            height_at_top_of_model=height_at_top_of_model,
-                            fmt=um.get("fmt"),
-                            word_size=um.get("word_size"),
-                            endian=um.get("endian"),
-                            select=select,
-                            squeeze=squeeze,
-                            unsqueeze=unsqueeze,
-                            domain=domain,
-                            file_type=file_type,
-                        )
-                    except FileTypeError as error:
-                        if file_type is None:
-                            file_format_errors.append(error)
-                    else:
-                        file_format_errors = []
-                        ftype = "UM"
-
-                if file_format_errors:
-                    error = "\n".join(map(str, file_format_errors))
-                    raise FileTypeError(f"\n{error}")
-
-                if domain:
-                    file_contents = DomainList(file_contents)
-
-                file_contents = FieldList(file_contents)
-
-                if ftype:
-                    ftypes.add(ftype)
-
-                # Select matching fields (only for netCDF files at
-                # this stage - we'll other it for other file types
-                # later)
-                if select and ftype == "netCDF":
-                    file_contents = file_contents.select_by_identity(*select)
-
-                # Add this file's contents to that already read from
-                # other files
-                out.extend(file_contents)
-
-                field_counter = len(out)
-                file_counter += 1
-
-        # ----------------------------------------------------------------
-        # Aggregate the output fields/domains
-        # ----------------------------------------------------------------
-        if aggregate and len(out) > 1:
-            org_len = len(out)  # pragma: no cover
-
-            if "UM" in ftypes:
-                # Set defaults specific to UM fields
-                if "strict_units" not in aggregate_options:
-                    aggregate_options["relaxed_units"] = True
-
-            out = cf_aggregate(out, **aggregate_options)
-
-            n = len(out)  # pragma: no cover
-            if info:
-                logger.info(
-                    f"{org_len} input field{cls._plural(org_len)} "
                     f"aggregated into {n} field{cls._plural(n)}"
                 )  # pragma: no cover
 
-        # ----------------------------------------------------------------
+    @classmethod
+    def _finalise(cls):
+        """TODOREAD.
+
+        .. versionadded:: NEXTVERSION
+        """
+        ftypes =  self.ftypes
+        
+        # The number of fields/domains
+        out = self.out
+        n = len(out)
+        
+        if n > 1:
+            # --------------------------------------------------------
+            # Parse the 'aggregate' keyword parameter
+            # --------------------------------------------------------
+            aggregate = self.kwargs['aggregate']
+            if isinstance(aggregate, dict):
+                aggregate_options = aggregate.copy()
+                aggregate = True
+            else:
+                aggregate_options = {}
+
+            # Aggregate the output fields/domains
+            if aggregate:
+                if "UM" in ftypes:
+                    # Set aggregation options specific to UM fields
+                    if "strict_units" not in aggregate_options:
+                        aggregate_options["relaxed_units"] = True
+    
+                out = cf_aggregate(out, **aggregate_options)
+    
+                if info:
+                    n1 = len(out)
+                    logger.info(
+                        f"{n} input field{self._plural(n)} "
+                        f"aggregated into {n1} field{self._plural(n1)}"
+                    )  # pragma: no cover
+             
+        if "UM" in ftypes:
+            # Add standard names to UM fields (post aggregation)
+            for f in out:
+                standard_name = f._custom.get("standard_name", None)
+                if standard_name is not None:
+                    f.set_property("standard_name", standard_name, copy=False)
+                    del f._custom["standard_name"]
+                    
+            # Select matching fields from UM files (post setting of
+            # their standard names)
+            select = self.select
+            if select:
+                out = out.select_by_identity(*select)
+
+        # Reset the number of fields/domains
+        n = len(out)
+          
         # Sort by netCDF variable name
-        # ----------------------------------------------------------------
-        if len(out) > 1:
+        if n > 1:
             out.sort(key=lambda f: f.nc_get_variable(""))
-
-        # ----------------------------------------------------------------
-        # Add standard names to UM/PP fields (post aggregation)
-        # ----------------------------------------------------------------
-        for f in out:
-            standard_name = f._custom.get("standard_name", None)
-            if standard_name is not None:
-                f.set_property("standard_name", standard_name, copy=False)
-                del f._custom["standard_name"]
-
-        # ----------------------------------------------------------------
-        # Select matching fields from UM files (post setting of their
-        # standard names)
-        # ----------------------------------------------------------------
-        if select and "UM" in ftypes:
-            out = out.select_by_identity(*select)
 
         if info:
             logger.info(
-                f"Read {field_counter} field{cls._plural(field_counter)} "
-                f"from {file_counter} file{cls._plural(file_counter)}"
+                f"Read {n} field{self._plural(n)} "
+                f"from {file_counter} file{self._plural(file_counter)}"
             )  # pragma: no cover
 
-        if nfields is not None and len(out) != nfields:
+        if nfields is not None and nfields != n:
             raise ValueError(
-                f"{nfields} field{cls._plural(nfields)} requested but "
-                f"{len(out)} field/domain constucts found in "
-                f"file{cls._plural(file_counter)}"
+                f"{nfields} field{self._plural(nfields)} requested but "
+                f"{n} field/domain constucts found in "
+                f"file{self._plural(file_counter)}"
             )
+        
+    def _initialise(self):
+        """TODOREAD.
 
-        return out
+        .. versionadded:: NEXTVERSION
+        """
+        super()._initialise()
+
+        # ------------------------------------------------------------
+        # Parse the 'select' keyword parameter
+        # ------------------------------------------------------------
+        kwargs = self.kwargs
+        select = kwargs.get('select')
+        if isinstance(select, (str, Query, Pattern)):
+            select = (select,)
+
+        self.select = select
+
+        self.ftypes = set()
+            
+        # Initialise the UM read function (its keyword arguments are
+        # set in `_read_dataset`)
+        self.UM_file_types = set(('UM',))
+        self.um_read = UMRead(self.implementation).read
+
+        # Initialise the output list of fields/domains
+        if domain:
+            self.out = DomainList()
+        else:
+            self.out = FieldList()
 
     @staticmethod
     def _plural(n):  # pragma: no cover
         """Return a suffix which reflects a word's plural."""
         return "s" if n != 1 else ""  # pragma: no cover
+
+    def _read_dataset(self, dataset):
+        """TODOREAD.
+
+        .. versionadded:: NEXTVERSION
+        """
+        file_type = self.file_type
+        if file_type is None or file_type.intersection(self.netCDF_file_types):
+            # Try to read as netCDF dataset
+            super()._read_dataset(dataset)
+            
+        if self.ftype:
+            # Successfully read as a netCDF dataset
+            return 
+
+        # Still here? Then try to read as a UM/PP dataset
+        if file_type is None or file_type.intersection(self.UM_file_types):
+            # Initialise the UM read function keyword arguments
+            if not hasattr(self, 'um_kwargs'):
+                kwargs = self.kwargs
+                um_kwargs = {
+                    key: kwargs[key]
+                    for key in (                    
+                            'verbose',
+                            'height_at_top_of_model',
+                            'select',
+                            'squeeze',
+                            'unsqueeze',
+                            'domain',
+                            'file_type',)}
+                
+                um = kwargs.get('um')
+                if um:
+                    um_kwargs['um_version']=um.get("version")
+                    um_kwargs['fmt']=um.get("fmt")
+                    um_kwargs['word_size']=um.get("word_size")        
+                    um_kwargs['endian']=um.get("endian")
+
+                self.um_kwargs = um_kwargs
+
+            try:
+                self.file_contents = self.um_read(dataset, **self.um_kwargs)
+            except FileTypeError as error:
+                if file_type is None:
+                    self.file_format_errors.append(error)
+            else:
+                self.file_format_errors = []
+                self.ftype = "UM"
+             
+    def _post_read_dataset(self, dataset):
+        """TODOREAD.
+
+        .. versionadded:: NEXTVERSION
+        """
+        super()._post_read_dataset(dataset)
+
+        # TODOREAD
+        ftype = self.ftype
+        if ftype:
+            self.ftypes.add(ftype)
+
+        # Select matching fields (only for netCDF files at this stage,
+        # we'll do it for other dataset types in `_finalise`)
+        select = self.select
+        if select and ftype == "netCDF":
+            if domain:
+                file_contents = DomainList(self.file_contents)
+            else:
+                file_contents = FieldList(self.file_contents)
+
+            self.file_contents = file_contents.select_by_identity(*select)
