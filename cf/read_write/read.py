@@ -478,7 +478,7 @@ class read(cfdm.read):
     @_manage_log_level_via_verbosity
     def __new__(
         cls,
-        files,
+        datasets,
         external=None,
         verbose=None,
         warnings=False,
@@ -519,6 +519,8 @@ class read(cfdm.read):
         .. versionadded:: NEXTVERSION
 
         """
+        kwargs = locals()
+
         if field:
             _DEPRECATION_ERROR_FUNCTION_KWARGS(
                 "cf.read",
@@ -586,7 +588,7 @@ class read(cfdm.read):
                 removed_at="5.0.0",
             )  # pragma: no cover
 
-        return super().__new__(cls)
+        return super().__new__(**kwargs)
 
         # ------------------------------------------------------------
         # Parse the 'cdl_string' keyword parameter
@@ -600,34 +602,30 @@ class read(cfdm.read):
         file_counter = 0
 
         if cdl_string:
-            if isinstance(files, str):
-                files = (files,)
+            if isinstance(datasets, str):
+                datasets = (datasets,)
 
-            files = [
-                NetCDFRead.string_to_cdl(cdl_string) for cdl_string in files
+            datasets = [
+                NetCDFRead.string_to_cdl(cdl_string) for cdl_string in datasets
             ]
             file_type = set(("CDL",))
 
-                    f"aggregated into {n} field{cls._plural(n)}"
-                )  # pragma: no cover
-
-    @classmethod
-    def _finalise(cls):
+    def _finalise(self):
         """TODOREAD.
 
         .. versionadded:: NEXTVERSION
         """
-        ftypes =  self.ftypes
-        
+        ftypes = self.ftypes
+
         # The number of fields/domains
         out = self.out
         n = len(out)
-        
+
         if n > 1:
             # --------------------------------------------------------
             # Parse the 'aggregate' keyword parameter
             # --------------------------------------------------------
-            aggregate = self.kwargs['aggregate']
+            aggregate = self.kwargs["aggregate"]
             if isinstance(aggregate, dict):
                 aggregate_options = aggregate.copy()
                 aggregate = True
@@ -640,16 +638,16 @@ class read(cfdm.read):
                     # Set aggregation options specific to UM fields
                     if "strict_units" not in aggregate_options:
                         aggregate_options["relaxed_units"] = True
-    
+
                 out = cf_aggregate(out, **aggregate_options)
-    
-                if info:
+
+                if True:  # info: TODOREAD
                     n1 = len(out)
                     logger.info(
-                        f"{n} input field{self._plural(n)} "
+                        f"{n} {self.construct}{self._plural(n)} "
                         f"aggregated into {n1} field{self._plural(n1)}"
                     )  # pragma: no cover
-             
+
         if "UM" in ftypes:
             # Add standard names to UM fields (post aggregation)
             for f in out:
@@ -657,7 +655,7 @@ class read(cfdm.read):
                 if standard_name is not None:
                     f.set_property("standard_name", standard_name, copy=False)
                     del f._custom["standard_name"]
-                    
+
             # Select matching fields from UM files (post setting of
             # their standard names)
             select = self.select
@@ -666,24 +664,17 @@ class read(cfdm.read):
 
         # Reset the number of fields/domains
         n = len(out)
-          
-        # Sort by netCDF variable name
-        if n > 1:
-            out.sort(key=lambda f: f.nc_get_variable(""))
 
-        if info:
-            logger.info(
-                f"Read {n} field{self._plural(n)} "
-                f"from {file_counter} file{self._plural(file_counter)}"
-            )  # pragma: no cover
-
+        nfields = self.kwargs["nfields"]
         if nfields is not None and nfields != n:
             raise ValueError(
                 f"{nfields} field{self._plural(nfields)} requested but "
-                f"{n} field/domain constucts found in "
-                f"file{self._plural(file_counter)}"
+                f"{n} {self.construct} constucts read from {self.n_datasets} "
+                f"datasets{self._plural(self.n_datasets)}"
             )
-        
+
+        super()._finalise()
+
     def _initialise(self):
         """TODOREAD.
 
@@ -695,84 +686,29 @@ class read(cfdm.read):
         # Parse the 'select' keyword parameter
         # ------------------------------------------------------------
         kwargs = self.kwargs
-        select = kwargs.get('select')
+        select = kwargs["select"]
         if isinstance(select, (str, Query, Pattern)):
             select = (select,)
 
         self.select = select
-
         self.ftypes = set()
-            
+
         # Initialise the UM read function (its keyword arguments are
-        # set in `_read_dataset`)
-        self.UM_file_types = set(('UM',))
-        self.um_read = UMRead(self.implementation).read
+        # set in `_read`) TODOREAD
+        self.UM_file_types = set(("UM",))
 
         # Initialise the output list of fields/domains
-        if domain:
+        if self.domain:
             self.out = DomainList()
         else:
             self.out = FieldList()
 
-    @staticmethod
-    def _plural(n):  # pragma: no cover
-        """Return a suffix which reflects a word's plural."""
-        return "s" if n != 1 else ""  # pragma: no cover
-
-    def _read_dataset(self, dataset):
+    def _post_read(self, dataset):
         """TODOREAD.
 
         .. versionadded:: NEXTVERSION
         """
-        file_type = self.file_type
-        if file_type is None or file_type.intersection(self.netCDF_file_types):
-            # Try to read as netCDF dataset
-            super()._read_dataset(dataset)
-            
-        if self.ftype:
-            # Successfully read as a netCDF dataset
-            return 
-
-        # Still here? Then try to read as a UM/PP dataset
-        if file_type is None or file_type.intersection(self.UM_file_types):
-            # Initialise the UM read function keyword arguments
-            if not hasattr(self, 'um_kwargs'):
-                kwargs = self.kwargs
-                um_kwargs = {
-                    key: kwargs[key]
-                    for key in (                    
-                            'verbose',
-                            'height_at_top_of_model',
-                            'select',
-                            'squeeze',
-                            'unsqueeze',
-                            'domain',
-                            'file_type',)}
-                
-                um = kwargs.get('um')
-                if um:
-                    um_kwargs['um_version']=um.get("version")
-                    um_kwargs['fmt']=um.get("fmt")
-                    um_kwargs['word_size']=um.get("word_size")        
-                    um_kwargs['endian']=um.get("endian")
-
-                self.um_kwargs = um_kwargs
-
-            try:
-                self.file_contents = self.um_read(dataset, **self.um_kwargs)
-            except FileTypeError as error:
-                if file_type is None:
-                    self.file_format_errors.append(error)
-            else:
-                self.file_format_errors = []
-                self.ftype = "UM"
-             
-    def _post_read_dataset(self, dataset):
-        """TODOREAD.
-
-        .. versionadded:: NEXTVERSION
-        """
-        super()._post_read_dataset(dataset)
+        super()._post_read(dataset)
 
         # TODOREAD
         ftype = self.ftype
@@ -783,9 +719,74 @@ class read(cfdm.read):
         # we'll do it for other dataset types in `_finalise`)
         select = self.select
         if select and ftype == "netCDF":
-            if domain:
+            if self.domain:
                 file_contents = DomainList(self.file_contents)
             else:
                 file_contents = FieldList(self.file_contents)
 
             self.file_contents = file_contents.select_by_identity(*select)
+
+    def _read(self, dataset):
+        """TODOREAD.
+
+        .. versionadded:: NEXTVERSION
+        """
+        file_type = self.file_type
+        if file_type is None or file_type.intersection(self.netCDF_file_types):
+            # --------------------------------------------------------
+            # Try to read as netCDF dataset
+            # --------------------------------------------------------
+            super()._read(dataset)
+
+        if self.ftype:
+            # Successfully read as a netCDF dataset
+            return
+
+        # Still here?
+        if file_type is None or file_type.intersection(self.UM_file_types):
+            if not hasattr(self, "um_read"):
+                # Initialise the UM read function
+                kwargs = self.kwargs
+                um_kwargs = {
+                    key: kwargs[key]
+                    for key in (
+                        "verbose",
+                        "height_at_top_of_model",
+                        "select",
+                        "squeeze",
+                        "unsqueeze",
+                        "domain",
+                        "file_type",
+                    )
+                }
+
+                um = kwargs.get("um")
+                if um:
+                    um_kwargs["um_version"] = um.get("version")
+                    um_kwargs["fmt"] = um.get("fmt")
+                    um_kwargs["word_size"] = um.get("word_size")
+                    um_kwargs["endian"] = um.get("endian")
+
+                self.um_kwargs = um_kwargs
+                self.um_read = UMRead(self.implementation).read
+
+            # --------------------------------------------------------
+            # Try to read as a UM dataset
+            # --------------------------------------------------------
+            try:
+                self.file_contents = self.um_read(dataset, **self.um_kwargs)
+            except FileTypeError as error:
+                if file_type is None:
+                    self.file_format_errors.append(error)
+            else:
+                self.file_format_errors = []
+                self.ftype = "UM"
+
+        if self.ftype:
+            # Successfully read as a UM dataset
+            return
+
+        # Still here? Then try to read as another type of dataset
+        # (which for now just raises an error, but we could add GRIB
+        # functionality here, for instance).
+        raise ValueError(f"Can't read {dataset}: Unknown dataset type")
