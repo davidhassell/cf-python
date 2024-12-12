@@ -1,9 +1,5 @@
 import logging
-import os
-from glob import glob
-from os.path import isdir
 from re import Pattern
-from urllib.parse import urlparse
 
 import cfdm
 from cfdm.read_write.exceptions import FileTypeError
@@ -14,7 +10,7 @@ from ..cfimplementation import implementation
 from ..decorators import _manage_log_level_via_verbosity
 from ..domainlist import DomainList
 from ..fieldlist import FieldList
-from ..functions import _DEPRECATION_ERROR_FUNCTION_KWARGS, flat
+from ..functions import _DEPRECATION_ERROR_FUNCTION_KWARGS
 from ..query import Query
 from .um import UMRead
 
