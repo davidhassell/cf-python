@@ -393,9 +393,10 @@ class UMArray(
 
         """
         if "scale_factor" not in attributes:
-            # Treat BMKS as a scale_factor if it is neither 0 nor 1
+            # Treat BMKS (real header item 18) as a scale_factor if it
+            # is not 0, 1, or BMDI (real header item 18)
             scale_factor = real_hdr.item(18)
-            if scale_factor != 1.0 and scale_factor != 0.0:
+            if scale_factor != 1.0 and scale_factor != 0.0 and scale_factor != real_hdr.item(17):
                 if int_hdr.item(38) == 2:
                     # Must have an integer scale_factor for integer data
                     scale_factor = int(scale_factor)
@@ -403,9 +404,10 @@ class UMArray(
                 attributes["scale_factor"] = scale_factor
 
         if "add_offset" not in attributes:
-            # Treat BDATUM as an add_offset if it is not 0
+            # Treat BDATUM (real header item 4) as an add_offset if it
+            # not 0 or BMDI (real header item 18)
             add_offset = real_hdr.item(4)
-            if add_offset != 0.0:
+            if add_offset != 0.0 and add_offset != real_hdr.item(17):
                 if int_hdr.item(38) == 2:
                     # Must have an integer add_offset for integer data
                     add_offset = int(add_offset)
