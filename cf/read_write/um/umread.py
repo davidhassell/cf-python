@@ -930,9 +930,12 @@ class UMField:
             # --------------------------------------------------------
             axiscode = iy
             yc = None
+            import pprint
+            print (iy, ix)
             if axiscode is not None:
                 if axiscode in (20, 23):
                     # 'Y' axis is time-since-reference-date
+                    pprint.pprint (extra)
                     if extra.get("y", None) is not None:
                         c = self.time_coordinate_from_extra_data(axiscode, "y")
                     else:
@@ -945,6 +948,7 @@ class UMField:
                 else:
                     ykey, yc, yaxis = self.xy_coordinate(axiscode, "y")
                     if axiscode == 13:
+                        print ('here 1')
                         _axis["site_axis"] = yaxis
                         self.site_coordinates_from_extra_data()
 
@@ -969,6 +973,7 @@ class UMField:
                 else:
                     xkey, xc, xaxis = self.xy_coordinate(axiscode, "x")
                     if axiscode == 13:
+                        print ('here 2')
                         _axis["site_axis"] = xaxis
                         self.site_coordinates_from_extra_data()
 
@@ -1982,6 +1987,8 @@ class UMField:
 
         filename = self.filename
 
+
+        print ('_axis', _axis)
         data_axes = [_axis["y"], _axis["x"]]
 
         # Initialise a dask graph for the uncompressed array, and some
@@ -3252,6 +3259,7 @@ class UMField:
 
             ac.standard_name = standard_name
             ac.long_name = "region limit"
+            print ('here 3')
             self.implementation.set_auxiliary_coordinate(
                 self.field,
                 ac,
@@ -3266,6 +3274,7 @@ class UMField:
             ac = self.coord_data(ac, array, None, units=None)
 
             ac.standard_name = "region"
+            print ('here 4')
             self.implementation.set_auxiliary_coordinate(
                 self.field,
                 ac,
