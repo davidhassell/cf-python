@@ -3102,3 +3102,11 @@ def _create_ancillary_mask_component(mask_shape, ind, compress):
             mask = mask.take(index, axis=i)
 
     return Data(mask)
+
+def ggg(self, coordinate_reference, domain_ancillary, key, strict=True):
+    """TODO"""
+    axis_id = []
+    for key in domain_ancillary.domain_axes(todict=True):
+        axis_id.append(domain_ancillary.constructs.domain_axis_identity(key))
+
+                    
