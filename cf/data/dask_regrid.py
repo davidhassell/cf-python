@@ -555,14 +555,25 @@ def _regrid(
             where = np.where
             indptr = weights.indptr.tolist()
             indices = weights.indices
-            pos_data = weights.data >= min_weight
+            data = weights.data 
+            pos_data = data >= min_weight
             for j, (i0, i1) in enumerate(zip(indptr[:-1], indptr[1:])):
                 mask = src_mask[indices[i0:i1]]
                 if not count_nonzero(mask):
+                    # No masked src grid cells
                     continue
 
-                if where((mask) & (pos_data[i0:i1]))[0].size:
+                xx = where((~mask) & (pos_data[i0:i1]))[0]:
+                if xx.size < N:
                     dst_mask[j] = True
+                elif:
+                    w = data[i0:i1]
+                    D_j = pos_data[xx].sum()
+                    w = w / D_j
+                    w[mask] = 0
+                                    
+#                if where((mask) & (pos_data[i0:i1]))[0].size:
+#                    dst_mask[j] = True
 
             del indptr, pos_data
 
@@ -574,6 +585,8 @@ def _regrid(
             #
             # Mask out any row j for which all source grid cells are
             # masked.
+            weights = weights.copy()
+
             dst_size = weights.shape[0]
             if dst_mask is None:
                 dst_mask = np.zeros((dst_size,), dtype=bool)
