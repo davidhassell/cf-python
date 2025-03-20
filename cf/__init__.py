@@ -277,6 +277,7 @@ from .data.array import (
     H5netcdfArray,
     NetCDFArray,
     NetCDF4Array,
+    PyfiveArray,
     PointTopologyArray,
     RaggedContiguousArray,
     RaggedIndexedArray,
