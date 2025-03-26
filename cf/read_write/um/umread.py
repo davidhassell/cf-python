@@ -3247,28 +3247,37 @@ class UMField:
         data = _cached_data.get(token)
         if data is None:
             data = Data(array, units=units, fill_value=fill_value)
+            ndim = array.ndim
+            size = array.size
             if not bounds:
-                if array.size == 1:
-                    value = array.item(0)
-                    data._set_cached_elements({0: value, -1: value})
+                v0 = array[(slice(0, 1),) * ndim]
+                if size == 1:
+                    indices = (0, -1)
+                    values = (v0, v0)
                 else:
-                    data._set_cached_elements(
-                        {
-                            0: array.item(0),
-                            1: array.item(1),
-                            -1: array.item(-1),
-                        }
-                    )
+                    indices = (0, 1, -1)
+                    v2 = array[ (slice(-1, None, 1),) * ndim]
+                    if size == 2:
+                        values = (v0, v2, v2)
+                    else:
+                        v1 = array[(slice(0, 1),) * (ndim-1) + (slice(1,2),)]
+                        values = (v0, v1, v2)
             else:
-                data._set_cached_elements(
-                    {
-                        0: array.item(0),
-                        1: array.item(1),
-                        -2: array.item(-2),
-                        -1: array.item(-1),
-                    }
-                )
-
+                # Bounds
+                indices = (0, 1, -2, -1)
+                ndim1 = ndim - 1
+                v0 = array[(slice(0, 1),) * ndim1 + (slice(0, 1),)]
+                v1 = array[(slice(0, 1),) * ndim1 + (slice(1, 2),)]
+                if size == 1:
+                    values = (v0, v1, v0, v1)
+                else:
+                    v2 = array[(slice(-1, None, 1),) * ndim1 + (slice(0, 1),)]
+                    v3 = array[(slice(-1, None, 1),) * ndim1 + (slice(1, 2),)]
+                    values = (v0, v1, v2, v3)
+                
+            elements = {index: value for index, value in zip(indices, values)}
+            data._set_cached_elements(elements)
+            
             _cached_data[token] = data
 
         return data.copy()
