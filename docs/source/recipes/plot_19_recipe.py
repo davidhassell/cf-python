@@ -1,5 +1,5 @@
 """
-Plotting per-season trends in global sea surface tempreature extrema
+Plotting per-season trends in global sea surface temperature extrema
 ====================================================================
 
 In this recipe we find the area-based extrema of global sea surface
@@ -11,8 +11,8 @@ maxima.
 
 # %%
 # 1. Import cf-python, cf-plot and other required packages:
-import cfplot as cfp
 import matplotlib.pyplot as plt
+import cfplot as cfp
 
 import cf
 
@@ -37,7 +37,7 @@ am_min = am_min.subspace(T=cf.ge(cf.dt("1980-01-01")))
 # 5. Create a mapping which provides the queries we need to collapse on
 # the four seasons, along with our description of them, as a value, with
 # the key of the string encoding the colour we want to plot these
-# trendlines in. This structure will be iterated over to make our plot:
+# trend lines in. This structure will be iterated over to make our plot:
 colours_seasons_mapping = {
     "red": (cf.mam(), "Mean across MAM: March, April and May"),
     "blue": (cf.jja(), "Mean across JJA: June, July and August"),
@@ -46,19 +46,17 @@ colours_seasons_mapping = {
 }
 
 # %%
-# 6. Create and open the plot file:
-cfp.gopen(
-    rows=2, columns=1, bottom=0.1, top=0.85, file="global_avg_sst_plot.png"
-)
-
-# %%
-# 7. Put maxima subplot at top since these values are higher, given
-# increasing x axis. Note we set limits manually with 'gset' only to
+# 6. Create and open the plot file. Put maxima subplot at top since these
+# values are higher, given increasing x axis.
+# Note we set limits manually with 'gset' only to
 # allow space so the legend doesn't overlap the data, which isn't
 # possible purely from positioning it anywhere within the default plot.
 # Otherwise cf-plot handles this for us. To plot the per-season means
 # of the maxima, we loop through the season query mapping and do a
 # "T: mean" collapse setting the season as the grouping:
+cfp.gopen(
+    rows=2, columns=1, bottom=0.1, top=0.85,
+)
 cfp.gpos(1)
 cfp.gset(xmin="1980-01-01", xmax="2022-12-01", ymin=304, ymax=312)
 for colour, season_query in colours_seasons_mapping.items():
@@ -78,11 +76,9 @@ cfp.lineplot(
     xlabel="",
     label="All months",
 )
-
-# %%
-# 8. Create and add minima subplot below the maxima one. Just like for the
+# Create and add minima subplot below the maxima one. Just like for the
 # maxima case, we plot per-season means by looping through the season query
-# mapping and doing a "T: mean" collapse setting the season as the grouping:
+# mapping and doing a "T: mean" collapse setting the season as the grouping
 cfp.gpos(2)
 cfp.gset(xmin="1980-01-01", xmax="2022-12-01", ymin=269, ymax=272)
 for colour, season_query in colours_seasons_mapping.items():
@@ -100,9 +96,7 @@ cfp.lineplot(
     am_min,
     color="grey",
 )
-
-# %%
-# 9. Add an overall title to the plot and close the file to save it:
+# Add an overall title to the plot and close the file to save it
 plt.suptitle(
     "Global mean sea surface temperature (SST) monthly\nminima and maxima "
     "showing seasonal means of these extrema",

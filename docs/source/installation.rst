@@ -102,7 +102,7 @@ details.
 
 To install cf with all of its :ref:`required <Required>` and
 :ref:`optional <Optional>` dependencies, and the `cf-plot
-visualisation package <http://ajheaps.github.io/cf-plot>`_, run:
+visualisation package <https://ncas-cms.github.io/cf-plot/build/>`_, run:
 
 .. code-block:: console
    :caption: *Install with conda.*
@@ -129,7 +129,7 @@ To install from source (without any dependencies):
 1. Download the cf package from https://pypi.org/project/cf-python
 
 2. Unpack the library (replacing ``<version>`` with the version that
-   you want to install, e.g. ``3.16.2``):
+   you want to install, e.g. ``3.17.0``):
 
    .. code-block:: console
 
@@ -194,7 +194,8 @@ Required
 
 * `numpy <http://www.numpy.org>`_, versions 2.0.0 or newer.
 
-* `dask <https://pypi.org/project/dask>`_, versions 2025.2.0 or newer.
+* `dask <https://pypi.org/project/dask>`_, version 2025.2.0 or newer up to
+  2025.3.0 inclusive.
 
 * `netCDF4 <https://pypi.org/project/netcdf4/>`_, 1.7.2 or newer.
 
@@ -203,8 +204,8 @@ Required
 
 * `scipy <https://pypi.org/project/scipy>`_, version 1.10.0 or newer.
 
-* `cfdm <https://pypi.org/project/cfdm/>`_, version 1.12.0.0 or up to,
-  but not including, 1.12.1.0.
+* `cfdm <https://pypi.org/project/cfdm/>`_, version 1.12.1.0 or up to,
+  but not including, 1.12.2.0.
 
 * `cfunits <https://pypi.org/project/cfunits/>`_, version 3.3.7 or newer.
 
