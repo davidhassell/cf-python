@@ -2203,8 +2203,13 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
                 # `None` (issue #281)
                 other = np.array(None, dtype=object)
 
+#            if isinstance(other, cftime.datetime) and  data.Units.isreftime:
+#                data = data._asdatetime()
+#            else:                
             other = cls.asdata(other)
 
+#        print (repr(other))
+            
         # ------------------------------------------------------------
         # Prepare data0 (i.e. self copied) and data1 (i.e. other)
         # ------------------------------------------------------------
@@ -2214,7 +2219,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         data0, other, new_Units = data0._combined_units(other, method, True)
 
         d = super()._binary_operation(data0, other, method)
-
+#        print (d.array)
         d.override_units(new_Units, inplace=True)
 
         if inplace:

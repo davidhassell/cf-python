@@ -7139,6 +7139,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             """
             if group_by_coords:
                 q = ge(lower) & lt(upper)
+                print (99999, ge(lower).__dict__, repr(coord))
             else:
                 q = ge(lower, attr="lower_bounds") & le(
                     upper, attr="upper_bounds"
@@ -7147,7 +7148,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             if extra_condition:
                 q &= extra_condition
 
-            index = q.evaluate(coord).array
+            index = np.asanyarray(q.evaluate(coord)) # .array
             classification[index] = n
 
             if increasing:
@@ -7203,7 +7204,11 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             """
             group_by_coords = group_by == "coords"
 
-            if coord.increasing:
+            increasing = coord.increasing
+            if group_by_coords:
+                coord = coord.dtarray
+            
+            if increasing:
                 # Increasing dimension coordinate
                 lower, upper = interval.bounds(lower)
                 while lower <= upper_limit:
@@ -7635,7 +7640,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         # raising an exception for 'can't match', I suppose.
 
         classification = None
-
+        
         if group is not None:
             if within is not None or over is not None:
                 raise ValueError(
@@ -7697,6 +7702,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         "grouped collapse with TimeDuration groups."
                     )
 
+                coord.persist(inplace=True)
+
                 classification = np.empty((axis_size,), int)
                 classification.fill(-1)
 
@@ -7704,6 +7711,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     coord, group_by, True
                 )
 
+                print ('SS group=', group)
+                import time
+                s=time.time()
                 classification, n = _time_interval(
                     classification,
                     0,
@@ -7715,7 +7725,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     upper_limit=upper_limit,
                     group_by=group_by,
                 )
-
+                print ('time_interval', time.time()-s)
                 if group_span is True or group_span is None:
                     # Use the group definition as the group span
                     group_span = group
@@ -7755,6 +7765,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         f"{axis_id!r} axis units {coord.Units!r}"
                     )
 
+                coord.persist(inplace=True)
+                
                 classification = np.empty((axis_size,), int)
                 classification.fill(-1)
 
@@ -7798,6 +7810,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                             "sequence of groups."
                         )
 
+                coord.persist(inplace=True)
+                
                 classification = np.empty((axis_size,), int)
                 classification.fill(-1)
 
@@ -7858,6 +7872,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         raise ValueError(
                             f"Bad parameter value: over_days={over_days!r}"
                         )
+
+                coord.persist(inplace=True)
 
                 coordinate = "minimum"
 
@@ -7991,6 +8007,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                             f"years: {over_years!r}"
                         )
 
+                coord.persist(inplace=True)
+
                 coordinate = "minimum"
 
                 classification = np.empty((axis_size,), int)
@@ -8098,6 +8116,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         "required for a 'within days' collapse"
                     )
 
+                coord.persist(inplace=True)
+
                 classification = np.empty((axis_size,), int)
                 classification.fill(-1)
 
@@ -8184,6 +8204,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         "Can't collapse: Reference-time dimension coordinate "
                         'bounds are required for a "within years" collapse'
                     )
+
+                coord.persist(inplace=True)
 
                 classification = np.empty((axis_size,), int)
                 classification.fill(-1)
