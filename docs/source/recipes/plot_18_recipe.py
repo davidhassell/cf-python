@@ -4,19 +4,21 @@ Calculating the Pearson correlation coefficient between datasets
 
 In this recipe, we will take two datasets, one for an independent variable
 (in this example elevation) and one for a dependent variable (snow
-cover over a particuar day), regrid them to the same resolution then
+cover over a particular day), regrid them to the same resolution then
 calculate the correlation coefficient, to get a measure of the relationship
 between them.
 
+isort:skip_file
 """
 
 # %%
 # 1. Import cf-python, cf-plot and other required packages:
-import cfplot as cfp
 import matplotlib.pyplot as plt
 import scipy.stats.mstats as mstats
+import cfplot as cfp
 
 import cf
+
 
 # %%
 # 2. Read the data in and unpack the Fields from FieldLists using indexing.
@@ -89,14 +91,13 @@ print(f"The Pearson correlation coefficient is: {coefficient}")
 
 # %%
 # 9. Make a final plot showing the two arrays side-by-side and quoting the
-# determined Pearson correlation coefficient to illustrate the relatoinship
+# determined Pearson correlation coefficient to illustrate the relationship
 # and its strength visually. We use 'gpos' to position the plots in two
 # columns and apply some specific axes ticks and labels for clarity.
 cfp.gopen(
     rows=1,
     columns=2,
     top=0.85,
-    file="snow_and_orog_on_same_grid.png",
     user_position=True,
 )
 
@@ -121,7 +122,7 @@ label_info = {
 
 # Plot the two contour plots as columns
 cfp.gpos(1)
-cfp.cscale("wiki_2_0_reduced")
+cfp.cscale("wiki_2_0_reduced", ncols=11)
 cfp.con(
     regridded_orog,
     lines=False,
@@ -140,5 +141,4 @@ cfp.con(
     colorbar_drawedges=False,
     **label_info,
 )
-
 cfp.gclose()
