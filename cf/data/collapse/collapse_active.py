@@ -184,17 +184,21 @@ def active_chunk_function(method, *args, **kwargs):
     # reason, then this will trigger (inside `actify`) a local
     # reduction being carried out instead.
     # ----------------------------------------------------------------
-    filename = x.get_filename()
-    address = x.get_address()
-    max_requests = active_storage_max_requests()
     active_kwargs = {
-        "uri": "/".join(filename.split("/")[3:]),
-        "ncvar": address,
         "storage_options": x.get_storage_options(),
         "active_storage_url": url,
         "storage_type": "s3",
-        "max_threads": max_requests,
+        "max_threads": active_storage_max_requests()
     }
+    dataset = x.get_variable(None)
+    if variable is None:
+        dataset = x.get_filename()
+        active_kwargs['ncvar'] = x.get_address()
+    else:
+        print ('Using variable :-)')
+        
+    active_kwargs['dataset'] = dataset
+ 
     # WARNING: The "uri", "storage_options", and "storage_type" keys
     #          of the `active_kwargs` dictionary are currently
     #          formatted according to the whims of the `Active` class
@@ -218,16 +222,16 @@ def active_chunk_function(method, *args, **kwargs):
         )  # pragma: no cover
 
     active = Active(**active_kwargs)
-    active.method = method
+    active = getattr(active, method)
     active.components = True
 
     # Instruct the `Active` class to attempt an active storage
     # reduction on the remote server
     #
-    # WARNING: The `_version` API of `Active` is likely to change from
-    #          the current version (i.e. the pyfive branch of
-    #          PyActiveStorage)
-    active._version = 2
+#    # WARNING: The `_version` API of `Active` is likely to change from
+#    #          the current version (i.e. the pyfive branch of
+#    #          PyActiveStorage)
+#    active._version = 2
 
     # ----------------------------------------------------------------
     # Execute the active storage operation by indexing the Active
