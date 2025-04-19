@@ -127,7 +127,7 @@ def active_chunk_function(method, *args, **kwargs):
 
     """
     x = args[0]
-
+        
     # Dask reduction machinery
     if kwargs.get("computing_meta"):
         return x
@@ -191,14 +191,14 @@ def active_chunk_function(method, *args, **kwargs):
         "max_threads": active_storage_max_requests()
     }
     dataset = x.get_variable(None)
-    if variable is None:
+    if dataset is None:
         dataset = x.get_filename()
         active_kwargs['ncvar'] = x.get_address()
     else:
         print ('Using variable :-)')
         
     active_kwargs['dataset'] = dataset
- 
+    print (active_kwargs)
     # WARNING: The "uri", "storage_options", and "storage_type" keys
     #          of the `active_kwargs` dictionary are currently
     #          formatted according to the whims of the `Active` class
@@ -209,7 +209,7 @@ def active_chunk_function(method, *args, **kwargs):
     index = x.index()
 
     details = (
-        f"{method!r} (file={filename}, address={address}, url={url}, "
+        f"{method!r} (dataset={dataset}, url={url}, "
         f"Dask chunk={index})"
     )
 
@@ -248,6 +248,7 @@ def active_chunk_function(method, *args, **kwargs):
             f"FAILED in active storage {details} ({error}))"
         )
     else:
+        print ('Did active!!')
         # Active storage reduction was successful
         if info:
             # Do some detailed logging
