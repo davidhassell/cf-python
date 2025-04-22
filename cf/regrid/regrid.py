@@ -911,7 +911,7 @@ def spherical_coords_to_domain(
         z_coord = coords["Z"]
         if z_coord.ndim == 1:
             z_axis = d.set_construct(d._DomainAxis(z_coord.size), copy=False)
-            d.set_construct(z_coord, axes=z_axis, copy=False)
+            z_key = d.set_construct(z_coord, axes=z_axis, copy=False)
         elif z_coord.ndim == 3:
             if dst_axes is None or "Z" not in dst_axes or dst_axes["Z"] != 2:
                 raise ValueError(
