@@ -188,7 +188,7 @@ def active_chunk_function(method, *args, **kwargs):
         "storage_options": x.get_storage_options(),
         "active_storage_url": url,
         "storage_type": "s3",
-        "max_threads": active_storage_max_requests()
+        "max_threads": active_storage_max_requests().value,
     }
     dataset = x.get_variable(None)
     if dataset is None:
@@ -198,7 +198,8 @@ def active_chunk_function(method, *args, **kwargs):
         print ('Using variable :-)')
         
     active_kwargs['dataset'] = dataset
-    print (active_kwargs)
+#    print (active_kwargs)
+
     # WARNING: The "uri", "storage_options", and "storage_type" keys
     #          of the `active_kwargs` dictionary are currently
     #          formatted according to the whims of the `Active` class
