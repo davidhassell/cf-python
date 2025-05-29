@@ -544,6 +544,15 @@ class DimensionCoordinateTest(unittest.TestCase):
             ).all()
         )
 
+        # In-place
+        self.assertFalse(d.has_bounds())
+        self.assertIsNone(d.create_bounds(inplace=True))
+        self.assertTrue(d.has_bounds())
+
+        # Fail when inplace=True and bounds already exist
+        with self.assertRaises(ValueError):
+            d.create_bounds(inplace=True)
+
         # Cellsize units must be equivalent to the coordinate units,
         # or if the cell has no units then they are assumed to be
         # the same as the coordinates:
@@ -611,7 +620,14 @@ class DimensionCoordinateTest(unittest.TestCase):
 
         e = d.persist()
         self.assertIsInstance(e, cf.DimensionCoordinate)
-        self.assertEqual(len(e.to_dask_array().dask.layers), 1)
+        self.assertEqual(
+            len(
+                e.data.to_dask_array(
+                    _force_mask_hardness=False, _force_to_memory=False
+                ).dask.layers
+            ),
+            1,
+        )
         self.assertTrue(e.equals(d))
 
         self.assertIsNone(d.persist(inplace=True))
@@ -736,6 +752,93 @@ class DimensionCoordinateTest(unittest.TestCase):
         d.set_bounds(d.bounds)
         with self.assertRaises(ValueError):
             d.get_cell_characteristics()
+
+    def test_DimensionCoordinate_anchor(self):
+        """Test the DimensionCoordinate.anchor"""
+        f = cf.example_field(0)
+        d = f.dimension_coordinate("X")
+
+        self.assertEqual(d.period(), 360)
+
+        e = d.anchor(-1)
+        self.assertIsInstance(e, cf.DimensionCoordinate)
+        self.assertTrue(e.equals(d))
+
+        # Increasing
+        e = d.anchor(15)
+        self.assertTrue(e[0].equals(d[0]))
+        self.assertEqual(e[0].array, d[0].array)
+
+        e = d.anchor(30)
+        self.assertEqual(e[0].array, d[1].array)
+
+        e = d.anchor(361)
+        self.assertEqual(e[0].array, d[0].array + 360)
+
+        e = d.anchor(721)
+        self.assertEqual(e[0].array, d[0].array + 720)
+
+        e = d.anchor(15, cell=True)
+        self.assertEqual(e[0].array, d[0].array)
+
+        e = d.anchor(30, cell=True)
+        self.assertEqual(e[0].array, d[0].array)
+
+        e = d.anchor(361, cell=True)
+        self.assertEqual(e[0].array, d[0].array + 360)
+
+        e = d.anchor(721, cell=True)
+        self.assertEqual(e[0].array, d[0].array + 720)
+
+        # Decreasing
+        d = d[::-1]
+
+        e = d.anchor(721)
+        self.assertEqual(e[0].array, d[0].array + 360)
+
+        e = d.anchor(361)
+        self.assertEqual(e[0].array, d[0].array)
+
+        e = d.anchor(30)
+        self.assertEqual(e[0].array, d[-1].array)
+
+        e = d.anchor(15)
+        self.assertEqual(e[0].array, d[0].array - 360)
+
+        e = d.anchor(721, cell=True)
+        self.assertEqual(e[0].array, d[0].array + 360)
+
+        e = d.anchor(361, cell=True)
+        self.assertEqual(e[0].array, d[0].array)
+
+        e = d.anchor(30, cell=True)
+        self.assertEqual(e[0].array, d[0].array - 360)
+
+        e = d.anchor(15, cell=True)
+        self.assertEqual(e[0].array, d[0].array - 360)
+
+    def test_DimensionCoordinate_direction(self):
+        """Test DimensionCoordinate.direction"""
+        d = self.dim.copy()
+
+        # Test the use case of
+        # https://github.com/NCAS-CMS/cf-python/issues/859
+        #
+        # Create a coordinate with all equal values
+        d.data[...] = d[0].array
+        for i, x in enumerate(d.array):
+            d.bounds.data[i, :] = x
+
+        d._custom["direction"] = None  # Force a re-calculation of direction
+        self.assertTrue(d.direction())
+        d._custom["direction"] = None
+        self.assertTrue(d[0].direction())
+
+        d.del_bounds()
+        d._custom["direction"] = None
+        self.assertTrue(d.direction())
+        d._custom["direction"] = None
+        self.assertTrue(d[0].direction())
 
 
 if __name__ == "__main__":

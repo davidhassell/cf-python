@@ -1,5 +1,7 @@
 """Regridding functions used within a dask graph."""
+
 import numpy as np
+from cfdm.data.dask_utils import cfdm_to_memory
 
 
 def regrid(
@@ -54,8 +56,7 @@ def regrid(
             source grid cells i. Note that it is typical that for a
             given j most w_ji will be zero, reflecting the fact only a
             few source grid cells intersect a particular destination
-            grid cell. I.e. *weights* is typically a very sparse
-            matrix.
+            grid cell. I.e. *weights* is usually a very sparse matrix.
 
             If the destination grid has masked cells, either because
             it spans areas outside of the source grid, or by selection
@@ -173,6 +174,13 @@ def regrid(
 
     """
     weights, dst_mask = weights_dst_mask
+
+    a = cfdm_to_memory(a)
+    if dst_mask is not None:
+        dst_mask = cfdm_to_memory(dst_mask)
+
+    if ref_src_mask is not None:
+        ref_src_mask = cfdm_to_memory(ref_src_mask)
 
     # ----------------------------------------------------------------
     # Reshape the array into a form suitable for the regridding dot
@@ -314,6 +322,27 @@ def regrid(
         #      [0,1,3,4,2]
         raxis0, raxis = axis_order[-2:]
         axis_order = [i if i <= raxis else i - 1 for i in axis_order[:-1]]
+    elif n_src_axes == 3 and n_dst_axes == 1:
+        # The regridding operation decreased the number of data axes
+        # by 2 => modify 'axis_order' to remove the removed axes.
+        #
+        # E.g. regular Z-lat-lon -> DSG could change 'axis_order' from
+        #      [0,2,5,1,3,4] to [0,2,3,1], or [0,2,4,5,3,1] to
+        #      [0,1,2,3]
+        raxis0, raxis1 = axis_order[-2:]
+        if raxis0 > raxis1:
+            raxis0, raxis1 = raxis1, raxis0
+
+        new = []
+        for i in axis_order[:-2]:
+            if i <= raxis0:
+                new.append(i)
+            elif raxis0 < i <= raxis1:
+                new.append(i - 1)
+            else:
+                new.append(i - 2)
+
+        axis_order = new
     elif n_src_axes != n_dst_axes:
         raise ValueError(
             f"Can't (yet) regrid from {n_src_axes} dimensions to "
@@ -477,17 +506,20 @@ def _regrid(
             # Note: It is much more efficient to access
             #       'weights.indptr', 'weights.indices', and
             #       'weights.data' directly, rather than iterating
-            #       over rows of 'weights' and using 'weights.getrow'.
+            #       over rows of 'weights' and using
+            #       'weights.getrow'. Also, 'np.count_nonzero' is much
+            #       faster than 'np.any' and 'np.all'.
             count_nonzero = np.count_nonzero
             indptr = weights.indptr.tolist()
             indices = weights.indices
             data = weights.data
             for j, (i0, i1) in enumerate(zip(indptr[:-1], indptr[1:])):
                 mask = src_mask[indices[i0:i1]]
-                if not count_nonzero(mask):
+                n_masked = count_nonzero(mask)
+                if not n_masked:
                     continue
 
-                if mask.all():
+                if n_masked == mask.size:
                     dst_mask[j] = True
                     continue
 
@@ -499,8 +531,8 @@ def _regrid(
 
             del indptr
 
-        elif method in ("linear", "bilinear", "nearest_dtos"):
-            # 2) Linear and nearest neighbour methods:
+        elif method in ("linear", "bilinear"):
+            # 2) Linear methods:
             #
             # Mask out any row j that contains at least one positive
             # (i.e. greater than or equal to 'min_weight') w_ji that
@@ -516,7 +548,9 @@ def _regrid(
             # Note: It is much more efficient to access
             #       'weights.indptr', 'weights.indices', and
             #       'weights.data' directly, rather than iterating
-            #       over rows of 'weights' and using 'weights.getrow'.
+            #       over rows of 'weights' and using
+            #       'weights.getrow'. Also, 'np.count_nonzero' is much
+            #       faster than 'np.any' and 'np.all'.
             count_nonzero = np.count_nonzero
             where = np.where
             indptr = weights.indptr.tolist()
@@ -532,12 +566,45 @@ def _regrid(
 
             del indptr, pos_data
 
+        elif method == "nearest_dtos":
+            # 3) Nearest neighbour dtos method:
+            #
+            # Set to 0 any weight that corresponds to a masked source
+            # grid cell.
+            #
+            # Mask out any row j for which all source grid cells are
+            # masked.
+            dst_size = weights.shape[0]
+            if dst_mask is None:
+                dst_mask = np.zeros((dst_size,), dtype=bool)
+            else:
+                dst_mask = dst_mask.copy()
+
+            # Note: It is much more efficient to access
+            #       'weights.indptr', 'weights.indices', and
+            #       'weights.data' directly, rather than iterating
+            #       over rows of 'weights' and using
+            #       'weights.getrow'. Also, 'np.count_nonzero' is much
+            #       faster than 'np.any' and 'np.all'.
+            count_nonzero = np.count_nonzero
+            indptr = weights.indptr.tolist()
+            indices = weights.indices
+            for j, (i0, i1) in enumerate(zip(indptr[:-1], indptr[1:])):
+                mask = src_mask[indices[i0:i1]]
+                n_masked = count_nonzero(mask)
+                if n_masked == mask.size:
+                    dst_mask[j] = True
+                elif n_masked:
+                    weights.data[np.arange(i0, i1)[mask]] = 0
+
+            del indptr
+
         elif method in (
             "patch",
             "conservative_2nd",
             "nearest_stod",
         ):
-            # 3) Patch recovery and second-order conservative methods:
+            # 4) Patch recovery and second-order conservative methods:
             #
             # A reference source data mask has already been
             # incorporated into the weights matrix, and 'a' is assumed

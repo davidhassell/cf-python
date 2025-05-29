@@ -157,6 +157,10 @@ class RegridTest(unittest.TestCase):
     dst = dst_src[0]
     src = dst_src[1]
 
+    filename_xyz = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "regrid_xyz.nc"
+    )
+
     @unittest.skipUnless(esmpy_imported, "Requires esmpy/ESMF package.")
     def test_Field_regrid_2d_field(self):
         """2-d regridding with Field destination grid."""
@@ -551,7 +555,6 @@ class RegridTest(unittest.TestCase):
         """3-d Cartesian regridding with Field destination grid."""
         methods = list(all_methods)
         methods.remove("conservative_2nd")
-        methods.remove("patch")
 
         dst = self.dst.copy()
         src0 = self.src.copy()
@@ -643,7 +646,7 @@ class RegridTest(unittest.TestCase):
                 self.assertTrue(np.allclose(y, a, atol=atol, rtol=rtol))
 
         # These methods aren't meant to work for 3-d regridding
-        for method in ("conservative_2nd", "patch"):
+        for method in ("conservative_2nd",):
             with self.assertRaises(ValueError):
                 src.regridc(dst, method=method, axes=axes)
 
@@ -737,12 +740,25 @@ class RegridTest(unittest.TestCase):
                 src.regridc(dst, method=method, axes=axes)
 
     @unittest.skipUnless(esmpy_imported, "Requires esmpy/ESMF package.")
+    def test_Field_regridc_1d_coordinates_z(self):
+        """1-d Z Cartesian regridding with coordinates destination grid."""
+        src = cf.read(self.filename_xyz)[0]
+        dst = cf.DimensionCoordinate(
+            data=cf.Data([800, 705, 632, 510, 320.0], "hPa")
+        )
+        d = src.regridc([dst], method="linear", axes="Z", z="Z", ln_z=True)
+        z = d.dimension_coordinate("Z")
+        self.assertTrue(z.data.equals(dst.data))
+
+    @unittest.skipUnless(esmpy_imported, "Requires esmpy/ESMF package.")
     def test_Field_regrid_chunks(self):
         """Regridding of chunked axes"""
         filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "regrid.nc"
         )
-        dst, src = cf.read(filename, chunks={"latitude": 20, "longitude": 30})
+        dst, src = cf.read(
+            filename, dask_chunks={"latitude": 20, "longitude": 30}
+        )
         self.assertEqual(src.data.numblocks, (1, 2, 2))
         self.assertEqual(dst.data.numblocks, (1, 4, 4))
 
@@ -776,6 +792,25 @@ class RegridTest(unittest.TestCase):
             self.assertEqual(
                 src.regrids(r, method="linear", weights_file=tmpfile)
             )
+
+    @unittest.skipUnless(esmpy_imported, "Requires esmpy/ESMF package.")
+    def test_return_esmpy_regrid_operator(self):
+        """esmpy regrid operator returns esmpy.Regrid in regrids and regridc"""
+        dst = self.dst
+        src = self.src
+
+        opers = src.regrids(
+            dst, method="conservative", return_esmpy_regrid_operator=True
+        )
+        operc = src.regridc(
+            dst,
+            axes=["Y", "X"],
+            method="conservative",
+            return_esmpy_regrid_operator=True,
+        )
+
+        self.assertIsInstance(opers, esmpy.api.regrid.Regrid)
+        self.assertIsInstance(operc, esmpy.api.regrid.Regrid)
 
 
 if __name__ == "__main__":

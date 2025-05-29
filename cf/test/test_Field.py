@@ -656,6 +656,21 @@ class FieldTest(unittest.TestCase):
         with self.assertRaises(IndexError):
             f[..., [False] * f.shape[-1]]
 
+        # Test with cyclic subspace
+        f.cyclic("grid_longitude")
+        g = f[:, -3:-5:1]
+        self.assertEqual(g.shape, (10, 7))
+        self.assertTrue(np.allclose(f[:, -3:].array, g[:, :3].array))
+        self.assertTrue(f[:, :4].equals(g[:, 3:]))
+
+        # Test setting of axis cyclicity
+        f.cyclic("grid_longitude", iscyclic=True)
+        self.assertEqual(f.data.cyclic(), {1})
+        g = f[0, :]
+        self.assertEqual(g.data.cyclic(), {1})
+        g = f[:, 0]
+        self.assertEqual(g.data.cyclic(), set())
+
     def test_Field__setitem__(self):
         f = self.f.copy().squeeze()
 
@@ -733,6 +748,11 @@ class FieldTest(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             f + ("a string",)
+
+        # Addition with a UGRID discrete axis
+        f = cf.example_field(8)
+        g = f + f
+        self.assertEqual(g.shape, f.shape)
 
     def test_Field__mul__(self):
         f = self.f.copy().squeeze()
@@ -900,10 +920,48 @@ class FieldTest(unittest.TestCase):
         y = f.dimension_coordinate("Y")
         self.assertTrue(y.has_bounds())
 
+        ca = f.cell_area(return_cell_measure=True)
+        self.assertIsInstance(ca, cf.CellMeasure)
+        self.assertEqual(ca.get_measure(), "area")
+
+        m = f.cell_area(methods=True)
+        self.assertIsInstance(m, dict)
+
     def test_Field_radius(self):
         f = self.f.copy()
 
-        with self.assertRaises(Exception):
+        # Radius exists in coordiante references
+        a = cf.Data(6371007.0, "m")
+
+        r = f.radius(default=None)
+        self.assertEqual(r.Units, cf.Units("m"))
+        self.assertEqual(r, a)
+
+        cr = f.coordinate_reference(
+            "standard_name:atmosphere_hybrid_height_coordinate"
+        )
+        cr.datum.set_parameter("earth_radius", cf.Data(5678, "km"))
+
+        with self.assertRaises(ValueError):
+            f.radius(default=None)
+
+        cr = f.coordinate_reference(
+            "standard_name:atmosphere_hybrid_height_coordinate"
+        )
+        cr.datum.del_parameter("earth_radius")
+
+        cr = f.coordinate_reference(
+            "grid_mapping_name:rotated_latitude_longitude"
+        )
+        cr.datum.set_parameter("earth_radius", cf.Data([123, 456], "m"))
+
+        #  Radius doesn't exist in in coordiante references
+        f = self.f.copy()
+
+        for key in f.coordinate_references(todict=True):
+            f.del_construct(key)
+
+        with self.assertRaises(ValueError):
             f.radius()
 
         for default in ("earth", cf.field._earth_radius):
@@ -931,49 +989,7 @@ class FieldTest(unittest.TestCase):
             f.radius(default=[12, 34])
 
         with self.assertRaises(ValueError):
-            f.radius(default=[[12, 34]])
-
-        with self.assertRaises(ValueError):
             f.radius(default="qwerty")
-
-        cr = f.coordinate_reference(
-            "grid_mapping_name:rotated_latitude_longitude"
-        )
-        cr.datum.set_parameter("earth_radius", a.copy())
-
-        r = f.radius(default=None)
-        self.assertEqual(r.Units, cf.Units("m"))
-        self.assertEqual(r, a)
-
-        cr = f.coordinate_reference(
-            "standard_name:atmosphere_hybrid_height_coordinate"
-        )
-        cr.datum.set_parameter("earth_radius", a.copy())
-
-        r = f.radius(default=None)
-        self.assertEqual(r.Units, cf.Units("m"))
-        self.assertEqual(r, a)
-
-        cr = f.coordinate_reference(
-            "standard_name:atmosphere_hybrid_height_coordinate"
-        )
-        cr.datum.set_parameter("earth_radius", cf.Data(5678, "km"))
-
-        with self.assertRaises(ValueError):
-            f.radius(default=None)
-
-        cr = f.coordinate_reference(
-            "standard_name:atmosphere_hybrid_height_coordinate"
-        )
-        cr.datum.del_parameter("earth_radius")
-
-        cr = f.coordinate_reference(
-            "grid_mapping_name:rotated_latitude_longitude"
-        )
-        cr.datum.set_parameter("earth_radius", cf.Data([123, 456], "m"))
-
-        with self.assertRaises(ValueError):
-            f.radius(default=None)
 
     def test_Field_set_get_del_has_data(self):
         f = self.f.copy()
@@ -1129,6 +1145,10 @@ class FieldTest(unittest.TestCase):
         self.assertEqual(g.ndim, f.ndim + 1)
         self.assertEqual(g.get_data_axes()[1:], f.get_data_axes())
 
+        self.assertEqual(g.cell_measure().ndim, 2)
+        h = g.insert_dimension(None, constructs=True)
+        self.assertEqual(h.cell_measure().ndim, 3)
+
         with self.assertRaises(ValueError):
             f.insert_dimension(1, "qwerty")
 
@@ -1181,6 +1201,30 @@ class FieldTest(unittest.TestCase):
         x = g.dimension_coordinate("X").array
         self.assertTrue(
             (x == [-80, -40, 0, 40, 80, 120, 160, 200, 240.0]).all()
+        )
+
+        indices = f.indices(grid_longitude=cf.wi(-90, 270))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-80, -40, 0, 40, 80, 120, 160, 200, 240.0]).all()
+        )
+
+        indices = f.indices(grid_longitude=cf.wi(-180, 180))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-160, -120, -80, -40, 0, 40, 80, 120, 160]).all()
+        )
+
+        indices = f.indices(grid_longitude=cf.wi(-170, 170))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-160, -120, -80, -40, 0, 40, 80, 120, 160]).all()
         )
 
         with self.assertRaises(ValueError):
@@ -1306,6 +1350,34 @@ class FieldTest(unittest.TestCase):
         x = g.dimension_coordinate("X").array
         self.assertTrue((x == [-200, -160, -120, -80, -40, 0, 40]).all())
 
+        indices = f.indices(grid_longitude=cf.wo(1, 5))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-320, -280, -240, -200, -160, -120, -80, -40, 0]).all()
+        )
+
+        indices = f.indices(grid_longitude=cf.wo(41, 45))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-280, -240, -200, -160, -120, -80, -40, 0, 40]).all()
+        )
+
+        indices = f.indices(grid_longitude=cf.wo(-5, -1))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [0, 40, 80, 120, 160, 200, 240, 280, 320]).all())
+
+        indices = f.indices(grid_longitude=cf.wo(-45, -41))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [-40, 0, 40, 80, 120, 160, 200, 240, 280]).all())
+
         with self.assertRaises(ValueError):
             # No X coordinate values lie outside the range [-90, 370]
             f.indices(grid_longitude=cf.wo(-90, 370))
@@ -1340,6 +1412,33 @@ class FieldTest(unittest.TestCase):
         self.assertEqual(g.shape, (1, 10, 7))
         x = g.dimension_coordinate("X").array
         self.assertTrue((x == [80, 120, 160, 200, 240, 280, 320]).all())
+
+        indices = f.indices(grid_longitude=cf.wo(-45, 45))
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 6))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [80, 120, 160, 200, 240, 280]).all())
+
+        indices = f.indices(grid_longitude=cf.wo(35, 85))
+        g = f[indices]
+        x = g.dimension_coordinate("X").array
+        self.assertEqual(g.shape, (1, 10, 7))
+        self.assertTrue((x == [-240, -200, -160, -120, -80, -40, 0]).all())
+
+        indices = f.indices(grid_longitude=cf.wo(35, 85))
+        g = f[indices]
+        x = g.dimension_coordinate("X").array
+        self.assertEqual(g.shape, (1, 10, 7))
+        self.assertTrue((x == [-240, -200, -160, -120, -80, -40, 0]).all())
+
+        with self.assertRaises(ValueError):
+            f.indices(grid_longitude=cf.wo(0, 360))
+
+        with self.assertRaises(ValueError):
+            f.indices(grid_longitude=cf.wo(-90, 270))
+
+        with self.assertRaises(ValueError):
+            f.indices(grid_longitude=cf.wo(-180, 180))
 
         # 2-d
         lon = f.construct("longitude").array
@@ -1435,7 +1534,7 @@ class FieldTest(unittest.TestCase):
                 shape = (1, 1, 1)
 
             self.assertEqual(g.shape, shape)
-            self.assertEqual(g.array.compressed(), 29)
+            self.assertEqual(np.ma.compressed(g.array), 29)
             if mode != "full":
                 self.assertEqual(g.construct("longitude").array, 83)
 
@@ -1453,7 +1552,7 @@ class FieldTest(unittest.TestCase):
                 shape = (1, 2, 2)
 
             self.assertEqual(g.shape, shape)
-            self.assertTrue((g.array.compressed() == [4, 29]).all())
+            self.assertTrue((np.ma.compressed(g.array) == [4, 29]).all())
 
         # Add 2-d auxiliary coordinates with bounds, so we can
         # properly test cf.contains values
@@ -1534,6 +1633,132 @@ class FieldTest(unittest.TestCase):
             if mode != "full":
                 self.assertEqual(g.construct("aux_x").array, 160)
                 self.assertEqual(g.construct("aux_y").array, 3)
+
+        # Halos: monotonic increasing sequence
+        index = [2, 3, 4, 5]
+        indices = f.indices(0, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 4))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [80, 120, 160, 200]).all())
+
+        indices = f.indices(1, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 6))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [40, 80, 120, 160, 200, 240]).all())
+
+        indices = f.indices(999, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == f.dimension_coordinate("X").array).all())
+
+        # Halos: non-monotonic sequence
+        index = [2, 3, 4, 1]
+        indices = f.indices(0, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 4))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [80, 120, 160, 40]).all())
+
+        indices = f.indices(1, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 6))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [40, 80, 120, 160, 40, 0]).all())
+
+        for halo in (2, 999):
+            indices = f.indices(halo, grid_longitude=index)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 7))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue((x == [0, 40, 80, 120, 160, 40, 0]).all())
+
+        # Halos: cyclic slice increasing
+        for index in (cf.wi(70, 200), slice(2, 6)):
+            indices = f.indices(0, grid_longitude=index)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 4))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue((x == [80, 120, 160, 200]).all())
+
+            indices = f.indices(1, grid_longitude=index)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 6))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue((x == [40, 80, 120, 160, 200, 240]).all())
+
+            indices = f.indices(999, grid_longitude=index)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 9))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue(
+                (x == [-120, -80, -40, 0, 40, 80, 120, 160, 200]).all()
+            )
+
+        # Halos: cyclic slice increasing
+        index = cf.wi(-170, 40)
+        indices = f.indices(0, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 6))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [-160, -120, -80, -40, 0, 40]).all())
+
+        indices = f.indices(1, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 8))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [-200, -160, -120, -80, -40, 0, 40, 80]).all())
+
+        indices = f.indices(2, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [-240, -200, -160, -120, -80, -40, 0, 40, 80]).all()
+        )
+
+        # Halos: cyclic slice decreasing
+        index = slice(1, -5, -1)
+        indices = f.indices(0, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 6))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [40, 0, -40, -80, -120, -160]).all())
+
+        indices = f.indices(1, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 8))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue((x == [80, 40, 0, -40, -80, -120, -160, -200]).all())
+
+        indices = f.indices(2, grid_longitude=index)
+        g = f[indices]
+        self.assertEqual(g.shape, (1, 10, 9))
+        x = g.dimension_coordinate("X").array
+        self.assertTrue(
+            (x == [120, 80, 40, 0, -40, -80, -120, -160, -200]).all()
+        )
+
+        # Halos: ancillary masking
+        index = cf.wi(90, 100)
+        indices = f.indices(longitude=index)
+        g = f[indices]
+        self.assertTrue(np.ma.is_masked(g.array))
+
+        for halo in (0, 1):
+            indices = f.indices(halo, longitude=index)
+            g = f[indices]
+            self.assertFalse(np.ma.is_masked(g.array))
+
+        # Test API with 0/1/2 arguments
+        kwargs = {"grid_latitude": [1]}
+        i = f.indices(**kwargs)
+        j = f.indices(0, **kwargs)
+        k = f.indices("compress", 0, **kwargs)
+        self.assertEqual(i, j)
+        self.assertEqual(i, k)
 
         # Subspace has size 0 axis resulting from dask array index
         indices = f.indices(grid_latitude=cf.contains(-23.2))
@@ -1643,15 +1868,17 @@ class FieldTest(unittest.TestCase):
             self.assertTrue(f.match_by_construct("X", "latitude", OR=OR))
             self.assertTrue(f.match_by_construct("X", "Y", OR=OR))
             self.assertTrue(f.match_by_construct("X", "Y", "latitude", OR=OR))
-            self.assertTrue(f.match_by_construct("grid_latitude: max", OR=OR))
+            self.assertTrue(
+                f.match_by_construct("grid_latitude: maximum", OR=OR)
+            )
             self.assertTrue(
                 f.match_by_construct(
-                    "grid_longitude: mean grid_latitude: max", OR=OR
+                    "grid_longitude: mean grid_latitude: maximum", OR=OR
                 )
             )
-            self.assertTrue(f.match_by_construct("X", "method:max", OR=OR))
+            self.assertTrue(f.match_by_construct("X", "method:maximum", OR=OR))
             self.assertTrue(
-                f.match_by_construct("X", "grid_latitude: max", OR=OR)
+                f.match_by_construct("X", "grid_latitude: maximum", OR=OR)
             )
 
         self.assertFalse(f.match_by_construct("qwerty"))
@@ -1662,12 +1889,12 @@ class FieldTest(unittest.TestCase):
         self.assertTrue(f.match_by_construct("X", "qwerty", OR=True))
         self.assertTrue(
             f.match_by_construct(
-                "X", "qwerty", "method:max", "over:years", OR=True
+                "X", "qwerty", "method:maximum", "over:years", OR=True
             )
         )
         self.assertTrue(
             f.match_by_construct(
-                "X", "qwerty", "grid_latitude: max", "over:years", OR=True
+                "X", "qwerty", "grid_latitude: maximum", "over:years", OR=True
             )
         )
 
@@ -1861,9 +2088,15 @@ class FieldTest(unittest.TestCase):
     def test_Field_derivative(self):
         f = cf.example_field(0)
         f[...] = np.arange(9)[1:] * 45
+        x = f.dimension_coordinate("X")
+
+        # Ignore coordinate units
+        d = f.derivative("X", ignore_coordinate_units=True)
+        self.assertEqual(d.Units, f.Units)
 
         # Check a cyclic periodic axis
         d = f.derivative("X")
+        self.assertEqual(d.Units, f.Units / x.Units)
         self.assertTrue(np.allclose(d[:, 1:-1].array, 1))
         self.assertTrue(np.allclose(d[:, [0, -1]].array, -3))
 
@@ -1871,7 +2104,7 @@ class FieldTest(unittest.TestCase):
         # case
         f1 = f[:, ::-1]
         d1 = f1.derivative("X")
-        self.assertTrue(d1.data.equals(d.data))
+        self.assertTrue(d1.data.equals(d.data, verbose=-1))
 
         # Check non-cyclic
         d = f.derivative("X", wrap=False)
@@ -2320,12 +2553,18 @@ class FieldTest(unittest.TestCase):
     def test_Field_grad_xy(self):
         f = cf.example_field(0)
 
-        # Spherical polar coordinates
+        # theta=0 is at the north pole
         theta = 90 - f.convert("Y", full_domain=True)
         sin_theta = theta.sin()
 
         radius = 2
         r = f.radius(radius)
+
+        g = f.copy()
+        lon = g.dimension_coordinate("latitude")
+        lat = g.dimension_coordinate("longitude")
+        lon.Units = cf.Units("radians")
+        lat.Units = cf.Units("radians")
 
         for wrap in (False, True, None):
             for one_sided in (True, False):
@@ -2333,17 +2572,27 @@ class FieldTest(unittest.TestCase):
                     radius=radius, x_wrap=wrap, one_sided_at_boundary=one_sided
                 )
 
-                self.assertTrue(x.Units == y.Units == cf.Units("m-1 rad-1"))
+                self.assertEqual(x.Units, y.Units)
+                self.assertEqual(y.Units, cf.Units("m-1"))
 
-                x0 = f.derivative(
-                    "X", wrap=wrap, one_sided_at_boundary=one_sided
+                x0 = g.derivative(
+                    "X",
+                    wrap=wrap,
+                    one_sided_at_boundary=one_sided,
+                    ignore_coordinate_units=True,
                 ) / (sin_theta * r)
-                y0 = f.derivative("Y", one_sided_at_boundary=one_sided) / r
+                y0 = (
+                    g.derivative(
+                        "Y",
+                        one_sided_at_boundary=one_sided,
+                        ignore_coordinate_units=True,
+                    )
+                    / r
+                )
 
                 # Check the data
-                with cf.rtol(1e-10):
-                    self.assertTrue((x.data == x0.data).all())
-                    self.assertTrue((y.data == y0.data).all())
+                self.assertTrue(x.data.allclose(x0.data))
+                self.assertTrue(y.data.allclose(y0.data))
 
                 # Check that x and y have the same metadata as f
                 # (except standard_name, long_name, and units).
@@ -2371,10 +2620,13 @@ class FieldTest(unittest.TestCase):
             for one_sided in (True, False):
                 x, y = f.grad_xy(x_wrap=wrap, one_sided_at_boundary=one_sided)
 
-                self.assertTrue(x.Units == y.Units == cf.Units("m-1"))
+                self.assertEqual(x.Units, y.Units)
+                self.assertEqual(y.Units, cf.Units("m-1"))
 
                 x0 = f.derivative(
-                    "X", wrap=wrap, one_sided_at_boundary=one_sided
+                    "X",
+                    wrap=wrap,
+                    one_sided_at_boundary=one_sided,
                 )
                 y0 = f.derivative("Y", one_sided_at_boundary=one_sided)
 
@@ -2415,7 +2667,7 @@ class FieldTest(unittest.TestCase):
                     radius=radius, x_wrap=wrap, one_sided_at_boundary=one_sided
                 )
 
-                self.assertTrue(lp.Units == cf.Units("m-2 rad-2"))
+                self.assertEqual(lp.Units, cf.Units("m-2"))
 
                 lp0 = cf.div_xy(
                     *f.grad_xy(
@@ -2423,7 +2675,7 @@ class FieldTest(unittest.TestCase):
                         x_wrap=wrap,
                         one_sided_at_boundary=one_sided,
                     ),
-                    radius=2,
+                    radius=radius,
                     x_wrap=wrap,
                     one_sided_at_boundary=one_sided,
                 )
@@ -2447,7 +2699,7 @@ class FieldTest(unittest.TestCase):
                     x_wrap=wrap, one_sided_at_boundary=one_sided
                 )
 
-                self.assertTrue(lp.Units == cf.Units("m-2"))
+                self.assertEqual(lp.Units, cf.Units("m-2"))
 
                 lp0 = cf.div_xy(
                     *f.grad_xy(x_wrap=wrap, one_sided_at_boundary=one_sided),
@@ -2473,7 +2725,7 @@ class FieldTest(unittest.TestCase):
 
     def test_Field_to_dask_array(self):
         f = self.f0.copy()
-        self.assertIs(f.to_dask_array(), f.data.to_dask_array())
+        self.assertTrue((f.array == f.to_dask_array().compute()).all())
 
         f.del_data()
         with self.assertRaises(ValueError):
@@ -2546,16 +2798,61 @@ class FieldTest(unittest.TestCase):
         cm2 = f.cell_method("method:maximum")
         self.assertEqual(cm2.get_axes(), ("T",))
 
+    def test_Field_del_construct(self):
+        """Test the `del_construct` Field method."""
+        # Test a field without cyclic axes. These are equivalent tests to those
+        # in the cfdm test suite, to check the behaviour is the same in cf.
+        f = self.f1.copy()
+
+        self.assertIsInstance(
+            f.del_construct("auxiliarycoordinate1"), cf.AuxiliaryCoordinate
+        )
+
+        with self.assertRaises(ValueError):
+            f.del_construct("auxiliarycoordinate1")
+
+        self.assertIsNone(
+            f.del_construct("auxiliarycoordinate1", default=None)
+        )
+
+        self.assertIsInstance(f.del_construct("measure:area"), cf.CellMeasure)
+
+        # Test a field with cyclic axes, to ensure the cyclic() set is
+        # updated accordingly if a cyclic axes is the one removed.
+        g = cf.example_field(2)  # this has a cyclic axes 'domainaxis2'
+        # To delete a cyclic axes, must first delete this dimension coordinate
+        # because 'domainaxis2' spans it.
+        self.assertIsInstance(
+            g.del_construct("dimensioncoordinate2"), cf.DimensionCoordinate
+        )
+        self.assertEqual(g.cyclic(), set(("domainaxis2",)))
+        self.assertIsInstance(g.del_construct("domainaxis2"), cf.DomainAxis)
+        self.assertEqual(g.cyclic(), set())
+
     def test_Field_persist(self):
         """Test the `persist` Field method."""
         f = cf.example_field(0)
         f *= 2
 
-        self.assertGreater(len(f.to_dask_array().dask.layers), 1)
+        self.assertGreater(
+            len(
+                f.data.to_dask_array(
+                    _force_mask_hardness=False, _force_to_memory=False
+                ).dask.layers
+            ),
+            2,
+        )
 
         g = f.persist()
         self.assertIsInstance(g, cf.Field)
-        self.assertEqual(len(g.to_dask_array().dask.layers), 1)
+        self.assertEqual(
+            len(
+                g.data.to_dask_array(
+                    _force_mask_hardness=False, _force_to_memory=False
+                ).dask.layers
+            ),
+            1,
+        )
         self.assertTrue(g.equals(f))
 
         self.assertIsNone(g.persist(inplace=True))
@@ -2597,6 +2894,14 @@ class FieldTest(unittest.TestCase):
         h = f.subspace(grid_longitude=np.float64(20))
         self.assertTrue(g.equals(h))
 
+        # Test API with 0/1/2 arguments
+        kwargs = {"grid_latitude": [1]}
+        i = f.subspace(**kwargs)
+        j = f.subspace(0, **kwargs)
+        k = f.subspace("compress", 0, **kwargs)
+        self.assertEqual(i, j)
+        self.assertEqual(i, k)
+
     def test_Field_auxiliary_to_dimension_to_auxiliary(self):
         f = cf.example_field(0)
         nd = len(f.dimension_coordinates())
@@ -2628,6 +2933,107 @@ class FieldTest(unittest.TestCase):
         g = g.subspace(Y=cf.wi(-20, 30))
         self.assertTrue(g.aux("X").data.range() < 30)
         self.assertTrue(g.aux("Y").data.range() < 50)
+
+    def test_Field_pad_missing(self):
+        """Test Field.pad_missing."""
+        f = cf.example_field(0)
+
+        g = f.pad_missing("X", to_size=10)
+        self.assertEqual(g.shape, (5, 10))
+        self.assertTrue(g[:, 8:].mask.all())
+
+        self.assertIsNone(f.pad_missing("X", pad_width=(1, 2), inplace=True))
+        self.assertEqual(f.shape, (5, 11))
+        self.assertTrue(f[:, 0].mask.all())
+        self.assertTrue(f[:, 9:].mask.all())
+
+        g = f.pad_missing("Y", pad_width=(0, 1))
+        self.assertEqual(g.shape, (6, 11))
+        self.assertTrue(g[5, :].mask.all())
+
+    def test_Field_cyclic_iscyclic(self):
+        """Test the `cyclic` and `iscyclic` Field methods."""
+        f1 = cf.example_field(1)  # no cyclic axes
+        f2 = cf.example_field(2)  # one cyclic axis, 'domainaxis2' ('X')
+
+        # Getting
+        self.assertEqual(f1.cyclic(), set())
+        self.assertFalse(f1.iscyclic("X"))
+        self.assertFalse(f1.iscyclic("Y"))
+        self.assertFalse(f1.iscyclic("Z"))
+        self.assertFalse(f1.iscyclic("T"))
+        self.assertEqual(f2.cyclic(), set(("domainaxis2",)))
+        self.assertTrue(f2.iscyclic("X"))
+        self.assertFalse(f2.iscyclic("Y"))
+        self.assertFalse(f2.iscyclic("Z"))
+        self.assertFalse(f2.iscyclic("T"))
+
+        # Setting
+        self.assertEqual(f2.cyclic("X", iscyclic=False), set(("domainaxis2",)))
+        self.assertEqual(f2.cyclic(), set(("domainaxis2",)))
+
+        f2.cyclic("Y", period=360), set()
+        self.assertEqual(
+            f2.cyclic(),
+            set(
+                (
+                    "domainaxis1",
+                    "domainaxis2",
+                )
+            ),
+        )
+        self.assertTrue(f2.iscyclic("Y"))
+        self.assertEqual(
+            f2.cyclic("Y", iscyclic=False),
+            set(
+                (
+                    "domainaxis1",
+                    "domainaxis2",
+                )
+            ),
+        )
+        self.assertEqual(f2.cyclic(), set(("domainaxis2",)))
+
+        # Auto setting of cyclicity
+        self.assertTrue(f2.iscyclic("X"))
+        f2.cyclic("X", iscyclic=False)
+        self.assertFalse(f2._cyclic)
+        self.assertEqual(f2.cyclic(), set(("domainaxis2",)))
+
+        f2.cyclic("X", iscyclic=False)
+        self.assertTrue(f2.iscyclic("X"))
+
+    def test_Field_is_discrete_axis(self):
+        """Test the `is_discrete_axis` Field method."""
+        # No discrete axes
+        f = cf.example_field(1)
+        for axis in f.domain_axes(todict=True):
+            self.assertFalse(f.is_discrete_axis(axis))
+
+        # UGRID
+        f = cf.example_field(8)
+        self.assertTrue(f.is_discrete_axis("X"))
+        self.assertFalse(f.is_discrete_axis("T"))
+
+        # DSG
+        f = cf.example_field(4)
+        self.assertTrue(f.is_discrete_axis("cf_role=timeseries_id"))
+        self.assertFalse(f.is_discrete_axis("ncdim%timeseries"))
+
+        # Geometries
+        f = cf.example_field(6)
+        self.assertTrue(f.is_discrete_axis("cf_role=timeseries_id"))
+        self.assertFalse(f.is_discrete_axis("time"))
+
+    def test_Field_filled(self):
+        """Test Field.filled."""
+        f = cf.example_field(0)
+        f.where(cf.gt(0.1), cf.masked, inplace=1)
+        self.assertEqual(f.data.count_masked(), 5)
+        self.assertIsNone(f.filled(-999, inplace=True))
+        values, counts = np.unique(f, return_counts=True)
+        self.assertEqual(values[0], -999)
+        self.assertEqual(counts[0], 5)
 
 
 if __name__ == "__main__":

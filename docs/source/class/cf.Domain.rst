@@ -190,6 +190,7 @@ Miscellaneous
    ~cf.Domain.apply_masking   
    ~cf.Domain.get_original_filenames
    ~cf.Domain.close
+   ~cf.Domain.persist
    ~cf.Domain.uncompress
 
 Domain axes
@@ -207,17 +208,18 @@ Domain axes
    ~cf.Domain.direction
    ~cf.Domain.directions
    ~cf.Domain.iscyclic
+   ~cf.Domain.is_discrete_axis
 
 Subspacing
 ----------
 
 .. autosummary::
    :nosignatures:
-   :toctree: ../attribute/
-   :template: attribute.rst
+   :toctree: ../method/
+   :template: method.rst
 
-   ~cf.Domain.subspace
    ~cf.Domain.indices
+   ~cf.Domain.subspace
 
 NetCDF
 ------
@@ -256,8 +258,8 @@ Groups
    ~cf.Domain.nc_set_group_attribute
    ~cf.Domain.nc_set_group_attributes
   
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -266,13 +268,7 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.Domain.add_file_location
-   ~cf.Domain.cfa_clear_file_substitutions
-   ~cf.Domain.cfa_del_file_substitution
-   ~cf.Domain.cfa_file_substitutions
-   ~cf.Domain.cfa_update_file_substitutions
-   ~cf.Domain.del_file_location
-   ~cf.Domain.file_locations
+  ~cf.Domain.file_locations
 
 Geometries
 ^^^^^^^^^^
@@ -364,6 +360,13 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.Domain.add_file_location
+   ~cf.Domain.cfa_clear_file_substitutions
+   ~cf.Domain.cfa_del_file_substitution
+   ~cf.Domain.cfa_file_substitutions
+   ~cf.Domain.cfa_update_file_substitutions
+   ~cf.Domain.del_file_location
    ~cf.Domain.delprop
    ~cf.Domain.get_filenames
    ~cf.Domain.getprop

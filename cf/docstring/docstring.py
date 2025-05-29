@@ -20,6 +20,7 @@ Keys must be `str` or `re.Pattern` objects:
 .. versionadded:: 3.7.0
 
 """
+
 _docstring_substitution_definitions = {
     # ----------------------------------------------------------------
     # General substitutions (not indent-dependent)
@@ -80,6 +81,13 @@ _docstring_substitution_definitions = {
         Whether `esmpy` logging is enabled or not is determined by
         `cf.regrid_logging`. If it is enabled then logging takes place
         after every call. By default logging is disabled.""",
+    # subspace halos
+    "{{subspace halos}}": """If a halo is defined via a positional argument, then each
+        subspaced axis will be extended to include that many extra
+        elements at each "side" of the axis. The number of extra
+        elements will be automatically reduced if including the full
+        amount defined by the halo would extend the subspace beyond
+        the axis limits.""",
     # ----------------------------------------------------------------
     # Method description substitutions (3 levels of indentation)
     # ----------------------------------------------------------------
@@ -115,43 +123,47 @@ _docstring_substitution_definitions = {
                 * ``'bilinear'``: Deprecated alias for ``'linear'``.
 
                 * ``'conservative_1st'``: First order conservative
-                  interpolation. Preserves the area integral of the
-                  data across the interpolation from source to
-                  destination. It uses the proportion of the area of
-                  the overlapping source and destination cells to
-                  determine appropriate weights.
+                  interpolation. Preserves the integral of the source
+                  field across the regridding. Weight calculation is
+                  based on the ratio of source cell area overlapped
+                  with the corresponding destination cell area.
 
                 * ``'conservative'``: Alias for ``'conservative_1st'``
 
                 * ``'conservative_2nd'``: Second-order conservative
-                  interpolation. As with first order conservative
-                  interpolation, preserves the area integral of the
-                  field between source and destination using a
-                  weighted sum, with weights based on the
-                  proportionate area of intersection. In addition the
-                  second-order conservative method takes the source
-                  gradient into account, so it yields a smoother
-                  destination field that typically better matches the
-                  source data.
+                  interpolation. Preserves the integral of the source
+                  field across the regridding. Weight calculation is
+                  based on the ratio of source cell area overlapped
+                  with the corresponding destination cell area. The
+                  second-order conservative calculation also includes
+                  the gradient across the source cell, so in general
+                  it gives a smoother, more accurate representation of
+                  the source field. This is particularly true when
+                  going from a coarse to finer grid.
 
-                * ``'patch'`` Patch recovery interpolation. A second
-                  degree 2-d polynomial regridding method, which uses
-                  a least squares algorithm to calculate the
-                  polynomials. This method typically results in
-                  better approximations to values and derivatives when
+                * ``'patch'`` Patch recovery interpolation. Patch
+                  rendezvous method of taking the least squares fit of
+                  the surrounding surface patches. This is a higher
+                  order method that may produce interpolation weights
+                  that may be slightly less than 0 or slightly greater
+                  than 1. This method typically results in better
+                  approximations to values and derivatives when
                   compared to bilinear interpolation.
 
-                * ``'nearest_stod'``: Nearest neighbour interpolation
-                  for which each destination point is mapped to the
-                  closest source point. Useful for extrapolation of
-                  categorical data. Some destination cells may be
-                  unmapped.
+                * ``'nearest_stod'``: Nearest neighbour source to
+                  destination interpolation for which each destination
+                  point is mapped to the closest source point. A
+                  source point can be mapped to multiple destination
+                  points. Useful for regridding categorical data.
 
-                * ``'nearest_dtos'``: Nearest neighbour interpolation
-                  for which each source point is mapped to the
-                  destination point. Useful for extrapolation of
-                  categorical data. All destination cells will be
-                  mapped.
+                * ``'nearest_dtos'``: Nearest neighbour destination to
+                  source interpolation for which each source point is
+                  mapped to the closest destination point. A
+                  destination point can be mapped to multiple source
+                  points. Some destination points may not be
+                  mapped. Each regridded value is the sum of its
+                  contributing source elements. Useful for binning or
+                  for categorical data.
 
                 * `None`: This is the default and can only be used
                   when *dst* is a `RegridOperator`.""",
@@ -167,42 +179,6 @@ _docstring_substitution_definitions = {
                 value given by the *radius* parameter is used
                 instead. A value of ``'earth'`` is equivalent to a
                 default value of 6371229 metres.""",
-    # chunks
-    "{{chunks: `int`, `tuple`, `dict` or `str`, optional}}": """chunks: `int`, `tuple`, `dict` or `str`, optional
-                Specify the chunking of the underlying dask array.
-
-                Any value accepted by the *chunks* parameter of the
-                `dask.array.from_array` function is allowed.
-
-                By default, ``"auto"`` is used to specify the array
-                chunking, which uses a chunk size in bytes defined by
-                the `cf.chunksize` function, preferring square-like
-                chunk shapes.
-
-                *Parameter example:*
-                  A blocksize like ``1000``.
-
-                *Parameter example:*
-                  A blockshape like ``(1000, 1000)``.
-
-                *Parameter example:*
-                  Explicit sizes of all blocks along all dimensions
-                  like ``((1000, 1000, 500), (400, 400))``.
-
-                *Parameter example:*
-                  A size in bytes, like ``"100MiB"`` which will choose
-                  a uniform block-like shape, preferring square-like
-                  chunk shapes.
-
-                *Parameter example:*
-                  A blocksize of ``-1`` or `None` in a tuple or
-                  dictionary indicates the size of the corresponding
-                  dimension.
-
-                *Parameter example:*
-                  Blocksizes of some or all dimensions mapped to
-                  dimension positions, like ``{1: 200}``, or ``{0: -1,
-                  1: (400, 400)}``.""",
     # Returns formula
     "{{Returns formula}}": """5-`tuple`
                 * The standard name of the parametric coordinates.
@@ -221,28 +197,6 @@ _docstring_substitution_definitions = {
                   domain axis. If the vertical axis does not appear in
                   the computed non-parametric coordinates then this an
                   empty tuple.""",
-    # collapse axes
-    "{{collapse axes: (sequence of) `int`, optional}}": """axes: (sequence of) `int`, optional
-                The axes to be collapsed. By default all axes are
-                collapsed, resulting in output with size 1. Each axis
-                is identified by its integer position. If *axes* is an
-                empty sequence then the collapse is applied to each
-                scalar element and the result has the same shape as
-                the input data.""",
-    # collapse squeeze
-    "{{collapse squeeze: `bool`, optional}}": """squeeze: `bool`, optional
-                By default, the axes which are collapsed are left in
-                the result as dimensions with size one, so that the
-                result will broadcast correctly against the input
-                array. If set to True then collapsed axes are removed
-                from the data.""",
-    # collapse keepdims
-    "{{collapse keepdims: `bool`, optional}}": """keepdims: `bool`, optional
-                By default, the axes which are collapsed are left in
-                the result as dimensions with size one, so that the
-                result will broadcast correctly against the input
-                array. If set to False then collapsed axes are removed
-                from the data.""",
     # weights
     "{{weights: data_like, `dict`, or `None`, optional}}": """weights: data_like, `dict`, or `None`, optional
                 Weights associated with values of the data. By default
@@ -272,14 +226,12 @@ _docstring_substitution_definitions = {
                 The sample size threshold below which collapsed values
                 are set to missing data. It is defined as a fraction
                 (between 0 and 1 inclusive) of the contributing input
-                data values.
-
-                The default of *mtol* is 1, meaning that a missing
-                datum in the output array occurs whenever all of its
+                data values. A missing value in the output array
+                occurs whenever more than ``100*mtol%`` of its
                 contributing input array elements are missing data.
 
-                For other values, a missing datum in the output array
-                occurs whenever more than ``100*mtol%`` of its
+                The default of *mtol* is 1, meaning that a missing
+                value in the output array occurs whenever all of its
                 contributing input array elements are missing data.
 
                 Note that for non-zero values of *mtol*, different
@@ -290,35 +242,28 @@ _docstring_substitution_definitions = {
     "{{ddof: number}}": """ddof: number
                 The delta degrees of freedom, a non-negative
                 number. The number of degrees of freedom used in the
-                calculation is (N-*ddof*) where N represents the
-                number of non-missing elements. A value of 1 applies
-                Bessel's correction. If the calculation is weighted
-                then *ddof* can only be 0 or 1.""",
-    # split_every
-    "{{split_every: `int` or `dict`, optional}}": """split_every: `int` or `dict`, optional
-                Determines the depth of the recursive aggregation. If
-                set to or more than the number of input chunks, the
-                aggregation will be performed in two steps, one
-                partial collapse per input chunk and a single
-                aggregation at the end. If set to less than that, an
-                intermediate aggregation step will be used, so that
-                any of the intermediate or final aggregation steps
-                operates on no more than ``split_every`` inputs. The
-                depth of the aggregation graph will be
-                :math:`log_{split_every}(input chunks along reduced
-                axes)`. Setting to a low value can reduce cache size
-                and network transfers, at the cost of more CPU and a
-                larger dask graph.
+                calculation is ``N-ddof`` where ``N`` is the number of
+                non-missing elements. A value of 1 applies Bessel's
+                correction. If the calculation is weighted then *ddof*
+                can only be 0 or 1.""",
+    # active_storage
+    "{{active_storage: `bool`, optional}}": """{{active_storage: `bool`, optional}}
+                If True then attempt to perform the collapse using
+                active storage reductions. However, if other necessary
+                conditions are not met (see `Collapse` for details)
+                then the reduction will be carried out locally, as
+                usual. When an active storage reduction on a chunk
+                fails at compute time, the reduction for that chunk is
+                carried out locally.
 
-                By default, `dask` heuristically decides on a good
-                value. A default can also be set globally with the
-                ``split_every`` key in `dask.config`. See
-                `dask.array.reduction` for details.""",
+                If False, the default, then the reduction will be
+                carried out locally.""",
     # Collapse chunk_function
-    "{{chunk_function: callable, optional}}": """{{chunk_function: callable, optional}}
+    "{{chunk_function: callable or `None`, optional}}": """{{chunk_function: callable or `None`, optional}}
                 Provides the ``chunk`` parameter to
-                `dask.array.reduction`. If unset then an approriate
-                default function will be used.""",
+                `dask.array.reduction`. If `None`, the default, then
+                an appropriate default function from
+                `cf.data.collapse.dask_collapse` will be used.""",
     # Collapse weights
     "{{Collapse weights: data_like or `None`, optional}}": """weights: data_like or `None`, optional
                 Weights associated with values of the array. By
@@ -493,7 +438,9 @@ _docstring_substitution_definitions = {
 
                 The computation of the weights can be much more costly
                 than the regridding itself, in which case reading
-                pre-calculated weights can improve performance.""",
+                pre-calculated weights can improve performance.
+
+                Ignored if *dst* is a `RegridOperator`.""",
     # aggregated_units
     "{{aggregated_units: `str` or `None`, optional}}": """aggregated_units: `str` or `None`, optional
                 The units of the aggregated array. Set to `None` to
@@ -523,38 +470,6 @@ _docstring_substitution_definitions = {
     # bounds
     "{{bounds: `bool`, optional}}": """bounds: `bool`, optional
                 If True (the default) then alter any bounds.""",
-    # cull
-    "{{cull_graph: `bool`, optional}}": """cull_graph: `bool`, optional
-                If True then unnecessary tasks are removed (culled)
-                from each array's dask graph before
-                concatenation. This process can have a considerable
-                overhead but can sometimes improve the overall
-                performance of a workflow. If False (the default) then
-                dask graphs are not culled. See
-                `dask.optimization.cull` for details.""",
-    # relaxed_units
-    "{{relaxed_units: `bool`, optional}}": """relaxed_units: `bool`, optional
-                If True then allow the concatenation of data with
-                invalid but otherwise equal units. By default, if any
-                data array has invalid units then the concatenation
-                will fail. A `Units` object is considered to be
-                invalid if its `!isvalid` attribute is `False`.""",
-    # cfa substitutions
-    "{{cfa substitutions: `dict`}}": """substitutions: `dict`
-                The substitution definitions in a dictionary whose
-                key/value pairs are the file name parts to be
-                substituted and their corresponding substitution text.
-
-                Each substitution definition may be specified with or
-                without the ``${...}`` syntax. For instance, the
-                following are equivalent: ``{'base': 'sub'}``,
-                ``{'${base}': 'sub'}``.""",
-    # cfa base
-    "{{cfa base: `str`}}": """base: `str`
-                The substitution definition to be removed. May be
-                specified with or without the ``${...}`` syntax. For
-                instance, the following are equivalent: ``'base'`` and
-                ``'${base}'``.""",
     # regular args
     "{{regular args}}": """A sequence of three numeric values. The first two values in
                 the sequence represent the coordinate range (see the bounds
@@ -587,6 +502,68 @@ _docstring_substitution_definitions = {
     "{{weights auto: `bool`, optional}}": """auto: `bool`, optional
                 If True then return `False` if weights can't be found,
                 rather than raising an exception.""",
+    # ln_z
+    "{{ln_z: `bool` or `None`, optional}}": """ln_z: `bool` or `None`, optional
+                If True when *z*, *src_z* or *dst_z* are also set,
+                calculate the vertical component of the regridding
+                weights using the natural logarithm of the vertical
+                coordinate values. This option should be used if the
+                quantity being regridded varies approximately linearly
+                with logarithm of the vertical coordinates. If False,
+                then the weights are calculated using unaltered
+                vertical values. If `None`, the default, then an
+                exception is raised if any of *z*, *src_z* or *dst_z*
+                have also been set.
+
+                Ignored if *dst* is a `RegridOperator`.""",
+    # pad_width
+    "{{pad_width: sequence of `int`, optional}}": """pad_width: sequence of `int`, optional
+                Number of values to pad before and after the edges of
+                the axis.""",
+    # to_size
+    "{{to_size: `int`, optional}}": """to_size: `int`, optional
+                Pad the axis after so that the new axis has the given
+                size.""",
+    # _get_array index
+    "{{index: `tuple` or `None`, optional}}": """index: `tuple` or `None`, optional
+               Provide the indices that define the subspace. If `None`
+               then the `index` attribute is used.""",
+    # subspace config options
+    "{{config: optional}}": """config: optional
+                Configure the subspace by specifying the mode of
+                operation (``mode``) and any halo to be added to the
+                subspaced axes (``halo``), with positional arguments
+                in the format ``mode``, or ``halo``, or ``mode,
+                halo``, or with no positional arguments at all.
+
+                A mode of operation is given as a `str`, and a halo as
+                a non-negative `int` (or any object that can be
+                converted to one):
+
+                ==============  ======================================
+                *mode*          Description
+                ==============  ======================================
+                Not provided    If no positional arguments are
+                                provided then assume the
+                                ``'compress'`` mode of operation with
+                                no halo added to the subspaced axes.
+
+                ``mode``        Define the mode of operation with no
+                                halo added to the subspaced axes.
+
+                ``mode, halo``  Define a mode of operation, as well as
+                                a halo to be added to the subspaced
+                                axes.
+
+                ``halo``        Assume the ``'compress'`` mode of
+                                operation and define a halo to be
+                                added to the subspaced axes.
+                ==============  ======================================""",
+    # return_esmpy_regrid_operator
+    "{{return_esmpy_regrid_operator: `bool`, optional}}": """return_esmpy_regrid_operator: `bool`, optional
+                If True then do not perform the regridding, rather
+                return the `esmpy.Regrid` instance that defines the
+                regridding operation.""",
     # ----------------------------------------------------------------
     # Method description substitutions (4 levels of indentation)
     # ----------------------------------------------------------------
@@ -609,29 +586,62 @@ _docstring_substitution_definitions = {
                   other types of *dst* parameter, the calculation of
                   the regrid weights is not a lazy operation.
 
-                  .. note:: The source grid of the regrid operator is
+                   .. note:: When *dst* is a `RegridOperator`, the
+                            source grid of the regrid operator is
                             immediately checked for compatibility with
                             the grid of the source field. By default
                             only the computationally cheap tests are
                             performed (checking that the coordinate
-                            system, cyclicity and grid shape are the
-                            same), with the grid coordinates not being
-                            checked. The coordinates check will be
-                            carried out, however, if the
-                            *check_coordinates* parameter is True.""",
-    # Returns cfa_file_substitutions
-    "{{Returns cfa_file_substitutions}}": """The CFA-netCDF file name substitutions in a dictionary
-                whose key/value pairs are the file name parts to be
-                substituted and their corresponding substitution
-                text.""",
-    # Returns cfa_clear_file_substitutions
-    "{{Returns cfa_clear_file_substitutions}}": """The removed CFA-netCDF file name substitutions in a
-                dictionary whose key/value pairs are the file name
-                parts to be substituted and their corresponding
-                substitution text.""",
-    # Returns cfa_clear_file_substitutions
-    "{{Returns cfa_del_file_substitution}}": """
-                The removed CFA-netCDF file name substitution. If the
-                substitution was not defined then an empty dictionary
-                is returned.""",
+                            system, cyclicity, grid shape, regridding
+                            dimensionality, mesh location, and feature
+                            type are the same), with the grid
+                            coordinates not being checked. The
+                            coordinates check will be carried out,
+                            however, if the *check_coordinates*
+                            parameter is True.""",
+    # subspace valid modes Field
+    "{{subspace valid modes Field}}": """Valid modes are:
+
+                * ``'compress'`` This is the default.
+                     Unselected locations are removed to create the
+                     subspace. If the result is not hyperrectangular
+                     then the minimum amount of unselected locations
+                     required to make it so will also be specially
+                     selected. Missing data is inserted at the
+                     specially selected locations, unless a halo has
+                     been defined (of any size, including 0).
+
+                * ``'envelope'``
+                     The subspace is the smallest hyperrectangular
+                     subspace that contains all of the selected
+                     locations. Missing data is inserted at unselected
+                     locations within the envelope, unless a halo has
+                     been defined (of any size, including 0).
+
+                * ``'full'``
+                     The subspace has the same domain as the original
+                     construct. Missing data is inserted at unselected
+                     locations, unless a halo has been defined (of any
+                     size, including 0).
+
+                .. note:: Setting a halo size of `0` differs from not
+                          not defining a halo at all. The shape of the
+                          returned field will always be the same, but
+                          in the former case missing data will not be
+                          inserted at unselected locations (if any)
+                          within the output domain.""",
+    # subspace valid modes Domain
+    "{{subspace valid modes Domain}}": """Valid modes are:
+
+                * ``'compress'`` This is the default.
+                     Unselected locations are removed to create the
+                     subspace. If the result is not hyperrectangular
+                     then the minimum amount of unselected locations
+                     required to make it so will also be specially
+                     selected.
+
+                * ``'envelope'``
+                     The subspace is the smallest hyperrectangular
+                     subspace that contains all of the selected
+                     locations.""",
 }

@@ -1,5 +1,4 @@
 from math import prod
-from os import sep
 
 import cfdm
 import numpy as np
@@ -14,7 +13,6 @@ from .domainaxis import DomainAxis
 from .functions import (
     _DEPRECATION_ERROR_ARG,
     _DEPRECATION_ERROR_METHOD,
-    abspath,
     indices_shape,
     parse_indices,
 )
@@ -125,141 +123,6 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
             [domain_axis.get_size(0) for domain_axis in domain_axes.values()]
         )
 
-    def add_file_location(
-        self,
-        location,
-    ):
-        """Add a new file location in-place.
-
-        All data definitions that reference files are additionally
-        referenced from the given location.
-
-        .. versionadded:: 3.15.0
-
-        .. seealso:: `del_file_location`, `file_locations`
-
-        :Parameters:
-
-            location: `str`
-                The new location.
-
-        :Returns:
-
-            `str`
-                The new location as an absolute path with no trailing
-                path name component separator.
-
-        **Examples**
-
-        >>> f.add_file_location('/data/model/')
-        '/data/model'
-
-        """
-        location = abspath(location).rstrip(sep)
-
-        for c in self.constructs.filter_by_data(todict=True).values():
-            c.add_file_location(location)
-
-        return location
-
-    def cfa_clear_file_substitutions(
-        self,
-    ):
-        """Remove all of the CFA-netCDF file name substitutions.
-
-        .. versionadded:: 3.15.0
-
-        :Returns:
-
-            `dict`
-                {{Returns cfa_clear_file_substitutions}}
-
-        **Examples**
-
-        >>> d.cfa_clear_file_substitutions()
-        {}
-
-        """
-        out = {}
-        for c in self.constructs.filter_by_data(todict=True).values():
-            out.update(c.cfa_clear_file_substitutions())
-
-        return out
-
-    def cfa_file_substitutions(self):
-        """Return the CFA-netCDF file name substitutions.
-
-        .. versionadded:: 3.15.0
-
-        :Returns:
-
-            `dict`
-                {{Returns cfa_file_substitutions}}
-
-        **Examples**
-
-        >>> d.cfa_file_substitutions()
-        {}
-
-        """
-        out = {}
-        for c in self.constructs.filter_by_data(todict=True).values():
-            out.update(c.cfa_file_substitutions())
-
-        return out
-
-    def cfa_del_file_substitution(
-        self,
-        base,
-    ):
-        """Remove a CFA-netCDF file name substitution.
-
-        .. versionadded:: 3.15.0
-
-        :Parameters:
-
-            base: `str`
-                {{cfa base: `str`}}
-
-        :Returns:
-
-            `dict`
-                {{Returns cfa_del_file_substitution}}
-
-        **Examples**
-
-        >>> f.cfa_del_file_substitution('base')
-
-        """
-        for c in self.constructs.filter_by_data(todict=True).values():
-            c.cfa_del_file_substitution(
-                base,
-            )
-
-    def cfa_update_file_substitutions(
-        self,
-        substitutions,
-    ):
-        """Set CFA-netCDF file name substitutions.
-
-        .. versionadded:: 3.15.0
-
-        :Parameters:
-
-            {{cfa substitutions: `dict`}}
-
-        :Returns:
-
-            `None`
-
-        **Examples**
-
-        >>> d.cfa_update_file_substitutions({'base': '/data/model'})
-
-        """
-        for c in self.constructs.filter_by_data(todict=True).values():
-            c.cfa_update_file_substitutions(substitutions)
-
     def close(self):
         """Close all files referenced by the domain construct.
 
@@ -285,43 +148,6 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
             version="3.14.0",
             removed_at="5.0.0",
         )  # pragma: no cover
-
-    def del_file_location(
-        self,
-        location,
-    ):
-        """Remove a file location in-place.
-
-        All data definitions that reference files will have references
-        to files in the given location removed from them.
-
-        .. versionadded:: 3.15.0
-
-        .. seealso:: `add_file_location`, `file_locations`
-
-        :Parameters:
-
-            location: `str`
-                 The file location to remove.
-
-        :Returns:
-
-            `str`
-                The removed location as an absolute path with no
-                trailing path name component separator.
-
-        **Examples**
-
-        >>> d.del_file_location('/data/model/')
-        '/data/model'
-
-        """
-        location = abspath(location).rstrip(sep)
-
-        for c in self.constructs.filter_by_data(todict=True).values():
-            c.del_file_location(location)
-
-        return location
 
     @classmethod
     def create_regular(cls, x_args, y_args, bounds=True):
@@ -430,38 +256,6 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
         domain.set_construct(latitude, axes=[domain_axis_latitude], copy=False)
 
         return domain
-
-    def file_locations(
-        self,
-    ):
-        """The locations of files containing parts of the components data.
-
-        Returns the locations of any files that may be required to
-        deliver the computed data arrays of any of the component
-        constructs (such as dimension coordinate constructs, cell
-        measure constructs, etc.).
-
-        .. versionadded:: 3.15.0
-
-        .. seealso:: `add_file_location`, `del_file_location`
-
-        :Returns:
-
-            `set`
-                The unique file locations as absolute paths with no
-                trailing path name component separator.
-
-        **Examples**
-
-        >>> d.file_locations()
-        {'/home/data1', 'file:///data2'}
-
-        """
-        out = set()
-        for c in self.constructs.filter_by_data(todict=True).values():
-            out.update(c.file_locations())
-
-        return out
 
     @_inplace_enabled(default=False)
     def flip(self, axes=None, inplace=False):
@@ -707,7 +501,7 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
           equals e.g. ``'foo=bar'``.
         * The netCDF variable name, preceded by ``'ncvar%'``.
 
-        .. versionadded:: (cfdm) 1.9.0.0
+        .. versionadded:: 3.8.0
 
         .. seealso:: `identity`
 
@@ -739,11 +533,11 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
 
         return out
 
-    def indices(self, *mode, **kwargs):
+    def indices(self, *config, **kwargs):
         """Create indices that define a subspace of the domain
         construct.
 
-        The indices returned by this method be used to create the
+        The indices returned by this method may be used to create the
         subspace by passing them to the `subspace` method of the
         original domain construct.
 
@@ -778,6 +572,10 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
           may still need to be inserted into the field construct's
           data.
 
+        **Halos**
+
+        {{subspace halos}}
+
         .. versionadded:: 3.11.0
 
         .. seealso:: `subspace`, `where`, `__getitem__`,
@@ -785,27 +583,11 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
 
         :Parameters:
 
-            mode: `str`, *optional*
-                There are two modes of operation, each of which provides
-                indices for a different type of subspace:
+            {{config: optional}}
 
-                ==============  ======================================
-                *mode*          Description
-                ==============  ======================================
-                ``'compress'``  This is the default mode. Unselected
-                                locations are removed to create the
-                                returned subspace. Note that if a
-                                multi-dimensional metadata construct
-                                is being used to define the indices
-                                then some missing data may still be
-                                inserted at unselected locations.
+                {{subspace valid modes Domain}}
 
-                ``'envelope'``  The returned subspace is the smallest
-                                that contains all of the selected
-                                indices.
-                ==============  ======================================
-
-            kwargs: *optional*
+            kwargs: optional
                 A keyword name is an identity of a metadata construct,
                 and the keyword value provides a condition for
                 inferring indices that apply to the dimension (or
@@ -857,22 +639,9 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
                         : time(1) = [2019-01-01 00:00:00]
 
         """
-        if len(mode) > 1:
-            raise ValueError(
-                "Can't provide more than one positional argument. "
-                f"Got: {', '.join(repr(x) for x in mode)}"
-            )
-
-        if not mode or "compress" in mode:
-            mode = "compress"
-        elif "envelope" in mode:
-            mode = "envelope"
-        else:
-            raise ValueError(f"Invalid value for 'mode' argument: {mode[0]!r}")
-
         # Get the indices for every domain axis in the domain, without
         # any auxiliary masks.
-        domain_indices = self._indices(mode, None, False, kwargs)
+        domain_indices = self._indices(config, None, False, kwargs)
 
         return domain_indices["indices"]
 
@@ -1119,20 +888,20 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
 
         return d
 
-    def subspace(self, *mode, **kwargs):
-        """Create indices that define a subspace of the domain
-        construct.
+    def subspace(self, *config, **kwargs):
+        """Create a subspace of the field construct.
 
-        The indices returned by this method be used to create the subspace
-        by passing them to the `subspace` method of the original domain
-        construct.
+        Creation of a new domain construct which spans a subspace of
+        the domain of an existing domain construct is achieved by
+        identifying indices based on the metadata constructs
+        (subspacing by metadata). The new domain construct is created
+        with the same properties as the original domain construct.
 
-        The subspace is defined by identifying indices based on the
-        metadata constructs.
+        **Subspacing by metadata**
 
-        Metadata constructs are selected conditions are specified on their
-        data. Indices for subspacing are then automatically inferred from
-        where the conditions are met.
+        Subspacing by metadata selects metadata constructs and
+        specifies conditions on their data. Indices for subspacing are
+        then automatically inferred from where the conditions are met.
 
         Metadata constructs and the conditions on their data are defined
         by keyword parameters.
@@ -1156,41 +925,21 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
           acting along orthogonal dimensions, some missing data may still
           need to be inserted into the field construct's data.
 
+        **Halos**
+
+        {{subspace halos}}
+
         .. versionadded:: 3.11.0
 
-        .. seealso:: `indices`
+        .. seealso:: `indices`, `cf.Field.subspace`
 
         :Parameters:
 
-            mode: `str`, *optional*
-                There are two modes of operation, each of which provides
-                indices for a different type of subspace:
+            {{config: optional}}
 
-                ==============  ==========================================
-                *mode*          Description
-                ==============  ==========================================
-                ``'compress'``  Return indices that identify only the
-                                requested locations.
+                {{subspace valid modes Domain}}
 
-                                This is the default mode.
-
-                                Note that if a multi-dimensional metadata
-                                construct is being used to define the
-                                indices then some unrequested locations
-                                may also be selected.
-
-                ``'envelope'``  The returned subspace is the smallest that
-                                contains all of the requested locations.
-
-                ``'test'``      May be used on its own or in addition to
-                                one of the other positional arguments. Do
-                                not create a subspace, but return `True`
-                                or `False` depending on whether or not it
-                                is possible to create the specified
-                                subspace.
-                ==============  ==========================================
-
-            kwargs: *optional*
+            kwargs: optional
                 A keyword name is an identity of a metadata construct, and
                 the keyword value provides a condition for inferring
                 indices that apply to the dimension (or dimensions)
@@ -1231,19 +980,19 @@ class Domain(mixin.FieldDomain, mixin.Properties, cfdm.Domain):
 
         """
         test = False
-        if "test" in mode:
-            mode = list(mode)
-            mode.remove("test")
+        if "test" in config:
+            config = list(config)
+            config.remove("test")
             test = True
 
-        if not mode and not kwargs:
+        if not config and not kwargs:
             if test:
                 return True
 
             return self.copy()
 
         try:
-            indices = self.indices(*mode, **kwargs)
+            indices = self.indices(*config, **kwargs)
         except ValueError as error:
             if test:
                 return False

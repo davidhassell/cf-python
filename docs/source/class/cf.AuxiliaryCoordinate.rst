@@ -262,6 +262,7 @@ Data
    :template: method.rst
 
    ~cf.AuxiliaryCoordinate.halo
+   ~cf.AuxiliaryCoordinate.pad_missing
 
 .. rubric:: *Data array mask*
 
@@ -274,6 +275,7 @@ Data
    ~cf.AuxiliaryCoordinate.count
    ~cf.AuxiliaryCoordinate.count_masked
    ~cf.AuxiliaryCoordinate.fill_value
+   ~cf.AuxiliaryCoordinate.filled
    ~cf.AuxiliaryCoordinate.masked_invalid
 
 .. autosummary::
@@ -500,6 +502,9 @@ NetCDF
    ~cf.AuxiliaryCoordinate.nc_set_node_coordinate_variable
    ~cf.AuxiliaryCoordinate.nc_set_node_coordinate_variable_groups
    ~cf.AuxiliaryCoordinate.nc_clear_node_coordinate_variable_groups
+   ~cf.AuxiliaryCoordinate.nc_clear_hdf5_chunksizes
+   ~cf.AuxiliaryCoordinate.nc_hdf5_chunksizes
+   ~cf.AuxiliaryCoordinate.nc_set_hdf5_chunksizes
    
 Groups
 ^^^^^^
@@ -515,8 +520,8 @@ Groups
    ~cf.AuxiliaryCoordinate.nc_set_variable_groups
    ~cf.AuxiliaryCoordinate.nc_clear_variable_groups
   
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -525,13 +530,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.AuxiliaryCoordinate.add_file_location
-   ~cf.AuxiliaryCoordinate.cfa_clear_file_substitutions
-   ~cf.AuxiliaryCoordinate.cfa_del_file_substitution
-   ~cf.AuxiliaryCoordinate.cfa_file_substitutions
-   ~cf.AuxiliaryCoordinate.cfa_update_file_substitutions
-   ~cf.AuxiliaryCoordinate.del_file_location
-   ~cf.AuxiliaryCoordinate.file_locations
+   ~cf.AuxiliaryCoordinate.file_directories
+   ~cf.AuxiliaryCoordinate.replace_directory
    
 Aliases
 -------

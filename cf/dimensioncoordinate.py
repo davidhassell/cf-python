@@ -8,7 +8,11 @@ from .decorators import (
     _inplace_enabled,
     _inplace_enabled_define_and_cleanup,
 )
-from .functions import _DEPRECATION_ERROR_ATTRIBUTE, _DEPRECATION_ERROR_KWARGS
+from .functions import (
+    _DEPRECATION_ERROR_ATTRIBUTE,
+    _DEPRECATION_ERROR_KWARGS,
+    bounds_combination_mode,
+)
 from .timeduration import TimeDuration
 from .units import Units
 
@@ -127,9 +131,9 @@ class DimensionCoordinate(
         """Return True if a coordinate is increasing, otherwise return
         False.
 
-        A dimension coordinate construct is considered to be increasing if
-        its data array values are increasing in index space, or if it has
-        no data nor bounds.
+        A dimension coordinate construct is considered to be
+        increasing if its data array values are not strictly
+        decreasing in index space, or if it has no data nor bounds.
 
         If the direction can not be inferred from the data not bounds then
         the coordinate's units are used.
@@ -164,12 +168,12 @@ class DimensionCoordinate(
                 c = data._get_cached_elements()
                 if c:
                     try:
-                        return bool(c.get(0) < c.get(1))
+                        return bool(c.get(0) <= c.get(1))
                     except TypeError:
                         pass
 
                 data = data[:2].compute()
-                return bool(data.item(0) < data.item(1))
+                return bool(data.item(0) <= data.item(1))
 
         # Still here?
         data = self.get_bounds_data(None, _fill_value=False)
@@ -178,12 +182,12 @@ class DimensionCoordinate(
             c = data._get_cached_elements()
             if c:
                 try:
-                    return bool(c.get(0) < c.get(1))
+                    return bool(c.get(0) <= c.get(1))
                 except TypeError:
                     pass
 
             b = data[0].compute()
-            return bool(b.item(0) < b.item(1))
+            return bool(b.item(0) <= b.item(1))
 
         # Still here? Then infer the direction from the units.
         return not self.Units.ispressure
@@ -245,6 +249,154 @@ class DimensionCoordinate(
 
         """
         return self.direction()
+
+    @_inplace_enabled(default=False)
+    def anchor(self, value, cell=False, parameters=None, inplace=False):
+        """Anchor the coordinate values.
+
+        By default, the coordinate values are transformed so that the
+        first coordinate is the closest to *value* from above (below)
+        for increasing (decreasing) coordinates.
+
+        If the *cell* parameter is True, then the coordinate values
+        are transformed so that the first cell either contains
+        *value*; or is the closest to cell to *value* from above
+        (below) for increasing (decreasing) coordinates.
+
+        .. versionadded:: 3.16.3
+
+        .. seealso:: `period`, `roll`
+
+        :Parameters:
+
+            value: scalar array_like
+                Anchor the coordinate values for the selected cyclic
+                axis to the *value*. May be any numeric scalar object
+                that can be converted to a `Data` object (which
+                includes `numpy` and `Data` objects). If *value* has
+                units then they must be compatible with those of the
+                coordinates, otherwise it is assumed to have the same
+                units as the coordinates.
+
+                The coordinate values are transformed so the first
+                coordinate is the closest to *value* from above (for
+                increasing coordinates), or the closest to *value* from
+                above (for decreasing coordinates)
+
+                  * Increasing coordinates with positive period, P,
+                    are transformed so that *value* lies in the
+                    half-open range (L-P, F], where F and L are the
+                    transformed first and last coordinate values,
+                    respectively.
+
+            ..
+
+                  * Decreasing coordinates with positive period, P,
+                    are transformed so that *value* lies in the
+                    half-open range (L+P, F], where F and L are the
+                    transformed first and last coordinate values,
+                    respectively.
+
+                *Parameter example:*
+                  If the original coordinates are ``0, 5, ..., 355``
+                  (evenly spaced) and the period is ``360`` then
+                  ``value=0`` implies transformed coordinates of ``0,
+                  5, ..., 355``; ``value=-12`` implies transformed
+                  coordinates of ``-10, -5, ..., 345``; ``value=380``
+                  implies transformed coordinates of ``380, 385, ...,
+                  735``.
+
+                *Parameter example:*
+                  If the original coordinates are ``355, 350, ..., 0``
+                  (evenly spaced) and the period is ``360`` then
+                  ``value=355`` implies transformed coordinates of
+                  ``355, 350, ..., 0``; ``value=0`` implies
+                  transformed coordinates of ``0, -5, ..., -355``;
+                  ``value=392`` implies transformed coordinates of
+                  ``390, 385, ..., 35``.
+
+            cell: `bool`, optional
+                If True, then the coordinate values are transformed so
+                that the first cell either contains *value*, or is the
+                closest to cell to *value* from above (below) for
+                increasing (decreasing) coordinates.
+
+                If False (the default) then the coordinate values are
+                transformed so that the first coordinate is the closest
+                to *value* from above (below) for increasing
+                (decreasing) coordinates.
+
+            parameters: `dict`, optional
+                If a `dict` is provided then it will be updated
+                in-place with parameters which describe the
+                anchoring process.
+
+            {{inplace: `bool`, optional}}
+
+        :Returns:
+
+            `{{class}}` or `None`
+                The anchored dimension coordinates, or `None` if the
+                operation was in-place.
+
+        """
+        d = _inplace_enabled_define_and_cleanup(self)
+
+        period = d.period()
+        if period is None:
+            raise ValueError(f"Cyclic {d!r} has no period")
+
+        value = d._Data.asdata(value)
+        if not value.Units:
+            value = value.override_units(d.Units)
+        elif not value.Units.equivalent(d.Units):
+            raise ValueError(
+                f"Anchor value has incompatible units: {value.Units!r}"
+            )
+
+        if cell:
+            c = d.upper_bounds.persist()
+        else:
+            d.persist(inplace=True)
+            c = d.get_data(_fill_value=False)
+
+        if d.increasing:
+            # Adjust value so it's in the range [c[0], c[0]+period)
+            n = ((c[0] - value) / period).ceil()
+            value1 = value + n * period
+            shift = c.size - np.argmax((c - value1 >= 0).array)
+            d.roll(0, shift, inplace=True)
+            if cell:
+                d0 = d[0].upper_bounds
+            else:
+                d0 = d.get_data(_fill_value=False)[0]
+
+            n = ((value - d0) / period).ceil()
+        else:
+            # Adjust value so it's in the range (c[0]-period, c[0]]
+            n = ((c[0] - value) / period).floor()
+            value1 = value + n * period
+            shift = c.size - np.argmax((value1 - c >= 0).array)
+            d.roll(0, shift, inplace=True)
+            if cell:
+                d0 = d[0].upper_bounds
+            else:
+                d0 = d.get_data(_fill_value=False)[0]
+
+            n = ((value - d0) / period).floor()
+
+        n.persist(inplace=True)
+        if n:
+            nperiod = n * period
+            with bounds_combination_mode("OR"):
+                d += nperiod
+        else:
+            nperiod = 0
+
+        if parameters is not None:
+            parameters.update({"shift": shift, "nperiod": nperiod})
+
+        return d
 
     def direction(self):
         """Return True if the dimension coordinate values are
@@ -381,18 +533,25 @@ class DimensionCoordinate(
         return coordinate
 
     def create_bounds(
-        self, bound=None, cellsize=None, flt=0.5, max=None, min=None
+        self,
+        bound=None,
+        cellsize=None,
+        flt=0.5,
+        max=None,
+        min=None,
+        inplace=False,
     ):
         """Create cell bounds.
 
-        Creates new cell bounds, irrespective of whether the cells
-        already have cell bounds. The new bounds are not set on the
-        dimension coordinate construct, but if that is desired they
-        may always be added with the `set_bounds` method, for
-        instance:
+        When the operation is *not* in-place (the default), new bounds
+        will be created and returned, regardless of whether or not
+        bounds already exist, but the bounds are not set on the
+        dimension coordinate construct.
 
-        >>> b = d.create_bounds()
-        >>> d.set_bounds(b)
+        If the operation is in-place (i.e. the *inplace* parameter is
+        True) then the newly created bounds will be set on the
+        dimension coordinate construct and `None` is returned, but
+        only if there are no existing bounds.
 
         By default, Voronoi cells are created by defining cell bounds
         that are half way between adjacent coordinate values. For
@@ -488,10 +647,13 @@ class DimensionCoordinate(
                   ``-90``: ``min=-90``, or ``min=cf.Data(-90,
                   'degrees_north')``.
 
+            {{inplace: `bool`, optional}}
+
         :Returns:
 
-            `Bounds`
-                The new coordinate cell bounds.
+            `Bounds` or `None`
+                The new coordinate cell bounds, or `None` if the
+                operation was in-place.
 
         **Examples**
 
@@ -604,6 +766,13 @@ class DimensionCoordinate(
           cftime.DatetimeGregorian(1985, 12, 1, 0, 0, 0, 0)]]
 
         """
+        if inplace and self.has_bounds():
+            raise ValueError(
+                "Can't create dimension coordinate bounds in-place when "
+                "bounds already exist. Existing bounds may be removed "
+                "with the 'del_bounds' method."
+            )
+
         array = self.array
         size = array.size
 
@@ -754,6 +923,10 @@ class DimensionCoordinate(
 
         # Create coordinate bounds object
         bounds = Bounds(data=Data(bounds, units=self.Units), copy=False)
+
+        if inplace:
+            self.set_bounds(bounds)
+            return
 
         return bounds
 

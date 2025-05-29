@@ -37,7 +37,7 @@ def _formula_terms(standard_name):
     if standard_name == "atmosphere_ln_pressure_coordinate":
         computed_standard_name = "air_pressure"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([700, 500, 300], "hPa", dtype="f8")
         aux.set_data(data)
@@ -80,7 +80,7 @@ def _formula_terms(standard_name):
     elif standard_name == "atmosphere_sigma_coordinate":
         computed_standard_name = "air_pressure"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([700, 500, 300], "hPa", dtype="f8")
         aux.set_data(data)
@@ -134,7 +134,7 @@ def _formula_terms(standard_name):
     elif standard_name == "atmosphere_hybrid_sigma_pressure_coordinate":
         computed_standard_name = "air_pressure"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([700, 500, 300], "hPa", dtype="f8")
         aux.set_data(data)
@@ -203,7 +203,7 @@ def _formula_terms(standard_name):
     elif standard_name == "atmosphere_sleve_coordinate":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([100, 200, 300], "m", dtype="f8")
         aux.set_data(data)
@@ -279,7 +279,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_sigma_coordinate":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([10, 20, 30], "m", dtype="f8")
         aux.set_data(data)
@@ -333,7 +333,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_s_coordinate":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([15.01701191, 31.86034296, 40.31150319], units="m")
         aux.set_data(data)
@@ -413,7 +413,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_s_coordinate_g1":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([555.4, 464.32, 373.33], units="m")
         aux.set_data(data)
@@ -485,7 +485,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_s_coordinate_g2":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([555.45454545, 464.36363636, 373.36363636], units="m")
         aux.set_data(data)
@@ -563,7 +563,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_sigma_z_coordinate":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data([10.0, 30.0, 40.0], "m", dtype="f8")
         aux.set_data(data)
@@ -643,7 +643,7 @@ def _formula_terms(standard_name):
     elif standard_name == "ocean_double_sigma_coordinate":
         computed_standard_name = "altitude"
 
-        # Computed vertical corodinates
+        # Computed vertical coordinates
         aux.standard_name = computed_standard_name
         data = cf.Data(
             [0.15000000000000002, 0.12, 932.895], units="m", dtype="f8"
@@ -756,6 +756,17 @@ class FormulaTermsTest(unittest.TestCase):
 
         g = f.compute_vertical_coordinates(verbose=None)
         altitude = g.auxiliary_coordinate("altitude")
+
+        # Test the 'key' parameter
+        k = f.compute_vertical_coordinates(key=True, verbose=None)
+        self.assertEqual(len(k), 2)  # expect a 2-tuple of field then key
+        self.assertTrue(k[0].equals(g))  # field result, same as above
+        self.assertEqual(k[1], "auxiliarycoordinate3")  # i.e. key for altitude
+        # key=True and inplace=True are incompatible inputs
+        with self.assertRaises(ValueError):
+            k = f.compute_vertical_coordinates(
+                key=True, inplace=True, verbose=None
+            )
 
         self.assertTrue(altitude)
         self.assertTrue(altitude.has_bounds())
@@ -881,6 +892,11 @@ class FormulaTermsTest(unittest.TestCase):
         f = cf.example_field(0)
         g = f.compute_vertical_coordinates()
         self.assertTrue(g.equals(f))
+        # With key=True, expect the key (second in return 2-tuple) to be None
+        k = f.compute_vertical_coordinates(key=True)
+        self.assertEqual(len(k), 2)
+        self.assertTrue(k[0].equals(f))
+        self.assertEqual(k[1], None)
 
         # ------------------------------------------------------------
         # Check other types
@@ -888,6 +904,7 @@ class FormulaTermsTest(unittest.TestCase):
         for standard_name in cf.formula_terms.FormulaTerms.standard_names:
             if standard_name == "atmosphere_hybrid_height_coordinate":
                 continue
+
             f, a, csn = _formula_terms(standard_name)
 
             g = f.compute_vertical_coordinates(verbose=None)

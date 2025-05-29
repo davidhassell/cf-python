@@ -193,6 +193,16 @@ Data
    ~cf.CellMeasure.swapaxes
    ~cf.CellMeasure.transpose
    
+.. rubric:: *Expanding the data*
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.CellMeasure.halo
+   ~cf.CellMeasure.pad_missing
+
 .. rubric:: *Data array mask*
 
 .. autosummary::
@@ -204,6 +214,7 @@ Data
    ~cf.CellMeasure.count
    ~cf.CellMeasure.count_masked
    ~cf.CellMeasure.fill_value
+   ~cf.CellMeasure.filled
    ~cf.CellMeasure.masked_invalid
 
 .. autosummary::
@@ -228,7 +239,6 @@ Data
    :template: method.rst
 
    ~cf.CellMeasure.__setitem__
-   ~cf.CellMeasure.halo
    ~cf.CellMeasure.masked_invalid
    ~cf.CellMeasure.subspace
    ~cf.CellMeasure.where
@@ -424,9 +434,12 @@ NetCDF
    ~cf.CellMeasure.nc_set_variable 
    ~cf.CellMeasure.nc_get_external
    ~cf.CellMeasure.nc_set_external 
+   ~cf.CellMeasure.nc_clear_hdf5_chunksizes
+   ~cf.CellMeasure.nc_hdf5_chunksizes
+   ~cf.CellMeasure.nc_set_hdf5_chunksizes
 
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -435,13 +448,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.CellMeasure.add_file_location
-   ~cf.CellMeasure.cfa_clear_file_substitutions
-   ~cf.CellMeasure.cfa_del_file_substitution
-   ~cf.CellMeasure.cfa_file_substitutions
-   ~cf.CellMeasure.cfa_update_file_substitutions
-   ~cf.CellMeasure.del_file_location
-   ~cf.CellMeasure.file_locations
+   ~cf.CellMeasure.file_directories
+   ~cf.CellMeasure.replace_directory
 
 Aliases
 -------
@@ -636,13 +644,21 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.CellMeasure.add_file_location
    ~cf.CellMeasure.asdatetime
    ~cf.CellMeasure.asreftime
    ~cf.CellMeasure.attributes
+   ~cf.CellMeasure.cfa_clear_file_substitutions
+   ~cf.CellMeasure.cfa_del_file_substitution
+   ~cf.CellMeasure.cfa_file_substitutions
+   ~cf.CellMeasure.cfa_update_file_substitutions
    ~cf.CellMeasure.chunk
+   ~cf.CellMeasure.del_file_location
    ~cf.CellMeasure.delprop
    ~cf.CellMeasure.dtvarray
    ~cf.CellMeasure.expand_dims
+   ~cf.CellMeasure.file_locations
    ~cf.CellMeasure.get_filenames
    ~cf.CellMeasure.getprop
    ~cf.CellMeasure.hasbounds

@@ -169,7 +169,8 @@ Data
    ~cf.Field.ndim
    ~cf.Field.shape
    ~cf.Field.size
-   ~cf.Field.varray
+   ~cf.Field.to_dask_array
+    ~cf.Field.varray
 
 .. rubric:: *Rearranging elements*
 
@@ -196,6 +197,7 @@ Data
    :template: method.rst
 
    ~cf.Field.halo
+   ~cf.Field.pad_missing
 
 .. rubric:: *Data array mask*
 
@@ -208,6 +210,7 @@ Data
    ~cf.Field.count
    ~cf.Field.count_masked
    ~cf.Field.fill_value
+   ~cf.Field.filled
    ~cf.Field.masked_invalid
 	    
 .. autosummary::
@@ -260,6 +263,7 @@ Miscellaneous data operations
    ~cf.Field.close
    ~cf.Field.rechunk
    ~cf.Field.persist
+   ~cf.Field.persist_metadata
  
 Metadata constructs
 -------------------
@@ -413,6 +417,9 @@ NetCDF
    ~cf.Field.nc_set_global_attribute
    ~cf.Field.nc_set_global_attributes
    ~cf.Field.ncdimensions
+   ~cf.Field.nc_clear_hdf5_chunksizes
+   ~cf.Field.nc_hdf5_chunksizes
+   ~cf.Field.nc_set_hdf5_chunksizes
 
 Groups
 ^^^^^^
@@ -432,8 +439,8 @@ Groups
    ~cf.Field.nc_set_group_attribute
    ~cf.Field.nc_set_group_attributes
 
-CFA
-^^^
+Aggregation
+^^^^^^^^^^^
 
 .. rubric:: Methods
 
@@ -441,14 +448,9 @@ CFA
    :nosignatures:
    :toctree: ../method/
    :template: method.rst
-	      
-   ~cf.Field.add_file_location
-   ~cf.Field.cfa_clear_file_substitutions
-   ~cf.Field.cfa_del_file_substitution
-   ~cf.Field.cfa_file_substitutions
-   ~cf.Field.cfa_update_file_substitutions
-   ~cf.Field.del_file_location
-   ~cf.Field.file_locations
+
+   ~cf.Field.file_directories
+   ~cf.Field.replace_directory
 
 Geometries
 ^^^^^^^^^^
@@ -516,6 +518,7 @@ Domain axes
    ~cf.Field.direction
    ~cf.Field.directions
    ~cf.Field.iscyclic
+   ~cf.Field.is_discrete_axis
    ~cf.Field.isperiodic
    ~cf.Field.item_axes
    ~cf.Field.items_axes
@@ -525,13 +528,18 @@ Subspacing
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.Field.__getitem__
+   ~cf.Field.indices
+
+.. autosummary::
+   :nosignatures:
    :toctree: ../attribute/
    :template: attribute.rst
 
-   ~cf.Field.to_dask_array
-   ~cf.Field.__getitem__
    ~cf.Field.subspace
-   ~cf.Field.indices
 
 Mathematical operations
 -----------------------
@@ -978,16 +986,24 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.Field.add_file_location
    ~cf.Field.asdatetime
    ~cf.Field.asreftime
    ~cf.Field.axis_name
+   ~cf.Field.cfa_clear_file_substitutions
+   ~cf.Field.cfa_del_file_substitution
+   ~cf.Field.cfa_file_substitutions
+   ~cf.Field.cfa_update_file_substitutions
    ~cf.Field.chunk
    ~cf.Field.data_axes
+   ~cf.Field.del_file_location
    ~cf.Field.delprop
    ~cf.Field.equivalent
    ~cf.Field.example_field
    ~cf.Field.expand_dims
    ~cf.Field.field
+   ~cf.Field.file_locations
    ~cf.Field.get_filenames
    ~cf.Field.getprop
    ~cf.Field.HDF_chunks

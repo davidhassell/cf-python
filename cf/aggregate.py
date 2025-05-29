@@ -54,6 +54,7 @@ _signature_properties = set(
         "add_offset",
         "calendar",
         "cell_methods",
+        "featureType",
         "_FillValue",
         "flag_masks",
         "flag_meanings",
@@ -210,6 +211,7 @@ class _Meta:
         (
             "Type",
             "Identity",
+            "featureType",
             "Units",
             "Cell_methods",
             "Data",
@@ -389,6 +391,10 @@ class _Meta:
         if field_identity:
             self.identity = f.get_property(field_identity, None)
 
+        # Set the DSG featureType
+        featureType = f.get_property("featureType", None)
+        self.featureType = featureType
+
         construct_axes = f.constructs.data_axes()
 
         # ------------------------------------------------------------
@@ -420,6 +426,7 @@ class _Meta:
         # Promote selected properties to field ancillaries that span
         # the same domain axes as the field
         # ------------------------------------------------------------
+        self.promoted_field_ancillaries = []
         if field_ancillaries:
             f = self.promote_to_field_ancillary(field_ancillaries)
 
@@ -502,9 +509,10 @@ class _Meta:
                         "identity": dim_identity,
                         "key": dim_coord_key,
                         "units": units,
+                        "cf_role": None,
                         "hasdata": dim_coord.has_data(),
                         "hasbounds": hasbounds,
-                        "coordrefs": self.find_coordrefs(axis),
+                        "coordrefs": self.find_coordrefs(dim_coord_key),
                         "cellsize": cellsize,
                         "spacing": spacing,
                     }
@@ -539,11 +547,18 @@ class _Meta:
                     aux_coord, aux_identity, relaxed_units=relaxed_units
                 )
 
+                # Set the cf_role for DSGs
+                if not featureType:
+                    cf_role = None
+                else:
+                    cf_role = aux_coord.get_property("cf_role", None)
+
                 info_aux.append(
                     {
                         "identity": aux_identity,
                         "key": key,
                         "units": units,
+                        "cf_role": cf_role,
                         "hasdata": aux_coord.has_data(),
                         "hasbounds": aux_coord.has_bounds(),
                         "coordrefs": self.find_coordrefs(key),
@@ -586,12 +601,14 @@ class _Meta:
 
                     return
 
+                identity = f"ncvar%{identity}"
                 size = domain_axis.get_size()
 
             axis_identities = {
                 "ids": "identity",
                 "keys": "key",
                 "units": "units",
+                "cf_role": "cf_role",
                 "hasdata": "hasdata",
                 "hasbounds": "hasbounds",
                 "coordrefs": "coordrefs",
@@ -1773,6 +1790,9 @@ class _Meta:
         Cell_methods = self.cell_methods
         Data = self.has_field_data
 
+        # DSG FeatureType
+        featureType = self.featureType
+
         # Properties
         Properties = self.properties
 
@@ -1812,6 +1832,7 @@ class _Meta:
                         ]
                     ),
                 ),
+                ("cf_role", axis[identity]["cf_role"]),
                 ("hasdata", axis[identity]["hasdata"]),
                 ("hasbounds", axis[identity]["hasbounds"]),
                 ("coordrefs", axis[identity]["coordrefs"]),
@@ -1918,6 +1939,7 @@ class _Meta:
         self.signature = self._structural_signature(
             Type=Type,
             Identity=Identity,
+            featureType=featureType,
             Units=Units,
             Cell_methods=Cell_methods,
             Data=Data,
@@ -2067,13 +2089,6 @@ class _Meta:
         ancillary construct that spans the entire domain, with the
         constant value of the property.
 
-        The `Data` of any new field ancillary construct is marked
-        as a CFA term, meaning that it will only be written to disk if
-        the parent field construct is written as a CFA aggregation
-        variable, and in that case the field ancillary is written as a
-        non-standard CFA aggregation instruction variable, rather than
-        a CF-netCDF ancillary variable.
-
         If a domain construct is being aggregated then it is always
         returned unchanged.
 
@@ -2104,7 +2119,6 @@ class _Meta:
             data = Data(
                 FullArray(value, shape=f.shape, dtype=np.array(value).dtype)
             )
-            data._cfa_set_term(True)
 
             field_anc = FieldAncillary(
                 data=data, properties={"long_name": prop}, copy=False
@@ -2116,8 +2130,14 @@ class _Meta:
                 f = f.copy()
                 copy = False
 
-            f.set_construct(field_anc, axes=f.get_data_axes(), copy=False)
+            key = f.set_construct(
+                field_anc, axes=f.get_data_axes(), copy=False
+            )
             f.del_property(prop)
+
+            # Record that this field ancillary is derived from a
+            # promotion
+            self.promoted_field_ancillaries.append(key)
 
         self.field = f
         return f
@@ -2413,9 +2433,9 @@ def aggregate(
             Create new field ancillary constructs for each input field
             which has one or more of the given properties. For each
             input field, each property is converted to a field
-            ancillary construct that spans the entire domain, with the
-            constant value of the property, and the property itself is
-            deleted.
+            ancillary construct that spans the aggregation axes with
+            the constant value of the property, and the property
+            itself is deleted.
 
             .. versionadded:: 3.15.0
 
@@ -2956,11 +2976,19 @@ def aggregate(
         # ------------------------------------------------------------
         if axes is None:
             # Aggregation will be over as many axes as possible
-            aggregating_axes = meta[0].axis_ids
-            _create_hash_and_first_values(
-                meta, None, False, hfl_cache, rtol, atol
-            )
+            m0 = meta[0]
+            aggregating_axes = m0.axis_ids[:]
 
+            # For DSG feature types, only consider aggregating the
+            # feature dimension(s).
+            if m0.featureType:
+                for axis in aggregating_axes[:]:
+                    if not dsg_feature_type_axis(m0, axis):
+                        aggregating_axes.remove(axis)
+
+            _create_hash_and_first_values(
+                meta, aggregating_axes, False, hfl_cache, rtol, atol
+            )
         else:
             # Specific aggregation axes have been selected
             aggregating_axes = []
@@ -3009,6 +3037,9 @@ def aggregate(
         meta0 = meta[:]
 
         unaggregatable = False
+
+        # Record the names of the axes that are actually aggregated
+        axes_aggregated = []
 
         for axis in aggregating_axes:
             number_of_fields = len(meta)
@@ -3222,6 +3253,7 @@ def aggregate(
             # the aggregated fields as a single list ready for
             # aggregation along the next axis.
             # --------------------------------------------------------
+            axes_aggregated.append(axis)
             meta = [m for gm in grouped_meta for m in gm]
 
         # Add fields to the output list
@@ -3237,6 +3269,10 @@ def aggregate(
 
     if cells:
         _set_cell_conditions(output_meta)
+
+    # Remove non-aggregated axes from promoted field ancillaries
+    if field_ancillaries:
+        _fix_promoted_field_ancillaries(output_meta, axes_aggregated)
 
     output_constructs = [m.field for m in output_meta]
 
@@ -3463,7 +3499,7 @@ def climatology_cells(
 
 
 def _create_hash_and_first_values(
-    meta, axes, donotchecknonaggregatingaxes, hfl_cache, rtol, atol
+    meta, aggregating_axes, donotchecknonaggregatingaxes, hfl_cache, rtol, atol
 ):
     """Updates each field's _Meta object.
 
@@ -3471,7 +3507,8 @@ def _create_hash_and_first_values(
 
         meta: `list` of `_Meta`
 
-        axes: `None` or `list`
+        axes: sequence
+            The identities of the possible aggregating axes.
 
         donotchecknonaggregatingaxes: `bool`
 
@@ -3487,6 +3524,9 @@ def _create_hash_and_first_values(
     for m in meta:
         field = m.field
         constructs = field.constructs.todict()
+
+        # Store the aggregating axis identities
+        m.aggregating_axes = aggregating_axes
 
         m_sort_keys = m.sort_keys
         m_sort_indices = m.sort_indices
@@ -3506,9 +3546,9 @@ def _create_hash_and_first_values(
         # --------------------------------------------------------
         for identity in m.axis_ids:
             if (
-                axes is not None
+                aggregating_axes is not None
                 and donotchecknonaggregatingaxes
-                and identity not in axes
+                and identity not in aggregating_axes
             ):
                 x = [None] * len(m.axis[identity]["keys"])
                 m_hash_values[identity] = x
@@ -3650,12 +3690,12 @@ def _create_hash_and_first_values(
 
                 coord = constructs[key]
 
-                axes = aux["axes"]
+                c_axes = aux["axes"]
                 canonical_axes = aux["canonical_axes"]
-                if axes != canonical_axes:
+                if c_axes != canonical_axes:
                     # Transpose the N-d auxiliary coordinate so that
                     # it has the canonical axis order
-                    iaxes = [axes.index(axis) for axis in canonical_axes]
+                    iaxes = [c_axes.index(axis) for axis in canonical_axes]
                     coord = coord.transpose(iaxes)
 
                 sort_indices, needs_sorting = _sort_indices(m, canonical_axes)
@@ -3701,14 +3741,14 @@ def _create_hash_and_first_values(
         else:
             for canonical_units, msr in m.msr.items():
                 hash_values = []
-                for key, axes, canonical_axes in zip(
+                for key, c_axes, canonical_axes in zip(
                     msr["keys"], msr["axes"], msr["canonical_axes"]
                 ):
                     cell_measure = constructs[key]
-                    if axes != canonical_axes:
+                    if c_axes != canonical_axes:
                         # Transpose the cell measure so that it has
                         # the canonical axis order
-                        iaxes = [axes.index(axis) for axis in canonical_axes]
+                        iaxes = [c_axes.index(axis) for axis in canonical_axes]
                         cell_measure = cell_measure.transpose(iaxes)
 
                     sort_indices, needs_sorting = _sort_indices(
@@ -3815,12 +3855,12 @@ def _create_hash_and_first_values(
 
                 field_anc = constructs[key]
 
-                axes = anc["axes"]
+                c_axes = anc["axes"]
                 canonical_axes = anc["canonical_axes"]
-                if axes != canonical_axes:
+                if c_axes != canonical_axes:
                     # Transpose the field ancillary so that it has the
                     # canonical axis order
-                    iaxes = [axes.index(axis) for axis in canonical_axes]
+                    iaxes = [c_axes.index(axis) for axis in canonical_axes]
                     field_anc = field_anc.transpose(iaxes)
 
                 sort_indices, needs_sorting = _sort_indices(m, canonical_axes)
@@ -3853,12 +3893,12 @@ def _create_hash_and_first_values(
 
                 domain_anc = constructs[key]
 
-                axes = anc["axes"]
+                c_axes = anc["axes"]
                 canonical_axes = anc["canonical_axes"]
-                if axes != canonical_axes:
+                if c_axes != canonical_axes:
                     # Transpose the domain ancillary so that it has
                     # the canonical axis order
-                    iaxes = [axes.index(axis) for axis in canonical_axes]
+                    iaxes = [c_axes.index(axis) for axis in canonical_axes]
                     domain_anc = domain_anc.transpose(iaxes)
 
                 sort_indices, needs_sorting = _sort_indices(m, canonical_axes)
@@ -3920,7 +3960,22 @@ def _sort_indices(m, canonical_axes):
     """
     canonical_axes = [m.id_to_axis[identity] for identity in canonical_axes]
     sort_indices = tuple([m.sort_indices[axis] for axis in canonical_axes])
-    needs_sorting = sort_indices != (slice(None),) * len(sort_indices)
+
+    # Whether or not one or more of the axes needs sorting
+    needs_sorting = False
+    for sort_index in sort_indices:
+        # Note: sort_index can only be a slice object or a numpy array
+        #       (see `_create_hash_and_first_values`)
+        if isinstance(sort_index, slice):
+            if sort_index != slice(None):
+                # sort_index is a slice other than slice(None)
+                needs_sorting = True
+                break
+        elif sort_index.size > 1:
+            # sort_index is an array of 2 or more integers
+            needs_sorting = True
+            break
+
     return sort_indices, needs_sorting
 
 
@@ -4095,7 +4150,7 @@ def _group_fields(meta, axis, info=False):
             group is represented by a `list` of `_Meta` objects.
 
     """
-    axes = meta[0].axis_ids
+    axes = meta[0].aggregating_axes
 
     if axes:
         if axis in axes:
@@ -4131,6 +4186,15 @@ def _group_fields(meta, axis, info=False):
                 a_identity = identity
 
         hash0 = hash1
+
+        # If 'count' is 0 then all of the 1-d coordinates have the
+        # same values across fields. However, for a DSG featureType
+        # axis we can still aggregate it, because it's OK to aggregate
+        # featureTypes with the timeseries_id, profile_id, or
+        # trajectory_id.
+        if not count and dsg_feature_type_axis(m0, axis):
+            a_identity = axis
+            count = 1
 
         if count == 1:
             # --------------------------------------------------------
@@ -4233,10 +4297,22 @@ def _group_fields(meta, axis, info=False):
             # aggregate anything in this entire group.
             # --------------------------------------------------------
             if info:
-                meta[
-                    0
-                ].message = (
-                    "Some fields have identical sets of 1-d coordinates."
+                coord_ids = []
+                for k, v in m0.axis.items():
+                    coord_ids.extend([repr(i) for i in v["ids"]])
+
+                if len(coord_ids) > 1:
+                    coord_ids = (
+                        f"{', '.join(coord_ids[:-1])} and {coord_ids[-1]}"
+                    )
+                elif coord_ids:
+                    coord_ids = coord_ids[0]
+                else:
+                    coord_ids = ""
+
+                meta[0].message = (
+                    f"Some fields have identical sets of 1-d {coord_ids} "
+                    "coordinates."
                 )
 
             return ()
@@ -4655,6 +4731,14 @@ def _aggregate_2_fields(
             hash_value1 = anc1["hash_value"]
             anc0["hash_value"] = hash_value0 + hash_value1
 
+            # The result of aggregating a promoted amd non-promoted
+            # field ancillary is a non-promoted field ancillary
+            if (
+                key0 in m0.promoted_field_ancillaries
+                and key1 not in m1.promoted_field_ancillaries
+            ):
+                m0.promoted_field_ancillaries.remove(key0)
+
     # Domain ancillaries
     for identity in m0.domain_anc:
         anc0 = m0.domain_anc[identity]
@@ -4676,9 +4760,9 @@ def _aggregate_2_fields(
             anc0["hash_value"] = hash_value0 + hash_value1
 
     # ----------------------------------------------------------------
-    # For each matching pair of coordinates, cell measures, field and
-    # domain ancillaries which span the aggregating axis, insert the
-    # one from parent1 into the one from parent0
+    # For each matching pair of coordinates, cell measures, and field
+    # and domain ancillaries which span the aggregating axis, insert
+    # the one from parent1 into the one from parent0
     # ----------------------------------------------------------------
     for key0, key1, construct0, construct1 in spanning_variables:
         construct_axes0 = parent0.get_data_axes(key0)
@@ -4748,7 +4832,7 @@ def _aggregate_2_fields(
 
         # Ensure that the axis orders are the same in both fields
         transpose_axes1 = [dim0_name_map[axis0] for axis0 in data_axes0]
-        if transpose_axes1 != data_axes1:
+        if transpose_axes1 != list(data_axes1):
             parent1.transpose(transpose_axes1, inplace=True)
 
         construct_type = parent0.construct_type
@@ -4783,20 +4867,36 @@ def _aggregate_2_fields(
         value0 = parent0.get_property(prop, None)
         value1 = parent1.get_property(prop, None)
 
+        if prop in ("_FillValue", "missing_value"):
+            continue
+
         if prop in ("valid_min", "valid_max", "valid_range"):
             if not m0.respect_valid:
                 parent0.del_property(prop, None)
 
             continue
 
-        if prop in ("_FillValue", "missing_value"):
+        if prop == "actual_range":
+            try:
+                # Try to extend the actual range to encompass both
+                # value0 and value1
+                actual_range = (
+                    min(value0[0], value1[0]),
+                    max(value0[1], value1[1]),
+                )
+            except (TypeError, IndexError, KeyError):
+                # value0 and/or value1 is not set, or is
+                # non-CF-compliant.
+                parent0.del_property(prop, None)
+            else:
+                parent0.set_property(prop, actual_range)
+
             continue
 
         # Still here?
-        if isinstance(value0, str) or isinstance(value1, str):
-            if value0 == value1:
-                continue
-        elif parent0._equals(value0, value1):
+        if parent0._equals(value0, value1):
+            # Both values are equal, so no need to update the
+            # property.
             continue
 
         if concatenate:
@@ -4807,13 +4907,33 @@ def _aggregate_2_fields(
                     )
                 else:
                     parent0.set_property(prop, f" :AGGREGATED: {value1}")
-        else:
-            if value0 is not None:
-                parent0.del_property(prop)
+        elif value0 is not None:
+            parent0.del_property(prop)
+
+    # Check that actual_range is within the bounds of valid_range, and
+    # delete it if it isn't.
+    actual_range = parent0.get_property("actual_range", None)
+    if actual_range is not None:
+        valid_range = parent0.get_property("valid_range", None)
+        if valid_range is not None:
+            try:
+                if (
+                    actual_range[0] < valid_range[0]
+                    or actual_range[1] > valid_range[1]
+                ):
+                    actual_range = parent0.del_property("actual_range", None)
+                    if actual_range is not None and is_log_level_info(logger):
+                        logger.info(
+                            "Deleted 'actual_range' attribute due to it being "
+                            "outside of 'valid_range' attribute limits."
+                        )
+
+            except (TypeError, IndexError):
+                # valid_range is non-CF-compliant
+                pass
 
     # Make a note that the parent construct in this _Meta object has
     # already been aggregated
-
     m0.aggregated_field = True
 
     # ----------------------------------------------------------------
@@ -4824,6 +4944,19 @@ def _aggregate_2_fields(
 
 
 def f_identity(meta):
+    """Return the field identity for logging strings.
+
+    :Parameters:
+
+        meta: `_Meta`
+            The `_Meta` instance containing the field.
+
+    :Returns:
+
+        `str`
+            The identity.
+
+    """
     identity = meta.identity
     f_identity = meta.field.identity()
     if f_identity == identity:
@@ -4832,3 +4965,88 @@ def f_identity(meta):
         identity = f"{meta.identity!r} ({f_identity})"
 
     return identity
+
+
+def dsg_feature_type_axis(meta, axis):
+    """True if the given axis is a DSG featureType axis.
+
+    A DSG featureType axis has no dimension coordinates and at least
+    one 1-d auxiliary coordinate with a ``cf-role`` property.
+
+    :Parameters:
+
+        meta: `_Meta`
+            The `_Meta` instance
+
+        axis: `str`
+            One of the axes in ``meta.axis_ids``.
+
+    :Returns:
+
+        `bool`
+            `True` if the given axis is a DSG featureType axis.
+
+    """
+    if not meta.featureType:
+        # The field/domain is not a DSG
+        return False
+
+    coords = meta.axis[axis]
+    if coords["dim_coord_index"] is not None:
+        # The axis has dimension coordinates
+        return False
+
+    # Return True if one of the 1-d auxiliary coordinates has a
+    # cf_role property
+    cf_role = coords["cf_role"]
+    return cf_role.count(None) != len(cf_role)
+
+
+def _fix_promoted_field_ancillaries(output_meta, axes_aggregated):
+    """Remove non-aggregated axes from promoted field ancillaries.
+
+    .. versionadded:: 3.17.0
+
+    :Parameters:
+
+        output_meta: `list`
+            The list of `_Meta` objects. If any include promoted field
+            ancillaries then these will be updated in-place.
+
+    :Returns:
+
+        `None`
+
+    """
+    for m in output_meta:
+        for value in m.field_anc.values():
+            index = []
+            squeeze = []
+
+            key = value["key"]
+            if key not in m.promoted_field_ancillaries:
+                continue
+
+            # Remove the non-aggregated axes from the promoted field
+            # ancillary
+            for i, axis in enumerate(value["axes"]):
+                if axis in axes_aggregated:
+                    index.append(slice(None))
+                else:
+                    index.append(0)
+                    squeeze.append(i)
+
+            if not squeeze:
+                continue
+
+            fa_axes = m.field.get_data_axes(key)
+            fa = m.field.del_construct(key)
+            fa = fa[tuple(index)]
+            fa.squeeze(squeeze, inplace=True)
+            fa_axes = [a for i, a in enumerate(fa_axes) if i not in squeeze]
+
+            # Record the field ancillary as being able to be written
+            # as a CF-netCDF aggregation 'value' variable
+            fa.data._nc_set_aggregation_fragment_type("value")
+
+            m.field.set_construct(fa, axes=fa_axes, copy=False)

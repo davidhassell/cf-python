@@ -1,7 +1,196 @@
+version NEXTVERSION
+-------------------
+
+**2025-??-??**
+
+* Update CF aggregation keywords
+  (https://github.com/NCAS-CMS/cf-python/issues/868)
+* New keyword parameter to `cf.DimensionCoordinate.create_bounds`:
+  ``inplace`` (https://github.com/NCAS-CMS/cf-python/issues/855)
+* Set new minimum version of `dask`: ``2025.5.1``
+  (https://github.com/NCAS-CMS/cf-python/issues/866)
+* Changed dependency: ``dask>=2025.5.1``
+
+----
+  
+version 3.17.0
+--------------
+
+**2025-04-02**
+
+* Set new minimum version of `dask`: ``2025.2.0``
+  (https://github.com/NCAS-CMS/cf-python/issues/849)
+* Set a new minimum version of `numpy`: ``2.0.0``
+  (https://github.com/NCAS-CMS/cf-python/issues/843)
+* Replace dataset aggregation functionality (CFA) with that imported
+  from `cfdm` (https://github.com/NCAS-CMS/cf-python/issues/841)
+* New keyword parameter to `cf.Field.compute_vertical_coordinates`:
+  ``key`` (https://github.com/NCAS-CMS/cf-python/issues/802)
+* New keyword parameter to `cf.histogram`: ``density``
+  (https://github.com/NCAS-CMS/cf-python/issues/794)
+* Fix bug that caused `Data._axes` to be incorrect after a call to
+  `cf.Field.collapse`
+  (https://github.com/NCAS-CMS/cf-python/issues/857)
+* Fix bug that caused wrong directions from
+  `cf.DimensionCoordinate.direction`
+  (https://github.com/NCAS-CMS/cf-python/issues/859)
+* Changed dependency: ``Python>=3.9.0``
+* Changed dependency: ``numpy>=2.0.0``
+* Changed dependency: ``cfdm>=1.12.1.0, <1.12.2.0``
+* Changed dependency: ``dask>=2025.2.0, <=2025.3.0``
+* Changed dependency: ``netCDF4>=1.7.2``
+* Changed dependency: ``cftime>=1.6.4``
+* Changed optional dependency: ``esmpy>=8.7.0``
+* Removed dependency (now incorporated into ``cfdm``): ``h5py``
+* Removed dependency (now incorporated into ``cfdm``): ``h5netcdf``
+* Removed dependency (now incorporated into ``cfdm``): ``s3fs``
+
+----
+
+version 3.16.3
+--------------
+
+**2025-01-28**
+
+* Implementation of active storage reduction operations
+  (https://github.com/NCAS-CMS/cf-python/issues/501)
+* Allow ``'nearest_dtos'`` 2-d regridding to work with discrete
+  sampling geometry source grids
+  (https://github.com/NCAS-CMS/cf-python/issues/832)
+* New method: `cf.Field.filled`
+  (https://github.com/NCAS-CMS/cf-python/issues/811)
+* New method: `cf.Field.is_discrete_axis`
+  (https://github.com/NCAS-CMS/cf-python/issues/784)
+* Include the UM version as a field property when reading UM files
+  (https://github.com/NCAS-CMS/cf-python/issues/777)
+* Fix bug that caused climatological time collapses within/over days
+  to fail (https://github.com/NCAS-CMS/cf-python/issues/809)
+* New keyword parameter to `cf.Field.derivative`:
+  ``ignore_coordinate_units``
+  (https://github.com/NCAS-CMS/cf-python/issues/807)
+* Allow access to netCDF-4 files in S3 object stores
+  (https://github.com/NCAS-CMS/cf-python/issues/712)
+* New class `cf.H5netcdfArray`
+* New class `cf.NetCDF4Array`
+* Replace core `dask` functionality with that imported from `cfdm`
+  (https://github.com/NCAS-CMS/cf-python/issues/839)
+* Fix bug that sometimes puts an incorrect ``radian-1`` or
+  ``radian-2`` in the returned units of the differential operator
+  methods and functions
+  (https://github.com/NCAS-CMS/cf-python/issues/807)
+* Fix bug where `cf.example_fields` returned a `list` of Fields rather
+  than a `Fieldlist`
+  (https://github.com/NCAS-CMS/cf-python/issues/725)
+* Fix bug where combining UGRID fields erroneously creates an extra
+  axis and broadcasts over it
+  (https://github.com/NCAS-CMS/cf-python/issues/784)
+* Fix bug where `cf.normalize_slice` doesn't correctly
+  handle certain cyclic slices
+  (https://github.com/NCAS-CMS/cf-python/issues/774)
+* Fix bug where `cf.Field.subspace` doesn't always correctly handle
+  global or near-global cyclic subspaces
+  (https://github.com/NCAS-CMS/cf-python/issues/828)
+* New dependency: ``h5netcdf>=1.3.0``
+* New dependency: ``h5py>=3.12.0``
+* New dependency: ``s3fs>=2024.6.0``
+* Changed dependency: ``numpy>=1.15,<2.0``
+* Changed dependency: ``1.11.2.0<=cfdm<1.11.3.0``
+* Changed dependency: ``cfunits>=3.3.7``
+* Changed dependency: ``dask>=2024.6.0,<=2024.7.1``
+
+----
+
+version 3.16.2
+--------------
+
+**2024-04-26**
+
+* Improve the performance of reading and accessing the data of PP and
+  UM fields files (https://github.com/NCAS-CMS/cf-python/issues/746)
+* Improve `cf.Field.collapse` performance by lazily computing reduced
+  axis coordinates (https://github.com/NCAS-CMS/cf-python/issues/741)
+* Improve `cf.Field.__getitem__` performance by not re-calculating
+  axis cyclicity (https://github.com/NCAS-CMS/cf-python/issues/744)
+* Reduce output CFA netCDF file size by setting the HDF5 chunksizes of
+  CFA variables to be no larger than required
+  (https://github.com/NCAS-CMS/cf-python/issues/739)
+* Allow a halo to be added by `cf.Field.indices` and
+  `cf.Field.subspace`
+  (https://github.com/NCAS-CMS/cf-python/issues/759)
+* Added spherical regridding to discrete sampling geometry destination
+  grids (https://github.com/NCAS-CMS/cf-python/issues/716)
+* Added 3-d spherical regridding to `cf.Field.regrids`, and the option
+  to regrid the vertical axis in logarithmic coordinates to
+  `cf.Field.regrids` and `cf.Field.regridc`
+  (https://github.com/NCAS-CMS/cf-python/issues/715)
+* New keyword parameter to `cf.Field.regrids` and `cf.Field.regridc`:
+  ``return_esmpy_regrid_operator``
+  (https://github.com/NCAS-CMS/cf-python/issues/766)
+* New keyword parameters to `cf.wi`: ``open_lower`` and ``open_upper``
+  (https://github.com/NCAS-CMS/cf-python/issues/740)
+* Fix misleading error message when it is not possible to create area
+  weights requested from `cf.Field.collapse`
+  (https://github.com/NCAS-CMS/cf-python/issues/731)
+* Fix bug in `cf.read` when reading UM files that caused LBPROC value
+  131072 (Mean over an ensemble of parallel runs) to be ignored
+  (https://github.com/NCAS-CMS/cf-python/issues/737)
+* Fix bug in `cf.aggregate` that sometimes put a null transpose
+  operation into the Dask graph when one was not needed
+  (https://github.com/NCAS-CMS/cf-python/issues/754)
+* Fix bug in `cf.aggregate` that caused a failure when property values
+  were `numpy` arrays with two or more elements
+  (https://github.com/NCAS-CMS/cf-python/issues/764)
+* Fix bug in `cf.aggregate` that didn't correctly handle the
+  "actual_range" CF attribute
+  (https://github.com/NCAS-CMS/cf-python/issues/764)
+* Fix bug whereby `Field.cyclic` is not updated after a
+  `Field.del_construct` operation
+  (https://github.com/NCAS-CMS/cf-python/issues/758)
+* Fix bug that meant `cyclic()` always returned an empty
+  set for domains produced by `cf.Field.domain`
+  (https://github.com/NCAS-CMS/cf-python/issues/762)
+* Changed dependency: ``cfunits>=3.3.7``
+* Changed dependency: ``netCDF4>=1.6.5``
+
+----
+
+version 3.16.1
+--------------
+
+**2024-03-01**
+
+* Allow DSG trajectories with identical `trajectory_id` values to be
+  aggregated (https://github.com/NCAS-CMS/cf-python/issues/723)
+* New methods: `cf.Field.pad_missing` and `cf.Data.pad_missing`
+  (https://github.com/NCAS-CMS/cf-python/issues/717)
+* Fix occasional bug when calculating UGRID cell areas when
+  non-spatial coordinates span the discrete axis
+  (https://github.com/NCAS-CMS/cf-python/issues/721)
+* New keyword parameter to `cf.Field.insert_dimension`:
+  ``constructs`` (https://github.com/NCAS-CMS/cf-python/issues/719)
+* Added the ``cell_measures`` and ``coordinates`` keyword arguments to
+  `cf.Field.weights`
+  (https://github.com/NCAS-CMS/cf-python/issues/709)
+* Added the ``cell_measures``, ``coordinates``,
+  ``return_cell_measure``, and ``methods`` keyword arguments to
+  `cf.Field.cell_area`
+  (https://github.com/NCAS-CMS/cf-python/issues/709)
+* Allow `cf.Data` to be initialised with `xarray.DataAarray`
+  (https://github.com/NCAS-CMS/cf-python/issues/706)
+* Fix bug that caused `cf.Field.del_file_location` to fail when
+  updating its metadata constructs
+  (https://github.com/NCAS-CMS/cf-python/issues/707)
+* Fix bug that caused incorrect data arrays in some cyclic subspaces
+  created by `cf.Field.subspace` and `cf.Field.__getitem__`
+  (https://github.com/NCAS-CMS/cf-python/issues/713)
+* Changed dependency: ``1.11.1.0<=cfdm<1.11.2.0``
+
+----
+
 version 3.16.0
 --------------
 
-**2023-??-??**
+**2023-12-06**
 
 * Implemented the reading and manipulation of UGRID mesh topologies
   (https://github.com/NCAS-CMS/cf-python/issues/696)
@@ -11,7 +200,7 @@ version 3.16.0
 * New methods: `cf.Field.domain_topology`,
   `cf.Field.domain_topologies`
   (https://github.com/NCAS-CMS/cf-python/issues/696)
-* New method: `cf.Data.masked-values`
+* New method: `cf.Data.masked_values`
   (https://github.com/NCAS-CMS/cf-python/issues/696)
 * New method: `cf.Data.arctan2`
   (https://github.com/NCAS-CMS/cf-python/issues/38)
@@ -21,6 +210,8 @@ version 3.16.0
   (https://github.com/NCAS-CMS/cf-python/issues/701)
 * Changed dependency: ``1.11.0.0<=cfdm<1.11.1.0``
 * New dependency: ``scipy>=1.10.0``
+
+----
 
 version 3.15.4
 --------------
@@ -130,8 +321,8 @@ version 3.15.0
 * Handled the renaming of the ESMF Python interface from `ESMF` to
   `esmpy` at version 8.4.0. Both module names are accepted for now.
 * Changed dependency: ``1.10.1.0<=cfdm<1.10.2.0``
-* Changed (optional) dependency: ``8.0.0<=esmpy``
-* Changed (optional) dependency: ``1.10.0<=scipy``
+* Changed optional dependency: ``8.0.0<=esmpy``
+* Changed optional dependency: ``1.10.0<=scipy``
 
 ----
 
@@ -160,8 +351,8 @@ version 3.14.1
 
 ----
 
-version 3.14.0
---------------
+version 3.14.0 (*first Dask version*)
+-------------------------------------
 
 **2023-01-31**
 
@@ -195,8 +386,8 @@ version 3.14.0
 
 ----
 
-version 3.13.1
---------------
+version 3.13.1 (*last LAMA version*)
+------------------------------------
 
 **2022-10-17**
 
@@ -796,7 +987,7 @@ version 3.0.1
 
 ----
 
-version 3.0.0 (*first Python 3 version*)
+version 3.0.0 (*first Python 3 release*)
 ----------------------------------------
 
 **2019-10-01**
@@ -813,7 +1004,7 @@ version 3.0.0 (*first Python 3 version*)
   
 ----
 
-version 2.3.8 (*last Python 2 version*)
+version 2.3.8 (*last Python 2 release*)
 ---------------------------------------
 
 **2019-10-07**
@@ -1676,8 +1867,8 @@ version 0.9.6
 
 ----
 
-version 0.9.5
--------------
+version 0.9.5 (*first LAMA release*)
+------------------------------------
 
 **2012-10-01**
 
@@ -1695,7 +1886,7 @@ version 0.9.5
 
 ----
 
-version 0.9.5.dev
+version 0.9.5.dev 
 -----------------
 
 **2012-09-19**

@@ -268,6 +268,7 @@ Data
    :template: method.rst
 
    ~cf.DimensionCoordinate.halo
+   ~cf.DimensionCoordinate.pad_missing
 
 .. rubric:: *Data array mask*
 
@@ -280,6 +281,7 @@ Data
    ~cf.DimensionCoordinate.count
    ~cf.DimensionCoordinate.count_masked
    ~cf.DimensionCoordinate.fill_value
+   ~cf.DimensionCoordinate.filled
    ~cf.DimensionCoordinate.masked_invalid
 
 .. autosummary::
@@ -344,6 +346,7 @@ Cyclicity
    ~cf.DimensionCoordinate.cyclic
    ~cf.DimensionCoordinate.get_original_filenames
    ~cf.DimensionCoordinate.period
+   ~cf.DimensionCoordinate.anchor
    ~cf.DimensionCoordinate.persist
 
 Miscellaneous
@@ -504,7 +507,10 @@ NetCDF
    ~cf.DimensionCoordinate.nc_del_variable
    ~cf.DimensionCoordinate.nc_get_variable
    ~cf.DimensionCoordinate.nc_has_variable
-   ~cf.DimensionCoordinate.nc_set_variable 
+   ~cf.DimensionCoordinate.nc_set_variable
+   ~cf.DimensionCoordinate.nc_clear_hdf5_chunksizes
+   ~cf.DimensionCoordinate.nc_hdf5_chunksizes
+   ~cf.DimensionCoordinate.nc_set_hdf5_chunksizes
    
 Groups
 ^^^^^^
@@ -520,8 +526,8 @@ Groups
    ~cf.DimensionCoordinate.nc_set_variable_groups
    ~cf.DimensionCoordinate.nc_clear_variable_groups
   
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -530,13 +536,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.DimensionCoordinate.add_file_location
-   ~cf.DimensionCoordinate.cfa_clear_file_substitutions
-   ~cf.DimensionCoordinate.cfa_del_file_substitution
-   ~cf.DimensionCoordinate.cfa_file_substitutions
-   ~cf.DimensionCoordinate.cfa_update_file_substitutions
-   ~cf.DimensionCoordinate.del_file_location
-   ~cf.DimensionCoordinate.file_locations
+   ~cf.DimensionCoordinate.file_directories
+   ~cf.DimensionCoordinate.replace_directory
 
 Aliases
 -------
@@ -721,11 +722,18 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+   ~cf.DimensionCoordinate.add_file_location
    ~cf.DimensionCoordinate.asdatetime
    ~cf.DimensionCoordinate.asreftime
+   ~cf.DimensionCoordinate.cfa_clear_file_substitutions
+   ~cf.DimensionCoordinate.cfa_del_file_substitution
+   ~cf.DimensionCoordinate.cfa_file_substitutions
+   ~cf.DimensionCoordinate.cfa_update_file_substitutions
    ~cf.DimensionCoordinate.chunk
+   ~cf.DimensionCoordinate.del_file_location
    ~cf.DimensionCoordinate.delprop
    ~cf.DimensionCoordinate.expand_dims
+   ~cf.DimensionCoordinate.file_locations
    ~cf.DimensionCoordinate.files
    ~cf.DimensionCoordinate.get_filenames
    ~cf.DimensionCoordinate.getprop

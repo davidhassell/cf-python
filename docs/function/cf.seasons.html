@@ -46,7 +46,7 @@
 
 
 
-<h1 class="logo"><a href="../index.html">cf 3.15.4</a></h1>
+<h1 class="logo"><a href="../index.html">cf 3.17.0</a></h1>
 
 
 
@@ -77,12 +77,10 @@
 <script>$('#searchbox').show(0);</script>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../introduction.html"><strong>Introduction</strong></a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cf_data_model.html"><strong>CF data model</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html"><strong>Installation</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cheat_sheet.html"><strong>Cheat Sheet</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../recipes/index.html"><strong>Recipes using cf</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial.html"><strong>Tutorial</strong></a></li>
-<li class="toctree-l1"><a class="reference internal" href="../analysis.html"><strong>Analysis</strong></a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html"><strong>API reference</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../aggregation_rules.html"><strong>Aggregation rules</strong></a></li>
 <li class="toctree-l1"><a class="reference internal" href="../performance.html"><strong>Performance</strong></a></li>
@@ -135,7 +133,7 @@ and by <a href="https://ncas.ac.uk/">NCAS</a>.
 <h1>cf.seasons<a class="headerlink" href="#cf-seasons" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="cf.seasons">
-<code class="sig-prename descclassname">cf.</code><code class="sig-name descname">seasons</code><span class="sig-paren">(</span><em class="sig-param">n=4</em>, <em class="sig-param">start=12</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.15.4/cf/query.py#L2457-L2570"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.seasons" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">cf.</code><code class="sig-name descname">seasons</code><span class="sig-paren">(</span><em class="sig-param">n=4</em>, <em class="sig-param">start=12</em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/NCAS-CMS/cf-python/blob/v3.17.0/cf/query.py#L2598-L2707"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cf.seasons" title="Permalink to this definition">¶</a></dt>
 <dd><p>A customisable list of <a class="reference internal" href="../class/cf.Query.html#cf.Query" title="cf.Query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Query</span></code></a> objects for “seasons in a year”
 conditions.</p>
 <p>Note that any date-time that lies within a particular season will
@@ -148,25 +146,20 @@ satisfy that query.</p>
 <p><a class="reference internal" href="cf.year.html#cf.year" title="cf.year"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.year</span></code></a>, <a class="reference internal" href="cf.month.html#cf.month" title="cf.month"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.month</span></code></a>, <a class="reference internal" href="cf.day.html#cf.day" title="cf.day"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.day</span></code></a>, <a class="reference internal" href="cf.hour.html#cf.hour" title="cf.hour"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.hour</span></code></a>, <a class="reference internal" href="cf.minute.html#cf.minute" title="cf.minute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.minute</span></code></a>,
 <a class="reference internal" href="cf.second.html#cf.second" title="cf.second"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.second</span></code></a>, <a class="reference internal" href="cf.djf.html#cf.djf" title="cf.djf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.djf</span></code></a>, <a class="reference internal" href="cf.mam.html#cf.mam" title="cf.mam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.mam</span></code></a>, <a class="reference internal" href="cf.jja.html#cf.jja" title="cf.jja"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.jja</span></code></a>, <a class="reference internal" href="cf.son.html#cf.son" title="cf.son"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.son</span></code></a></p>
 </div>
-<p>TODO</p>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="cf.mam.html#cf.mam" title="cf.mam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.mam</span></code></a>, <a class="reference internal" href="cf.jja.html#cf.jja" title="cf.jja"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.jja</span></code></a>, <a class="reference internal" href="cf.son.html#cf.son" title="cf.son"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.son</span></code></a>, <a class="reference internal" href="cf.djf.html#cf.djf" title="cf.djf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cf.djf</span></code></a></p>
-</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><dl class="simple">
-<dt>n: <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></a>, optional</dt><dd><p>The number of seasons in the year. By default there are
+<dt>n: <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></a>, optional</dt><dd><p>The number of seasons in the year. By default there are
 four seasons.</p>
 </dd>
-<dt>start: <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></a>, optional</dt><dd><p>The start month of the first season of the year. By
+<dt>start: <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></a>, optional</dt><dd><p>The start month of the first season of the year. By
 default this is 12 (December).</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><dl class="simple">
-<dt><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code></a> of <a class="reference internal" href="../class/cf.Query.html#cf.Query" title="cf.Query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Query</span></code></a></dt><dd><p>The query objects.</p>
+<dt><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code></a> of <a class="reference internal" href="../class/cf.Query.html#cf.Query" title="cf.Query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Query</span></code></a></dt><dd><p>The query objects.</p>
 </dd>
 </dl>
 </dd>
@@ -235,7 +228,7 @@ default this is 12 (December).</p>
     <div class="clearer"></div>
   </div>
     <div class="footer">
-      &copy;2023, NCAS | Page built on 2023-10-10.
+      &copy;2025, NCAS | Page built on 2025-04-02.
       
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.5</a>

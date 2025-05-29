@@ -11,6 +11,7 @@ Call as:
    $ python check_api_coverage.py <relative path to docs/source/>
 
 """
+
 import os
 import sys
 
@@ -71,7 +72,7 @@ for core in ("", "_core"):
                     print(f"Method {method} not in {rst_file}")
         except FileNotFoundError:
             n_missing_files += 1
-            print("File {rst_file} does not exist")
+            print(f"File {rst_file} does not exist")
 
 if n_undocumented_methods or n_missing_files:
     raise ValueError(

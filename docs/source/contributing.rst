@@ -121,7 +121,10 @@ ideas, code, and documentation to the cf library:
 * Jonathan Gregory
 * Klaus Zimmermann
 * Kristian Sebastián
+* Mark Rhodes-Smith
+* Matt Brown
 * Michael Decker
 * Sadie Bartholomew
 * Thibault Hallouin
 * Tim Bradshaw
+* Tyge Løvset

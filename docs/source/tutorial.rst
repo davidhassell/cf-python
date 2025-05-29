@@ -121,7 +121,7 @@ The following file types can be read:
 
 * All formats of netCDF3 and netCDF4 files can be read, containing
   datasets for any version of CF up to and including CF-|version|,
-  including :ref:`UGRID <UGRID-mesh-topolgies>` datasets.
+  including :ref:`UGRID <UGRID-mesh-topologies>` datasets.
 
 ..
 
@@ -188,11 +188,12 @@ cards). Shell environment variables are also permitted.
    >>> len(z)
    3
 
-All of the datasets in one more directories may also be read by
+All of the datasets in one or more directories may also be read by
 replacing any file name with a directory name. An attempt will be made
 to read all files in the directory, which will result in an error if
 any have a non-supported format. Non-supported files may be ignored
-with the *ignore_read_error* keyword.
+by being more specific about the file type intended for reading in
+using the *file_type* keyword:
 
 .. code-block:: python
    :caption: *Read all of the files in the current working directory.*
@@ -201,7 +202,7 @@ with the *ignore_read_error* keyword.
    Traceback (most recent call last):
        ...
    Exception: Can't determine format of file cf_tutorial_files.zip
-   >>> y = cf.read('$PWD', ignore_read_error=True)
+   >>> y = cf.read('$PWD', file_type='netCDF')
    >>> len(y)
    15
 
@@ -241,6 +242,9 @@ The `cf.read` function has optional parameters to
   read recursively, and to allow directories which resolve to symbolic
   links; and
   
+* choose either `netCDF4` or `h5netcdf` backends for accessing netCDF
+  files.
+
 * configure parameters for :ref:`reading PP and UM fields files
   <PP-and-UM-fields-files>`.
   
@@ -363,7 +367,7 @@ components, and shows the first and last values of all data arrays:
    ----------------------------------
    Field: specific_humidity (ncvar%q)
    ----------------------------------
-   Conventions = 'CF-1.7'
+   Conventions = 'CF-1.11'
    project = 'research'
    standard_name = 'specific_humidity'
    units = '1'
@@ -397,7 +401,7 @@ components, and shows the first and last values of all data arrays:
    ---------------------------------
    Field: air_temperature (ncvar%ta)
    ---------------------------------
-   Conventions = 'CF-1.7'
+   Conventions = 'CF-1.11'
    project = 'research'
    standard_name = 'air_temperature'
    units = 'K'
@@ -532,16 +536,16 @@ files <External-variables-with-cfa>`.
 
 Powerful, flexible, and user-friendly visualisations of field
 constructs are available with the `cf-plot` package (that needs to be
-installed separately to cf, see http://ajheaps.github.io/cf-plot for
-details).
+installed separately to cf, see `cf-plot documentation
+<https://ncas-cms.github.io/cf-plot/build/>`_ for details).
 
 .. figure:: images/cfplot_example.png
 
    *Example output of cf-plot displaying a cf field construct.*
 
-See the `cfplot gallery
-<http://ajheaps.github.io/cf-plot/gallery.html>`_ for the wide range
-of plotting possibilities, with example code. These include, but are
+See the `cf-plot gallery
+<https://ncas-cms.github.io/cf-plot/build/gallery.html>`_ for the wide
+range of plotting possibilities, with example code. These include, but are
 not limited to:
 
 * Cylindrical, polar stereographic and other plane projections
@@ -621,9 +625,9 @@ retrieved with the `~Field.properties` method:
 .. code-block:: python
    :caption: *Retrieve all of the descriptive properties*
 
-   >>> q, t = cf.read('file.nc')
+   >>> t = cf.read('file.nc')[1]
    >>> t.properties()
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'project': 'research',
     'standard_name': 'air_temperature',
     'units': 'K'}
@@ -671,19 +675,19 @@ properties may be removed with the `~Field.clear_properties` and
 	     
    >>> original = t.properties()
    >>> original
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'project': 'research',
     'standard_name': 'air_temperature',
     'units': 'K'}
    >>> t.set_properties({'foo': 'bar', 'units': 'K'})
    >>> t.properties()
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'foo': 'bar',
     'project': 'research',
     'standard_name': 'air_temperature',
     'units': 'K'}
    >>> t.clear_properties()
-    {'Conventions': 'CF-1.7',
+    {'Conventions': 'CF-1.11',
     'foo': 'bar',
     'project': 'research',
     'standard_name': 'air_temperature',
@@ -692,7 +696,7 @@ properties may be removed with the `~Field.clear_properties` and
    {'units': 'K'}
    >>> t.set_properties(original)
    >>> t.properties()
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'project': 'research',
     'standard_name': 'air_temperature',
     'units': 'K'}
@@ -733,7 +737,7 @@ A field construct's identity may be any one of the following
    'air_temperature'
    >>> t.identities()
    ['air_temperature',
-    'Conventions=CF-1.7',
+    'Conventions=CF-1.11',
     'project=research',
     'units=K',
     'standard_name=air_temperature',
@@ -4524,7 +4528,7 @@ the desired field construct. The commands are produced by the
    >>> print(q.creation_commands())
    # field: specific_humidity
    f = cf.Field()
-   f.set_properties({'Conventions': 'CF-1.7', 'project': 'research', 'standard_name': 'specific_humidity', 'units': '1'})
+   f.set_properties({'Conventions': 'CF-1.11', 'project': 'research', 'standard_name': 'specific_humidity', 'units': '1'})
    d = cf.Data([[0.007, 0.034, 0.003, 0.014, 0.018, 0.037, 0.024, 0.029], [0.023, 0.036, 0.045, 0.062, 0.046, 0.073, 0.006, 0.066], [0.11, 0.131, 0.124, 0.146, 0.087, 0.103, 0.057, 0.011], [0.029, 0.059, 0.039, 0.07, 0.058, 0.072, 0.009, 0.017], [0.006, 0.036, 0.019, 0.035, 0.018, 0.037, 0.034, 0.013]], units='1', dtype='f8')
    f.set_data(d)
    f.nc_set_variable('q')
@@ -4606,19 +4610,20 @@ All the of above examples use arrays in memory to construct the data
 instances for the field and metadata constructs. It is, however,
 possible to create data from arrays that reside on disk. The `cf.read`
 function creates data in this manner. A pointer to an array in a
-netCDF file can be stored in a `cf.NetCDFArray` instance, which is is
-used to initialise a `cf.Data` instance.
+netCDF file can be stored in a `cf.NetCDF4Array` or
+`~cf.H5netcdfAarray` instance, which is used to initialise a
+`cf.Data` instance.
 
 .. code-block:: python
    :caption: *Define a variable from a dataset with the netCDF package
-             and use it to create a NetCDFArray instance with which to
-             initialise a Data instance.*
+             and use it to create a NetCDF4Array instance with which
+             to initialise a Data instance.*
 		
    >>> import netCDF4
    >>> nc = netCDF4.Dataset('file.nc', 'r')
    >>> v = nc.variables['ta']
-   >>> netcdf_array = cf.NetCDFArray(filename='file.nc', address='ta',
-   ...	                               dtype=v.dtype, shape=v.shape)
+   >>> netcdf_array = cf.NetCDF4Array(filename='file.nc', address='ta',
+   ...	                              dtype=v.dtype, shape=v.shape)
    >>> data_disk = cf.Data(netcdf_array)
 
   
@@ -4634,7 +4639,7 @@ used to initialise a `cf.Data` instance.
 
 Note that data type, number of dimensions, dimension sizes and number
 of elements of the array on disk that are used to initialise the
-`cf.NetCDFArray` instance are those expected by the CF data model,
+`cf.NetCDF4Array` instance are those expected by the CF data model,
 which may be different to those of the netCDF variable in the file
 (although they are the same in the above example). For example, a
 netCDF character array of shape ``(12, 9)`` is viewed in cf as a
@@ -5311,7 +5316,7 @@ The new dataset is structured as follows:
    		humidity:coordinates = "time" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    		:project = "research" ;
    }
 
@@ -5461,7 +5466,7 @@ attribute from the file.
 	     
    >>> f.set_property('information', 'variable information')
    >>> f.properties()
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'information': 'variable information',
     'project': 'research',
     'standard_name': 'specific_humidity',
@@ -5489,7 +5494,7 @@ constructs.
    >>> f_file = cf.read('f_file.nc')[0]
    >>> f_file.nc_global_attributes()
    >>> f_file.properties()
-   {'Conventions': 'CF-1.7',
+   {'Conventions': 'CF-1.11',
     'history': 'created in 2019',
     'information': 'variable information',
     'model': 'model_A',
@@ -5600,7 +5605,7 @@ The new dataset is structured as follows (note, relative to file
    		humidity:cell_methods = "area: mean" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    		:project = "research" ;
    }
 
@@ -5692,7 +5697,7 @@ sub-group:
    	   	   lon:bounds = "lon_bnds" ;
    
    // global attributes:
-   		   :Conventions = "CF-1.8" ;
+   		   :Conventions = "CF-1.11" ;
    		   :comment = "comment" ;
    
    group: forecast {
@@ -5798,7 +5803,7 @@ netCDF variable and netCDF dimensions.
    	   	   q:cell_methods = "area: mean" ;
    		   
    // global attributes:
-   		   :Conventions = "CF-1.8" ;
+   		   :Conventions = "CF-1.11" ;
    		   :comment = "comment" ;
    }
 
@@ -5852,7 +5857,7 @@ This is illustrated with the files ``parent.nc`` (found in the
    		eastward_wind:cell_measures = "area: areacella" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    		:external_variables = "areacella" ;
    }
 
@@ -5874,7 +5879,7 @@ and ``external.nc`` (found in the :ref:`sample datasets
    		areacella:standard_name = "cell_area" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    }
 
 The dataset in ``parent.nc`` may be read *without* specifying the
@@ -6238,7 +6243,7 @@ The contiguous case is is illustrated with the file ``contiguous.nc``
    		humidity:_FillValue = -999.9 ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    		:featureType = "timeSeries" ;
    }
 
@@ -6394,7 +6399,7 @@ The content of the new file is:
    		air_temperature:standard_name = "air_temperature" ;
    
    // global attributes:
-		:Conventions = "CF-1.7" ;
+		:Conventions = "CF-1.11" ;
 		:featureType = "timeSeries" ;
    data:
    
@@ -6495,7 +6500,7 @@ This is illustrated with the file ``gathered.nc`` (found in the
    		pr:units = "kg m2 s-1" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    }
 
 Reading and inspecting this file shows the data presented in
@@ -6669,7 +6674,7 @@ The content of the new file is:
    		precipitation_flux:standard_name = "precipitation_flux" ;
    
    // global attributes:
-   		:Conventions = "CF-1.7" ;
+   		:Conventions = "CF-1.11" ;
    data:
    
     list = 1, 4, 5 ;

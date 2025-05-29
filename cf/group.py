@@ -47,6 +47,10 @@ class Group:
 
         self.classification = group.copy()
         
+        if self.group_span is True or self.group_span is None:
+            # Use the group definition as the group span
+            self.group_span =            group
+            
     @classmethod
     def _group_by_integer(cls, group):
         size = self.size
@@ -73,8 +77,8 @@ class Group:
         self.n = n + 1
         self.ignore_n = -1
     
-    @classmethod
-    def indices(cls, classification):
+    def group_indices(self):
+        classification = self.classification
         where = np.where
 
         ids = np.unique(classification)
@@ -85,6 +89,15 @@ class Group:
         for i in ids:
             index = where(classification == i)[0]
             yield index
+
+    def inverse_classification(self):
+            # Transform negative classification numbers to
+            # non-negative ones, and vice versa.
+            #
+            # E.g. [-2, 0 -1, -1, 1, 1] -> [1, -1, 0, 0, -2, -2]
+            classification = self.classification
+            classification += 1
+            classification *= -1
 
     @classmethod
     def tyu(cls, coord, group_by, time_interval):
@@ -285,6 +298,10 @@ class Group:
 
                     self.lower = lower0
                     
+        if self.group_span is True or   self.group_span is None:
+            # Use the group definition as the group span
+            self.group_span = group
+
     @classmethod
     def ddddd(cls,
         classification,
@@ -353,6 +370,7 @@ class Group:
             `numpy.ndarray`, `int`
 
         """
+        group = self.group
         group_by_coords = group_by == "coords"
 
         if coord.increasing:
@@ -386,8 +404,10 @@ class Group:
                     extra_condition,
                 )
 
-        self.normalise_groups()
-
+        if  self.group_span is True or self.group_span is None:
+            # Use the group definition as the group span
+            self.group_span = group
+            
     @class_method
     def by_queries(cls,
         classification,

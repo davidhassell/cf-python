@@ -2,6 +2,7 @@ import os
 from functools import cmp_to_key
 
 import numpy
+from cfdm.read_write.exceptions import DatasetTypeError
 
 from . import cInterface
 from .extraData import ExtraDataUnpacker
@@ -9,6 +10,12 @@ from .extraData import ExtraDataUnpacker
 
 class UMFileException(Exception):
     pass
+
+
+# Lookup header pointers
+LBLREC = 14  # Length of data record (including any extra data)
+LBPACK = 20  # Packing method indicator
+LBEGIN = 28  # Disk address/Start Record
 
 
 class File:
@@ -34,7 +41,7 @@ class File:
                 'little_endian' or 'big_endian'
 
             word_size: `int`, optional
-                4 or 8
+                The size in bytes of one word. Either ``4`` or ``8``.
 
             fmt: `str`, optional
                 'FF' or 'PP'
@@ -126,7 +133,9 @@ class File:
             file_type_obj = c.detect_file_type(self.fd)
         except Exception:
             self.close_fd()
-            raise IOError(f"File {self.path} has unsupported format")
+            raise DatasetTypeError(
+                f"Can't open {self.path} as a PP or UM dataset"
+            )
 
         d = c.file_type_obj_to_dict(file_type_obj)
         self.fmt = d["fmt"]
@@ -281,12 +290,14 @@ class Rec:
             self.file = file
 
     @classmethod
-    def from_file_and_offsets(cls, file, hdr_offset, data_offset, disk_length):
+    def from_file_and_offsets(
+        cls, file, hdr_offset, data_offset=None, disk_length=None
+    ):
         """Instantiate a `Rec` object from the `File` object and the
         header and data offsets.
 
-        The headers are read in, and also the record object is ready for
-        calling `get_data`.
+        The lookup header is read from disk immediately, and the
+        returned record object is ready for calling `get_data`.
 
         :Parameters:
 
@@ -295,13 +306,17 @@ class Rec:
                 into variables.
 
             hdr_offset: `int`
-                The start word in the file of the header.
+                The file start address of the header, in bytes.
 
-            data_offset: `int`
-                The start word in the file of the data.
+            data_offset: `int`, optional
+                The file start address of the data, in bytes. If
+                `None`, the default, then the data offset will be
+                calculated from the integer header.
 
             disk_length: `int`
-                The length in words of the data in the file.
+                The length in bytes of the data in the file. If
+                `None`, the default, then the disk length will be
+                calculated from the integer header.
 
         :Returns:
 
@@ -309,12 +324,38 @@ class Rec:
 
         """
         c = file._c_interface
+        word_size = file.word_size
         int_hdr, real_hdr = c.read_header(
-            file.fd, hdr_offset, file.byte_ordering, file.word_size
+            file.fd, hdr_offset, file.byte_ordering, word_size
         )
 
+        if data_offset is None:
+            # Calculate the data offset from the integer header
+            if file.fmt == "PP":
+                # We only support 64-word headers, so the data starts
+                # 66 words after the header_offset, i.e. after 64
+                # words of the header, plus 2 block control words.
+                data_offset = hdr_offset + 66 * word_size
+            else:
+                # Fields file
+                data_offset = int_hdr[LBEGIN] * word_size
+
+        if disk_length is None:
+            # Calculate the disk length from the integer header
+            disk_length = int_hdr[LBLREC]
+            if int_hdr[LBPACK] % 10 == 2:
+                # Cray 32-bit packing
+                disk_length = disk_length * 4
+            else:
+                disk_length = disk_length * word_size
+
         return cls(
-            int_hdr, real_hdr, hdr_offset, data_offset, disk_length, file=file
+            int_hdr,
+            real_hdr,
+            hdr_offset,
+            data_offset,
+            disk_length,
+            file=file,
         )
 
     def read_extra_data(self):
@@ -325,8 +366,8 @@ class Rec:
             `numpy.ndarray`
 
         """
-        c = self.file._c_interface
         file = self.file
+        c = file._c_interface
 
         (
             extra_data_offset,
@@ -389,9 +430,10 @@ class Rec:
             `numpy.ndarray`
 
         """
-        c = self.file._c_interface
         file = self.file
-        data_type, nwords = c.get_type_and_num_words(self.int_hdr)
+        c = file._c_interface
+        int_hdr = self.int_hdr
+        data_type, nwords = c.get_type_and_num_words(int_hdr)
 
         return c.read_record_data(
             file.fd,
@@ -399,7 +441,7 @@ class Rec:
             self.disk_length,
             file.byte_ordering,
             file.word_size,
-            self.int_hdr,
+            int_hdr,
             self.real_hdr,
             data_type,
             nwords,

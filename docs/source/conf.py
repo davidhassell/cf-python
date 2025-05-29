@@ -90,7 +90,6 @@ needs_sphinx = "2.3.1"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    # 'sphinx.ext.viewcode',
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.graphviz",
@@ -106,7 +105,7 @@ extensions = [
 
 CF_DOCS_MODE = os.environ.get("CF_DOCS_MODE", "none")
 
-if CF_DOCS_MODE in ["dev-recipes", "latest", "archive"]:
+if CF_DOCS_MODE in ["dev-recipes", "dev-recipes-scrub", "latest", "archive"]:
     extensions.append("sphinx_gallery.gen_gallery")
 
 # Spelling extension configuration: set British English and false positives
@@ -153,9 +152,11 @@ intersphinx_mapping = {
     "cftime": ("https://unidata.github.io/cftime", None),
     "cfunits": ("https://ncas-cms.github.io/cfunits", None),
     "cfdm": ("https://ncas-cms.github.io/cfdm", None),
-    "cfplot": ("https://ajheaps.github.io/cf-plot", None),
+    "cfplot": ("https://ncas-cms.github.io/cf-plot/build/", None),
     "dask": ("https://docs.dask.org/en/latest", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
+    # REVIEW: h5: new intersphinx mapping
+    "h5netcdf": ("https://h5netcdf.org", None),
 }
 
 # This extension is meant to help with the common pattern of having
@@ -386,9 +387,16 @@ sphinx_gallery_conf = {
     "run_stale_examples": False,
     "reference_url": {"cf": None},
     "backreferences_dir": "gen_modules/backreferences",
-    "doc_module": ("cf"),
+    "doc_module": ("cf",),
     "inspect_global_variables": True,
     "within_subsection_order": FileNameSortKey,
+    "default_thumb_file": "_static/logo.svg",
+    "image_scrapers": (
+        "matplotlib",
+    ),  # Ensures Matplotlib images are captured
+    "plot_gallery": "True",  # Enables plot rendering
+    "reset_modules": ("matplotlib",),  # Helps with memory management
+    "capture_repr": (),
 }
 
 import warnings

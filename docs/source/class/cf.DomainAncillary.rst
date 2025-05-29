@@ -239,6 +239,16 @@ Data
    ~cf.DomainAncillary.swapaxes
    ~cf.DomainAncillary.transpose
    
+.. rubric:: *Expanding the data*
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.DomainAncillary.halo
+   ~cf.DomainAncillary.pad_missing
+
 .. rubric:: *Data array mask*
 
 .. autosummary::
@@ -250,6 +260,7 @@ Data
    ~cf.DomainAncillary.count
    ~cf.DomainAncillary.count_masked
    ~cf.DomainAncillary.fill_value
+   ~cf.DomainAncillary.filled
    ~cf.DomainAncillary.masked_invalid
 
 .. autosummary::
@@ -274,7 +285,6 @@ Data
    :template: method.rst
 
    ~cf.DomainAncillary.__setitem__
-   ~cf.DomainAncillary.halo
    ~cf.DomainAncillary.masked_invalid
    ~cf.DomainAncillary.subspace
    ~cf.DomainAncillary.where
@@ -453,9 +463,12 @@ NetCDF
    ~cf.DomainAncillary.nc_get_variable
    ~cf.DomainAncillary.nc_has_variable
    ~cf.DomainAncillary.nc_set_variable
+   ~cf.DomainAncillary.nc_clear_hdf5_chunksizes
+   ~cf.DomainAncillary.nc_hdf5_chunksizes
+   ~cf.DomainAncillary.nc_set_hdf5_chunksizes
    
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -464,13 +477,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.DomainAncillary.add_file_location
-   ~cf.DomainAncillary.cfa_clear_file_substitutions
-   ~cf.DomainAncillary.cfa_del_file_substitution
-   ~cf.DomainAncillary.cfa_file_substitutions
-   ~cf.DomainAncillary.cfa_update_file_substitutions
-   ~cf.DomainAncillary.del_file_location
-   ~cf.DomainAncillary.file_locations
+   ~cf.DomainAncillary.file_directories
+   ~cf.DomainAncillary.replace_directory
 
 Aliases
 -------
@@ -665,13 +673,22 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.DomainAncillary.add_file_location
    ~cf.DomainAncillary.asdatetime
    ~cf.DomainAncillary.asreftime
    ~cf.DomainAncillary.attributes
    ~cf.DomainAncillary.chunk
+   ~cf.DomainAncillary.cfa_clear_file_substitutions
+   ~cf.DomainAncillary.cfa_del_file_substitution
+   ~cf.DomainAncillary.cfa_file_substitutions
+   ~cf.DomainAncillary.cfa_update_file_substitutions
+   ~cf.DomainAncillary.del_file_location
    ~cf.DomainAncillary.delprop
    ~cf.DomainAncillary.dtvarray
    ~cf.DomainAncillary.expand_dims
+   ~cf.DomainAncillary.files
+   ~cf.DomainAncillary.file_locations
    ~cf.DomainAncillary.get_filenames
    ~cf.DomainAncillary.getprop
    ~cf.DomainAncillary.hasbounds
@@ -689,4 +706,3 @@ Deprecated
    ~cf.DomainAncillary.select
    ~cf.DomainAncillary.setprop
    ~cf.DomainAncillary.unsafe_array
-   ~cf.DomainAncillary.files

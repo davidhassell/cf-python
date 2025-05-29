@@ -27,11 +27,12 @@ from . import (
 )
 from .data import Data
 from .data.array import (
+    AggregatedArray,
     BoundsFromNodesArray,
     CellConnectivityArray,
-    CFANetCDFArray,
     GatheredArray,
-    NetCDFArray,
+    H5netcdfArray,
+    NetCDF4Array,
     PointTopologyArray,
     RaggedContiguousArray,
     RaggedIndexedArray,
@@ -47,6 +48,33 @@ class CFImplementation(cfdm.CFDMImplementation):
     .. versionadded:: 3.0.0
 
     """
+
+    def nc_set_hdf5_chunksizes(self, data, sizes, override=False):
+        """Set the data HDF5 chunksizes.
+
+        .. versionadded:: 3.16.2
+
+        :Parameters:
+
+            data: `Data`
+                The data.
+
+            sizes: sequence of `int`
+                The new HDF5 chunk sizes.
+
+            override: `bool`, optional
+                If True then set the HDF5 chunks sizes even if some
+                have already been specified. If False, the default,
+                then only set the HDF5 chunks sizes if some none have
+                already been specified.
+
+        :Returns:
+
+            `None`
+
+        """
+        if override or not data.nc_hdf5_chunksizes():
+            data.nc_set_hdf5_chunksizes(sizes)
 
     def set_construct(self, parent, construct, axes=None, copy=True, **kwargs):
         """Insert a construct into a field or domain.
@@ -85,74 +113,14 @@ class CFImplementation(cfdm.CFDMImplementation):
             parent, construct, axes=axes, copy=copy, **kwargs
         )
 
-    def initialise_CFANetCDFArray(
-        self,
-        filename=None,
-        address=None,
-        dtype=None,
-        mask=True,
-        units=False,
-        calendar=False,
-        instructions=None,
-        substitutions=None,
-        term=None,
-        x=None,
-        **kwargs,
-    ):
-        """Return a `CFANetCDFArray` instance.
-
-        :Parameters:
-
-            filename: `str`
-
-            address: (sequence of) `str` or `int`
-
-            dytpe: `numpy.dtype`
-
-            mask: `bool`, optional
-
-            units: `str` or `None`, optional
-
-            calendar: `str` or `None`, optional
-
-            instructions: `str`, optional
-
-            substitutions: `dict`, optional
-
-            term: `str`, optional
-
-            x: `dict`, optional
-
-            kwargs: optional
-                Ignored.
-
-        :Returns:
-
-            `CFANetCDFArray`
-
-        """
-        cls = self.get_class("CFANetCDFArray")
-        return cls(
-            filename=filename,
-            address=address,
-            dtype=dtype,
-            mask=mask,
-            units=units,
-            calendar=calendar,
-            instructions=instructions,
-            substitutions=substitutions,
-            term=term,
-            x=x,
-        )
-
 
 _implementation = CFImplementation(
     cf_version=CF(),
+    AggregatedArray=AggregatedArray,
     AuxiliaryCoordinate=AuxiliaryCoordinate,
     CellConnectivity=CellConnectivity,
     CellMeasure=CellMeasure,
     CellMethod=CellMethod,
-    CFANetCDFArray=CFANetCDFArray,
     CoordinateReference=CoordinateReference,
     DimensionCoordinate=DimensionCoordinate,
     Domain=Domain,
@@ -175,7 +143,8 @@ _implementation = CFImplementation(
     BoundsFromNodesArray=BoundsFromNodesArray,
     CellConnectivityArray=CellConnectivityArray,
     GatheredArray=GatheredArray,
-    NetCDFArray=NetCDFArray,
+    H5netcdfArray=H5netcdfArray,
+    NetCDF4Array=NetCDF4Array,
     PointTopologyArray=PointTopologyArray,
     RaggedContiguousArray=RaggedContiguousArray,
     RaggedIndexedArray=RaggedIndexedArray,
@@ -209,7 +178,6 @@ def implementation():
      'CellConnectivityArray': cf.data.array.cellconnectivityarray.CellConnectivityArray,
      'CellMeasure': cf.cellmeasure.CellMeasure,
      'CellMethod': cf.cellmethod.CellMethod,
-     'CFANetCDFArray': cf.data.array.cfanetcdfarray.CFANetCDFArray,
      'CoordinateReference': cf.coordinatereference.CoordinateReference,
      'DimensionCoordinate': cf.dimensioncoordinate.DimensionCoordinate,
      'Domain': cf.domain.Domain,
@@ -230,7 +198,8 @@ def implementation():
      'PartNodeCountProperties': cf.partnodecountproperties.PartNodeCountProperties,
      'Data': cf.data.data.Data,
      'GatheredArray': cf.data.array.gatheredarray.GatheredArray,
-     'NetCDFArray': cf.data.array.netcdfarray.NetCDFArray,
+     'H5netcdfArray': cf.data.array.h5netcdfarray.H5netcdfArray,
+     'NetCDF4Array': cf.data.array.netcdf4array.NetCDF4Array,
      'PointTopologyArray': <class 'cf.data.array.pointtopologyarray.PointTopologyArray'>,
      'RaggedContiguousArray': cf.data.array.raggedcontiguousarray.RaggedContiguousArray,
      'RaggedIndexedArray': cf.data.array.raggedindexedarray.RaggedIndexedArray,

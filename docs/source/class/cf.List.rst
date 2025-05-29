@@ -165,6 +165,16 @@ Data
    ~cf.List.swapaxes
    ~cf.List.transpose
    
+.. rubric:: *Expanding the data*
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.List.halo
+   ~cf.List.pad_missing
+
 .. rubric:: *Data array mask*
 
 .. autosummary::
@@ -176,6 +186,7 @@ Data
    ~cf.List.count
    ~cf.List.count_masked
    ~cf.List.fill_value
+   ~cf.List.filled
    ~cf.List.masked_invalid
    
 .. autosummary::
@@ -200,7 +211,6 @@ Data
    :template: method.rst
 
    ~cf.List.__setitem__
-   ~cf.List.halo
    ~cf.List.masked_invalid
    ~cf.List.subspace
    ~cf.List.where
@@ -394,9 +404,12 @@ NetCDF
    ~cf.List.nc_get_variable
    ~cf.List.nc_has_variable
    ~cf.List.nc_set_variable
+   ~cf.List.nc_clear_hdf5_chunksizes
+   ~cf.List.nc_hdf5_chunksizes
+   ~cf.List.nc_set_hdf5_chunksizes
 
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -405,13 +418,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 	      
-   ~cf.List.add_file_location
-   ~cf.List.cfa_clear_file_substitutions
-   ~cf.List.cfa_del_file_substitution
-   ~cf.List.cfa_file_substitutions
-   ~cf.List.cfa_update_file_substitutions
-   ~cf.List.del_file_location
-   ~cf.List.file_locations
+   ~cf.List.file_directories
+   ~cf.List.replace_directory
 
 Aliases
 -------
@@ -606,14 +614,22 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.List.add_file_location
    ~cf.List.asdatetime
    ~cf.List.asreftime
    ~cf.List.attributes
+   ~cf.List.cfa_clear_file_substitutions
+   ~cf.List.cfa_del_file_substitution
+   ~cf.List.cfa_file_substitutions
+   ~cf.List.cfa_update_file_substitutions
    ~cf.List.chunk
    ~cf.List.Data
+   ~cf.List.del_file_location
    ~cf.List.delprop
    ~cf.List.dtvarray
    ~cf.List.expand_dims
+   ~cf.List.file_locations
    ~cf.List.get_filenames
    ~cf.List.getprop
    ~cf.List.hasbounds

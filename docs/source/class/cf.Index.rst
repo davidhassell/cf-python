@@ -165,6 +165,16 @@ Data
    ~cf.Index.swapaxes
    ~cf.Index.transpose
    
+.. rubric:: *Expanding the data*
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.Index.halo
+   ~cf.Index.pad_missing
+
 .. rubric:: *Data array mask*
 
 .. autosummary::
@@ -176,6 +186,7 @@ Data
    ~cf.Index.count
    ~cf.Index.count_masked
    ~cf.Index.fill_value
+   ~cf.Index.filled
    ~cf.Index.masked_invalid
 
 .. autosummary::
@@ -200,7 +211,6 @@ Data
    :template: method.rst
 
    ~cf.Index.__setitem__
-   ~cf.Index.halo
    ~cf.Index.masked_invalid
    ~cf.Index.subspace
    ~cf.Index.where
@@ -402,9 +412,12 @@ NetCDF
    ~cf.Index.nc_get_sample_dimension
    ~cf.Index.nc_has_sample_dimension
    ~cf.Index.nc_set_sample_dimension
+   ~cf.Index.nc_clear_hdf5_chunksizes
+   ~cf.Index.nc_hdf5_chunksizes
+   ~cf.Index.nc_set_hdf5_chunksizes
 
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -413,13 +426,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 	      
-   ~cf.Index.add_file_location
-   ~cf.Index.cfa_clear_file_substitutions
-   ~cf.Index.cfa_del_file_substitution
-   ~cf.Index.cfa_file_substitutions
-   ~cf.Index.cfa_update_file_substitutions
-   ~cf.Index.del_file_location
-   ~cf.Index.file_locations
+   ~cf.Index.file_directories
+   ~cf.Index.replace_directory
 
 Aliases
 -------
@@ -620,14 +628,22 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+
+   ~cf.Index.add_file_location
    ~cf.Index.asdatetime
    ~cf.Index.asreftime
    ~cf.Index.attributes
+   ~cf.Index.cfa_clear_file_substitutions
+   ~cf.Index.cfa_del_file_substitution
+   ~cf.Index.cfa_file_substitutions
+   ~cf.Index.cfa_update_file_substitutions
    ~cf.Index.chunk
    ~cf.Index.Data
+   ~cf.Index.del_file_location
    ~cf.Index.delprop
    ~cf.Index.dtvarray
    ~cf.Index.expand_dims
+   ~cf.Index.file_locations   
    ~cf.Index.get_filenames
    ~cf.Index.getprop
    ~cf.Index.hasbounds

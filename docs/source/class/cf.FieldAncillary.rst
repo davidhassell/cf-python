@@ -117,7 +117,6 @@ Units
 
    ~cf.FieldAncillary.Units
 
-
 Data
 ----
 
@@ -169,6 +168,16 @@ Data
    ~cf.FieldAncillary.swapaxes
    ~cf.FieldAncillary.transpose
    
+.. rubric:: *Expanding the data*
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.FieldAncillary.halo
+   ~cf.FieldAncillary.pad_missing
+
 .. rubric:: *Data array mask*
 
 .. autosummary::
@@ -180,6 +189,7 @@ Data
    ~cf.FieldAncillary.count
    ~cf.FieldAncillary.count_masked
    ~cf.FieldAncillary.fill_value
+   ~cf.FieldAncillary.filled
    ~cf.FieldAncillary.masked_invalid
 
 .. autosummary::
@@ -204,7 +214,6 @@ Data
    :template: method.rst
 
    ~cf.FieldAncillary.__setitem__
-   ~cf.FieldAncillary.halo
    ~cf.FieldAncillary.masked_invalid
    ~cf.FieldAncillary.subspace
    ~cf.FieldAncillary.where
@@ -398,9 +407,12 @@ NetCDF
    ~cf.FieldAncillary.nc_get_variable
    ~cf.FieldAncillary.nc_has_variable
    ~cf.FieldAncillary.nc_set_variable 
+   ~cf.FieldAncillary.nc_clear_hdf5_chunksizes
+   ~cf.FieldAncillary.nc_hdf5_chunksizes
+   ~cf.FieldAncillary.nc_set_hdf5_chunksizes
 
-CFA
----
+Aggregation
+-----------
 
 .. rubric:: Methods
 	    
@@ -409,13 +421,8 @@ CFA
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.FieldAncillary.add_file_location
-   ~cf.FieldAncillary.cfa_clear_file_substitutions
-   ~cf.FieldAncillary.cfa_del_file_substitution
-   ~cf.FieldAncillary.cfa_file_substitutions
-   ~cf.FieldAncillary.cfa_update_file_substitutions
-   ~cf.FieldAncillary.del_file_location
-   ~cf.FieldAncillary.file_locations
+   ~cf.FieldAncillary.file_directories
+   ~cf.FieldAncillary.replace_directory
 
 Aliases
 -------
@@ -610,14 +617,21 @@ Deprecated
    :toctree: ../method/
    :template: method.rst
 
+   ~cf.FieldAncillary.add_file_location
    ~cf.FieldAncillary.asdatetime
    ~cf.FieldAncillary.asreftime
    ~cf.FieldAncillary.attributes
+   ~cf.FieldAncillary.cfa_clear_file_substitutions
+   ~cf.FieldAncillary.cfa_del_file_substitution
+   ~cf.FieldAncillary.cfa_file_substitutions
+   ~cf.FieldAncillary.cfa_update_file_substitutions
    ~cf.FieldAncillary.chunk
+   ~cf.FieldAncillary.del_file_location
    ~cf.FieldAncillary.delprop
    ~cf.FieldAncillary.dtvarray
    ~cf.FieldAncillary.expand_dims
    ~cf.FieldAncillary.get_filenames
+   ~cf.FieldAncillary.file_locations
    ~cf.FieldAncillary.getprop
    ~cf.FieldAncillary.hasbounds
    ~cf.FieldAncillary.hasdata
