@@ -11861,27 +11861,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             group = (group,)
             
         if isinstance(group, np.ndarray):
-            # ----------------------------------------------------
-            # ----------------------------------------------------
-            if group_span is not None or group_contiguous is not None :
-                raise ValueError("TODO")
+            g = Group(axis_size, group)
             
-            classification = np.squeeze(group.copy())
-
-            if classification.dtype.kind != "i":
-                raise ValueError(
-                    "Can't group by numpy array of type "
-                    f"{classification.dtype.name}"
-                )
-            elif classification.shape != (axis_size,):
-                raise ValueError(
-                "Can't group by numpy array with incorrect "
-                    f"shape: {classification.shape}"
-                )
-
-            if group_span is True:
-                group_span = None
-
         elif over_days or over_years:
             dim_coord = dim_coord.persist()
 

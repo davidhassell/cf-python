@@ -1,7 +1,8 @@
 class Group:
 
-    def __init__(self, group, group_span=None, group_contiguous=None, coord=None, size=None, extra_conditions=None, over=False):
+    def __init__(self, size, group=None, group_span=None, group_contiguous=None, coord=None, size=None, extra_conditions=None, over=False):
         """TODO"""
+        self.size=size
         self.group = group
         self.group_span = group_span
         self.group_contiguous = group_contiguous
@@ -13,12 +14,7 @@ class Group:
             self.bounds = coord.get_bounds(None)
         except AttributeError:
             self.bounds = None
-            
-        try:
-            size = coord.size
-        except AttributeError:
-            size = None
-            
+                        
         if group is None:
             self._initialize_classification(0)
         elif isinstance(group, TimeDuration):
@@ -29,11 +25,18 @@ class Group:
             self._group_by_integer()
         elif isinstance(group, np.ndarray):
             self._group_by_array() 
+        elif isinstance(group, Query):
+            self.group = (group,)
+            self._group_by_queries()
         else:
             self._group_by_queries()
             
     def _group_by_array(self):
+        if group_span is not None or group_contiguous is not None :
+            raise ValueError("TODO")
+
         group = self.group
+
         if group.dtype.kind != "i":
             raise ValueError(
                 f"Can't group by numpy array of type {group.dtype.name}"
@@ -41,14 +44,14 @@ class Group:
 
         if group.shape != (self.size,):
             raise ValueError(
-                "Can't group by numpy array with incorrect "
-                f"shape: {classification.shape}"
+                "Can't group by numpy array with incorrect shape: "
+                f"{group.shape}"
             )
 
         self.classification = group.copy()
         
         if self.group_span is True or self.group_span is None:
-            # Use the group definition as the group span
+            # Use the group definition as the group span ????
             self.group_span =            group
             
     @classmethod
@@ -72,7 +75,7 @@ class Group:
         self.n = n + 1
     
     @classmethod
-    def _initialise_classification(cls, size, n=-1):
+    def initialise_classification(cls, size, n=-1):
         return np.full((size,), n, int)
         self.n = n + 1
         self.ignore_n = -1
@@ -409,7 +412,7 @@ class Group:
             self.group_span = group
             
     @class_method
-    def by_queries(cls,
+    def group_by_queries(cls,
         classification,
         n,
         coord,
