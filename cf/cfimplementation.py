@@ -23,6 +23,7 @@ from . import (
     List,
     NodeCountProperties,
     PartNodeCountProperties,
+    Quantization,
     TiePointIndex,
 )
 from .data import Data
@@ -38,6 +39,7 @@ from .data.array import (
     RaggedIndexedArray,
     RaggedIndexedContiguousArray,
     SubsampledArray,
+    ZarrArray,
 )
 from .functions import CF
 
@@ -49,8 +51,8 @@ class CFImplementation(cfdm.CFDMImplementation):
 
     """
 
-    def nc_set_hdf5_chunksizes(self, data, sizes, override=False):
-        """Set the data HDF5 chunksizes.
+    def nc_set_dataset_chunksizes(self, data, sizes, override=False):
+        """Set the data dataset chunksizes.
 
         .. versionadded:: 3.16.2
 
@@ -60,21 +62,21 @@ class CFImplementation(cfdm.CFDMImplementation):
                 The data.
 
             sizes: sequence of `int`
-                The new HDF5 chunk sizes.
+                The new dataset chunk sizes.
 
             override: `bool`, optional
-                If True then set the HDF5 chunks sizes even if some
+                If True then set the dataset chunks sizes even if some
                 have already been specified. If False, the default,
-                then only set the HDF5 chunks sizes if some none have
-                already been specified.
+                then only set the dataset chunks sizes if some none
+                have already been specified.
 
         :Returns:
 
             `None`
 
         """
-        if override or not data.nc_hdf5_chunksizes():
-            data.nc_set_hdf5_chunksizes(sizes)
+        if override or not data.nc_dataset_chunksizes():
+            data.nc_set_dataset_chunksizes(sizes)
 
     def set_construct(self, parent, construct, axes=None, copy=True, **kwargs):
         """Insert a construct into a field or domain.
@@ -146,11 +148,13 @@ _implementation = CFImplementation(
     H5netcdfArray=H5netcdfArray,
     NetCDF4Array=NetCDF4Array,
     PointTopologyArray=PointTopologyArray,
+    Quantization=Quantization,
     RaggedContiguousArray=RaggedContiguousArray,
     RaggedIndexedArray=RaggedIndexedArray,
     RaggedIndexedContiguousArray=RaggedIndexedContiguousArray,
     SubsampledArray=SubsampledArray,
     TiePointIndex=TiePointIndex,
+    ZarrArray=ZarrArray,
 )
 
 
@@ -201,11 +205,14 @@ def implementation():
      'H5netcdfArray': cf.data.array.h5netcdfarray.H5netcdfArray,
      'NetCDF4Array': cf.data.array.netcdf4array.NetCDF4Array,
      'PointTopologyArray': <class 'cf.data.array.pointtopologyarray.PointTopologyArray'>,
+     'Quantization': cf.quantization.Quantization,
      'RaggedContiguousArray': cf.data.array.raggedcontiguousarray.RaggedContiguousArray,
      'RaggedIndexedArray': cf.data.array.raggedindexedarray.RaggedIndexedArray,
      'RaggedIndexedContiguousArray': cf.data.array.raggedindexedcontiguousarray.RaggedIndexedContiguousArray,
      'SubsampledArray': cf.data.array.subsampledarray.SubsampledArray,
-     'TiePointIndex': cf.tiepointindex.TiePointIndex}
+     'TiePointIndex': cf.tiepointindex.TiePointIndex,
+     'ZarrArray': cf.data.array.zarrarray.ZarrArray,
+    }
 
     """
     return _implementation.copy()

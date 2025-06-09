@@ -306,6 +306,19 @@ Data
    ~cf.DomainAncillary.get_original_filenames
    ~cf.DomainAncillary.persist
 
+Quantization
+^^^^^^^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.DomainAncillary.get_quantization
+   ~cf.DomainAncillary.get_quantize_on_write
+
 Miscellaneous
 -------------
 
@@ -463,9 +476,9 @@ NetCDF
    ~cf.DomainAncillary.nc_get_variable
    ~cf.DomainAncillary.nc_has_variable
    ~cf.DomainAncillary.nc_set_variable
-   ~cf.DomainAncillary.nc_clear_hdf5_chunksizes
-   ~cf.DomainAncillary.nc_hdf5_chunksizes
-   ~cf.DomainAncillary.nc_set_hdf5_chunksizes
+   ~cf.DomainAncillary.nc_clear_dataset_chunksizes
+   ~cf.DomainAncillary.nc_dataset_chunksizes
+   ~cf.DomainAncillary.nc_set_dataset_chunksizes
    
 Aggregation
 -----------
@@ -706,3 +719,6 @@ Deprecated
    ~cf.DomainAncillary.select
    ~cf.DomainAncillary.setprop
    ~cf.DomainAncillary.unsafe_array
+   ~cf.DomainAncillary.nc_clear_hdf5_chunksizes
+   ~cf.DomainAncillary.nc_hdf5_chunksizes
+   ~cf.DomainAncillary.nc_set_hdf5_chunksizes

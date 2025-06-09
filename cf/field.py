@@ -22,6 +22,7 @@ from . import (
     Flags,
     Index,
     List,
+    Quantization,
     mixin,
 )
 from .constants import masked as cf_masked
@@ -280,7 +281,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         instance._Domain = Domain
         instance._DomainAncillary = DomainAncillary
         instance._DomainAxis = DomainAxis
-        #        instance._Data = Data
+        instance._Quantization = Quantization
         instance._RaggedContiguousArray = RaggedContiguousArray
         instance._RaggedIndexedArray = RaggedIndexedArray
         instance._RaggedIndexedContiguousArray = RaggedIndexedContiguousArray
@@ -15372,19 +15373,20 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         )  # pragma: no cover
 
     def HDF_chunks(self, *chunksizes):
-        """Deprecated at version 3.0.0.
+        """Get or set HDF chunk sizes.
 
-        Use methods 'Data.nc_hdf5_chunksizes',
-        'Data.nc_set_hdf5_chunksizes', 'Data.nc_clear_hdf5_chunksizes'
-        instead.
+        Deprecated at version 3.0.0 and is no longer available.  Use
+        methods `Data.nc_dataset_chunksizes`,
+        `Data.nc_set_dataset_chunksizes`,
+        `Data.nc_clear_dataset_chunksizes` instead.
 
         """
         _DEPRECATION_ERROR_METHOD(
             self,
             "HDF_chunks",
-            "Use methods 'Data.nc_hdf5_chunksizes', "
-            "'Data.nc_set_hdf5_chunksizes', "
-            "'Data.nc_clear_hdf5_chunksizes' instead.",
+            "Use methods 'Data.nc_dataset_chunksizes', "
+            "'Data.nc_set_dataset_chunksizes', "
+            "'Data.nc_clear_dataset_chunksizes' instead.",
             version="3.0.0",
             removed_at="4.0.0",
         )  # pragma: no cover

@@ -265,6 +265,23 @@ Miscellaneous data operations
    ~cf.Field.persist
    ~cf.Field.persist_metadata
  
+Quantization
+^^^^^^^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.Field.get_quantization
+   ~cf.Field._set_quantization
+   ~cf.Field._del_quantization
+   ~cf.Field.get_quantize_on_write
+   ~cf.Field.set_quantize_on_write
+   ~cf.Field.del_quantize_on_write
+
 Metadata constructs
 -------------------
 
@@ -417,9 +434,9 @@ NetCDF
    ~cf.Field.nc_set_global_attribute
    ~cf.Field.nc_set_global_attributes
    ~cf.Field.ncdimensions
-   ~cf.Field.nc_clear_hdf5_chunksizes
-   ~cf.Field.nc_hdf5_chunksizes
-   ~cf.Field.nc_set_hdf5_chunksizes
+   ~cf.Field.nc_clear_dataset_chunksizes
+   ~cf.Field.nc_dataset_chunksizes
+   ~cf.Field.nc_set_dataset_chunksizes
 
 Groups
 ^^^^^^
@@ -1036,6 +1053,9 @@ Deprecated
    ~cf.Field.setprop
    ~cf.Field.transpose_item
    ~cf.Field.unlimited
+   ~cf.Field.nc_clear_hdf5_chunksizes
+   ~cf.Field.nc_hdf5_chunksizes
+   ~cf.Field.nc_set_hdf5_chunksizes
 
 .. rubric:: Attributes
 

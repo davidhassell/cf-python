@@ -16,6 +16,7 @@ Documentation for all versions of cf.
 **CF-1.12**
 -----------
 
+* `Version 3.18.0 <https://ncas-cms.github.io/cf-python-docs/3.18.0>`_ (2025-06-05)
 * `Version 3.17.0 <https://ncas-cms.github.io/cf-python-docs/3.17.0>`_ (2025-04-02)
 
 **CF-1.11**
@@ -120,7 +121,7 @@ Documentation for all versions of cf.
 * `version 0.9.4.1   <http://cfpython.bitbucket.io/docs/0.9.4.1/build/index.html>`_
 * `version 0.9.4     <http://cfpython.bitbucket.io/docs/0.9.4/build/index.html>`_ (2012-03-15)
 * `version 0.9.3.4   <http://cfpython.bitbucket.io/docs/0.9.3.4/build/index.html>`_
-* `version 0.9.3.3   <http://cfpython.bitbucket.io/docs/0.9.3.3/build/index.html>`_ (2018-02-08)
+* `version 0.9.3.3   <http://cfpython.bitbucket.io/docs/0.9.3.3/build/index.html>`_ (2012-02-08)
 * `version 0.9.3.2   <http://cfpython.bitbucket.io/docs/0.9.3.2/build/index.html>`_
 * `version 0.9.3.1   <http://cfpython.bitbucket.io/docs/0.9.3.1/build/index.html>`_
 * `version 0.9.2     <http://cfpython.bitbucket.io/docs/0.9.2/build/index.html>`_  (2011-08-26)
@@ -144,7 +145,7 @@ be found with the `cf.CF` function:
 	     
    >>> import cf
    >>> cf.CF()
-   '1.10'
+   '1.12'
 
 This indicates which version of the CF conventions are represented by
 this release of the cf package, and therefore the version can not be
@@ -157,7 +158,7 @@ version , and is found in the usual manner:
    :caption: *Retrieve the version of the cf package.*
 	     	     
    >>> cf.__version__
-   '3.14.0'
+   '3.18.0'
 
 The next section outlines the scheme used to set version identifiers.
 
@@ -165,7 +166,7 @@ Versioning strategy
 ^^^^^^^^^^^^^^^^^^^
 
 An ``epoch.major.minor`` numeric version scheme is used,
-e.g. ``3.13.1``.
+e.g. ``3.16.1``.
 
 **Epoch** changes comprise
 

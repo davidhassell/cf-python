@@ -349,6 +349,19 @@ Cyclicity
    ~cf.DimensionCoordinate.anchor
    ~cf.DimensionCoordinate.persist
 
+Quantization
+^^^^^^^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.DimensionCoordinate.get_quantization
+   ~cf.DimensionCoordinate.get_quantize_on_write
+
 Miscellaneous
 -------------
 
@@ -508,9 +521,9 @@ NetCDF
    ~cf.DimensionCoordinate.nc_get_variable
    ~cf.DimensionCoordinate.nc_has_variable
    ~cf.DimensionCoordinate.nc_set_variable
-   ~cf.DimensionCoordinate.nc_clear_hdf5_chunksizes
-   ~cf.DimensionCoordinate.nc_hdf5_chunksizes
-   ~cf.DimensionCoordinate.nc_set_hdf5_chunksizes
+   ~cf.DimensionCoordinate.nc_clear_dataset_chunksizes
+   ~cf.DimensionCoordinate.nc_dataset_chunksizes
+   ~cf.DimensionCoordinate.nc_set_dataset_chunksizes
    
 Groups
 ^^^^^^
@@ -744,6 +757,9 @@ Deprecated
    ~cf.DimensionCoordinate.remove_data
    ~cf.DimensionCoordinate.select
    ~cf.DimensionCoordinate.setprop
+   ~cf.DimensionCoordinate.nc_clear_hdf5_chunksizes
+   ~cf.DimensionCoordinate.nc_hdf5_chunksizes
+   ~cf.DimensionCoordinate.nc_set_hdf5_chunksizes  
 
 .. rubric:: Attributes
 

@@ -261,6 +261,19 @@ Data
    ~cf.CellConnectivity.has_bounds
    ~cf.CellConnectivity.persist
 
+Quantization
+^^^^^^^^^^^^
+
+.. rubric:: Methods
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../method/
+   :template: method.rst
+
+   ~cf.CellConnectivity.get_quantization
+   ~cf.CellConnectivity.get_quantize_on_write
+
 Miscellaneous
 -------------
 
@@ -431,9 +444,9 @@ NetCDF
    ~cf.CellConnectivity.nc_get_variable
    ~cf.CellConnectivity.nc_has_variable
    ~cf.CellConnectivity.nc_set_variable 
-   ~cf.CellConnectivity.nc_clear_hdf5_chunksizes
-   ~cf.CellConnectivity.nc_hdf5_chunksizes
-   ~cf.CellConnectivity.nc_set_hdf5_chunksizes
+   ~cf.CellConnectivity.nc_clear_dataset_chunksizes
+   ~cf.CellConnectivity.nc_dataset_chunksizes
+   ~cf.CellConnectivity.nc_set_dataset_chunksizes
 
 Aggregation
 -----------
@@ -477,8 +490,8 @@ Groups
    ~cf.CellConnectivity.nc_clear_variable_groups
    ~cf.CellConnectivity.nc_set_variable_groups
 
-HDF5 chunks
-^^^^^^^^^^^
+Dataset chunks
+^^^^^^^^^^^^^^
 
 .. rubric:: Methods
 
@@ -487,9 +500,9 @@ HDF5 chunks
    :toctree: ../method/
    :template: method.rst
 
-   ~cf.CellConnectivity.nc_hdf5_chunksizes
-   ~cf.CellConnectivity.nc_set_hdf5_chunksizes
-   ~cf.CellConnectivity.nc_clear_hdf5_chunksizes
+   ~cf.CellConnectivity.nc_dataset_chunksizes
+   ~cf.CellConnectivity.nc_set_dataset_chunksizes
+   ~cf.CellConnectivity.nc_clear_dataset_chunksizes
 
 Aliases
 -------
@@ -583,3 +596,7 @@ Deprecated
    ~cf.CellConnectivity.select
    ~cf.CellConnectivity.setprop
    ~cf.CellConnectivity.unsafe_array
+   ~cf.CellConnectivity.nc_clear_hdf5_chunksizes
+   ~cf.CellConnectivity.nc_hdf5_chunksizes
+   ~cf.CellConnectivity.nc_set_hdf5_chunksizes
+
