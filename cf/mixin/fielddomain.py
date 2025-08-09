@@ -2095,15 +2095,23 @@ class FieldDomain:
             and new_indexing_scheme != indexing_scheme
         ):
             refinement_level = hp.get("refinement_level")
+            if refinement_level is None:
+                raise ValueError(
+                    f"Can't change HEALPix indexing scheme of {f!r} from "
+                    f"{indexing_scheme!r} to {new_indexing_scheme!r}: "
+                    "refinement_level has not been set in the healpix grid "
+                    "mapping coordinate reference"
+                )
+
             if (
-                indexing_scheme in ("nested", "ring")
-                and refinement_level is None
+                new_indexing_scheme in ("nested", "ring")
+                and np.array(refinement_level).size > 1
             ):
                 raise ValueError(
                     f"Can't change HEALPix indexing scheme of {f!r} from "
-                    f"{indexing_scheme!r} to {new_indexing_scheme!r} when "
-                    "refinement_level has not been set in the healpix grid "
-                    "mapping coordinate reference"
+                    f"{indexing_scheme!r} to {new_indexing_scheme!r}: "
+                    "Multiple refinement levels are set in the healpix grid "
+                    f"mapping coordinate reference: {refinement_level!r}"
                 )
 
             # Update the Coordinate Reference
@@ -2111,18 +2119,16 @@ class FieldDomain:
             cr.coordinate_conversion.set_parameter(
                 "indexing_scheme", new_indexing_scheme
             )
-            if new_indexing_scheme == "nested_unique":
-                cr.coordinate_conversion.del_parameter("refinement_level")
-            elif indexing_scheme == "nested_unique":
-                raise ValueError(
-                    f"Can't change HEALPix indexing scheme of {f!r} from "
-                    f"{indexing_scheme!r} to {new_indexing_scheme!r}"
-                )
 
             # Change the HEALPix indices
             from ..healpix import _healpix_indexing_scheme
 
-            _healpix_indexing_scheme(healpix_index, hp, new_indexing_scheme)
+            _healpix_indexing_scheme(
+                healpix_index,
+                indexing_scheme,
+                new_indexing_scheme,
+                refinement_level,
+            )
 
         if sort:
             # Sort the HEALPix axis so that the HEALPix indices are

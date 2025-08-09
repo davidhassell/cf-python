@@ -305,7 +305,9 @@ def _healpix_increase_refinement_level_indices(
         data._set_cached_elements({-1: x})
 
 
-def _healpix_indexing_scheme(healpix_index, hp, new_indexing_scheme):
+def _healpix_indexing_scheme(
+    healpix_index, indexing_scheme, new_indexing_scheme, refinement_level
+):
     """Change the indexing scheme of HEALPix indices in-place.
 
     K. Gorski, Eric Hivon, A. Banday, B. Wandelt, M. Bartelmann, et
@@ -340,9 +342,6 @@ def _healpix_indexing_scheme(healpix_index, hp, new_indexing_scheme):
 
     """
     from .data.dask_utils import cf_healpix_indexing_scheme
-
-    indexing_scheme = hp["indexing_scheme"]
-    refinement_level = hp.get("refinement_level")
 
     # Change the HEALPix indices
     dx = healpix_index.data.to_dask_array(

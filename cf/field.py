@@ -5360,8 +5360,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             healpix_max_refinement_level,
         )
 
-        # Increasing the refinement level requires the nested indexing
-        # scheme
+        # Increasing the refinement level requires the "nested"
+        # indexing scheme
         try:
             f = self.healpix_indexing_scheme("nested", sort=False)
         except ValueError as e:

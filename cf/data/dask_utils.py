@@ -917,7 +917,7 @@ def cf_healpix_increase_refinement_indices(a, refinement_level, ncells):
 
 
 def cf_healpix_indexing_scheme(
-    a, indexing_scheme, new_indexing_scheme, refinement_level=None
+    a, indexing_scheme, new_indexing_scheme, refinement_level
 ):
     """Change the indexing scheme of HEALPix indices.
 
@@ -954,7 +954,7 @@ def cf_healpix_indexing_scheme(
             cells. Must be an `int` for *indexing_scheme* ``'nested'``
             or ``'ring'``, but is ignored for *indexing_scheme*
             ``'nested_unique'`` (in which case *refinement_level* may
-            be `None`).
+            be `None`). TODOHEALPIX
 
     :Returns:
 
@@ -1020,22 +1020,19 @@ def cf_healpix_indexing_scheme(
                     if refinement_levels.size > 1:
                         raise ValueError(
                             "Can't change HEALPix indexing scheme from "
-                            f"'nested_unique' to {new_indexing_scheme!r} "
-                            "when the HEALPix indices span multiple "
-                            "refinement levels (at least levels "
-                            f"{refinement_levels.tolist()})"
+                            f"{indexing_scheme!r} to {new_indexing_scheme!r}: "
+                            "HEALPix indices span multiple refinement levels "
+                            f"(at least levels {refinement_levels.tolist()})"
                         )
 
                     return a
 
-        case _:
-            raise ValueError(
-                "Can't calculate HEALPix cell coordinates: Unknown "
-                f"'indexing_scheme': {indexing_scheme!r}"
-            )
-
+    # Still here?
     raise RuntimeError(
-        "cf_healpix_indexing_scheme: Failed during Dask computation"
+        "cf_healpix_indexing_scheme: Failed during Dask computation: "
+        f"indexing_scheme={indexing_scheme!r}, "
+        f"new_indexing_scheme={new_indexing_schemer!r}, "
+        f"refinement_level={refinement_level!r}"
     )
 
 
