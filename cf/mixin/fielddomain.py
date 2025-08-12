@@ -455,6 +455,25 @@ class FieldDomain:
                         if debug:
                             logger.debug("  1-d CASE 2:")  # pragma: no cover
 
+                        # Adjust value so it's in the range [c[0],
+                        # c[0]+period)
+                        value0, value1 = value.value
+                        print (value.value, value0, value1)
+                        if value1 < value0:
+                            period = item.period()
+                            d = self._Data(value.value)
+                            print(repr(d))
+                            d.Units= period.Units
+                            
+                            print (-d.diff())
+                            n = (-d.diff()/period).ceil()
+                            print(repr(n))
+                            value0 = (d[0]).datum()
+                            value1 = (d[1] + n * period).datum()
+                            print(repr(d))
+                            value = wi(value0, value1, units=d.Units)
+                            
+                            print(repr(value), item.period())
                         size = item.size
                         if item.increasing:
                             anchor = value.value[0]
