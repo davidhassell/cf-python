@@ -18,7 +18,7 @@ from ..functions import (
     bounds_combination_mode,
     normalize_slice,
 )
-from ..query import Query, wi
+from ..query import Query, wi, wo
 from ..units import Units
 
 logger = logging.getLogger(__name__)
@@ -455,8 +455,8 @@ class FieldDomain:
                         if debug:
                             logger.debug("  1-d CASE 2:")  # pragma: no cover
 
-                        value0, value1 = value.value
-                        if value1 < value0:
+                        arg0, arg1 = value.value
+                        if arg0 > arg1:
                             # Query has swapped operands (i.e. arg0 >
                             # arg1) => Create a new equivalant Query
                             # that has the arg0 < arg1. E.g. for a
@@ -470,10 +470,13 @@ class FieldDomain:
                             period = item.period()
                             value = value.copy()
                             value.set_condition_units(period.Units)
-                            value0, value1 = value.value
-                            n = ((value0 - value1) / period).ceil()
-                            value1 = value1 + n * period
-                            value = wi(value0, value1)
+                            arg0, arg1 = value.value
+                            n = ((arg0 - arg1) / period).ceil()
+                            arg1 = arg1 + n * period
+                            if value.operator == "wi":
+                                value = wi(arg0, arg1)
+                            else:
+                                value = wo(arg0, arg1)
 
                         size = item.size
                         if item.increasing:
