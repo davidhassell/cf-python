@@ -455,25 +455,26 @@ class FieldDomain:
                         if debug:
                             logger.debug("  1-d CASE 2:")  # pragma: no cover
 
-                        # Adjust value so it's in the range [c[0],
-                        # c[0]+period)
                         value0, value1 = value.value
-                        print (value.value, value0, value1)
                         if value1 < value0:
+                            # Query has swapped operands (i.e. arg0 >
+                            # arg1) => Create a new equivalant Query
+                            # that has the arg0 < arg1. E.g. for a
+                            # period of 360, cf.wi(355, 5) is
+                            # transformed to cf.wi(355, 365).
+                            #
+                            # This is done (effectively) by repeatedly
+                            # adding the cyclic period to arg1 until
+                            # it is greater than arg0, taking into
+                            # account any units that are in play.
                             period = item.period()
-                            d = self._Data(value.value)
-                            print(repr(d))
-                            d.Units= period.Units
-                            
-                            print (-d.diff())
-                            n = (-d.diff()/period).ceil()
-                            print(repr(n))
-                            value0 = (d[0]).datum()
-                            value1 = (d[1] + n * period).datum()
-                            print(repr(d))
-                            value = wi(value0, value1, units=d.Units)
-                            
-                            print(repr(value), item.period())
+                            value = value.copy()
+                            value.set_condition_units(period.Units)
+                            value0, value1 = value.value
+                            n = ((value0 - value1) / period).ceil()
+                            value1 = value1 + n * period
+                            value = wi(value0, value1)
+
                         size = item.size
                         if item.increasing:
                             anchor = value.value[0]

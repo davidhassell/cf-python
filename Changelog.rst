@@ -12,6 +12,9 @@ Version NEXTVERSION
 * Fix bug in `cf.Field.collapse` that causes a ``ValueError`` to be raised
   for missing external cell measures data
   (https://github.com/NCAS-CMS/cf-python/issues/885)
+* Fix `cf.Field.subspace` for a cyclic axis so that a query range
+  provided by `cf.wi` or `cf.wo` is also treated cyclicly
+  (https://github.com/NCAS-CMS/cf-python/issues/887)
 * New dependency: ``distributed>=2025.5.1``
 
 ----

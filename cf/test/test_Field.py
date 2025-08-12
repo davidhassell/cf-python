@@ -1286,6 +1286,14 @@ class FieldTest(unittest.TestCase):
         a[..., [0, 1, 6, 7, 8]] = np.ma.masked
         self.assertTrue(cf.functions._numpy_allclose(g.array, a), g.array)
 
+        for q in (cf.wi(315, 45), cf.wi(-45, -675)):
+            # Cyclic cf.wi with swapped operands (increasing coords)
+            indices = f.indices(grid_longitude=q)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 3))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue((x == [-40, 0, 40]).all())
+
         # wi (decreasing)
         f.flip("X", inplace=True)
 
@@ -1341,6 +1349,14 @@ class FieldTest(unittest.TestCase):
         self.assertTrue(
             (x == [0, 40, 80, 120, 160, 200, 240, 280, 320][::-1]).all()
         )
+
+        for q in (cf.wi(315, 45), cf.wi(-45, -675)):
+            # Cyclic cf.wi with swapped operands (decreasing coords)
+            indices = f.indices(grid_longitude=q)
+            g = f[indices]
+            self.assertEqual(g.shape, (1, 10, 3))
+            x = g.dimension_coordinate("X").array
+            self.assertTrue((x == [40, 0, -40]).all())
 
         # wo
         f = f0.copy()
