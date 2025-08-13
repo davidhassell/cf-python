@@ -1145,7 +1145,6 @@ class Query:
         :Parameters:
 
             units: `str` or `Units`
-
                 The units to be set on all condition values.
 
         :Returns:

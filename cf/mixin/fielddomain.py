@@ -459,14 +459,15 @@ class FieldDomain:
                         if arg0 > arg1:
                             # Query has swapped operands (i.e. arg0 >
                             # arg1) => Create a new equivalant Query
-                            # that has the arg0 < arg1. E.g. for a
-                            # period of 360, cf.wi(355, 5) is
-                            # transformed to cf.wi(355, 365).
+                            # that has arg0 < arg1, for a new
+                            # arg1. E.g. for a period of 360,
+                            # cf.wi(355, 5) is transformed to
+                            # cf.wi(355, 365).
                             #
                             # This is done (effectively) by repeatedly
                             # adding the cyclic period to arg1 until
                             # it is greater than arg0, taking into
-                            # account any units that are in play.
+                            # account any units that have been set.
                             period = item.period()
                             value = value.copy()
                             value.set_condition_units(period.Units)
