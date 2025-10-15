@@ -2043,12 +2043,18 @@ class FieldDomain:
 
             # Check for axes that are currently marked as non-cyclic,
             # but are in fact cyclic.
-            if (
-                len(cyclic) < len(self.domain_axes(todict=True))
-                and self.autocyclic()
-            ):
-                cyclic.update(self._cyclic)
-                self._cyclic = cyclic
+            #
+            # Note: We have to do a "dry run" on the 'autocyclic' call
+            #       in the the if test in order to prevent corrupting
+            #       self._cyclic in the case that an axis tested by
+            #       autocyclic is already marked as cylcic, but
+            #       nonetheless autocyclic returns False (sounds
+            #       niche, but this really happens!).
+            if len(cyclic) < len(
+                self.domain_axes(todict=True)
+            ) and self.autocyclic(config={"dry_run": True}):
+                self.autocyclic()
+                cyclic = self._cyclic.copy()
 
             return cyclic
 
