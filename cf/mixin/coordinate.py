@@ -377,7 +377,7 @@ class Coordinate:
     # Methods
     # ----------------------------------------------------------------
     @_inplace_enabled(default=False)
-    def autoperiod(self, inplace=False, config={}):
+    def autoperiod(self, inplace=False, config=None):
         """Set the period of cyclicity where it can be determined.
 
         TODO A dimension is set to be cyclic if it has a unique
@@ -393,9 +393,10 @@ class Coordinate:
 
             TODO
 
-            config: `dict`
-                Additional parameters for optimising the
-                operation. See the code for details.
+            config: `dict` or `None`, optional
+                Additional parameters for optimising the operation. If
+                `None` (the default) then this is equivalent to an
+                empty dictionary. See the code for details.
 
                 .. versionadded:: 3.9.0
 
@@ -409,6 +410,9 @@ class Coordinate:
 
         """
         c = _inplace_enabled_define_and_cleanup(self)
+
+        if config is None:
+            config = {}
 
         if "cyclic" in config and not config["cyclic"]:
             return c

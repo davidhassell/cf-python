@@ -27,7 +27,7 @@ from ..decorators import (
 from ..functions import (
     _DEPRECATION_ERROR_KWARGS,
     _section,
-    free_memory,
+    free_memory,indices_shape,
     parse_indices,
 )
 from ..mixin2 import Container
@@ -339,19 +339,26 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
 
         if cyclic_axes:
             # Cyclic axes that have been reduced in size are no longer
-            # considered to be cyclics
+            # considered to be cyclic
             shape0 = [
                 n for n, axis in zip(shape, self._axes) if axis in new._axes
             ]
-            x = [
-                axis
-                for axis, n0, n1 in zip(new._axes, shape0, new.shape)
-                if axis in cyclic_axes and n0 != n1
-            ]
-            if x:
+            non_cyclic_axes = []
+            for axis, n0, n1 in zip(new._axes, shape0, new.shape):
+                if axis not in cyclic_axes: 
+                    continue
+
+                if n0 != n1:
+                    non_cyclic_axes.append(axis)
+                else:                    
+                    index = indices[axes.index(axis)        ]
+                    if not isinstance(index, slice):
+                        non_cyclic_axes.append(axis)
+            
+            if non_cyclic_axes:
                 # Never change the value of the _cyclic attribute
                 # in-place
-                new._cyclic = cyclic_axes.difference(x)
+                new._cyclic = cyclic_axes.difference(non_cyclic_axes)
 
         if ancillary_mask:
             # Apply ancillary masks
@@ -4674,7 +4681,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         """
         return self.size - self.count(split_every=split_every)
 
-    def cyclic(self, axes=None, iscyclic=True):
+    def cyclic(self, axes=None, iscyclic=True, all_axes=False):
         """Get or set the cyclic axes.
 
         Some methods treat the first and last elements of a cyclic
@@ -4693,6 +4700,11 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
                 Specify whether to make the axes cyclic or
                 non-cyclic. By default (True), the axes are set as
                 cyclic.
+
+            all_axes: `bool`, optional
+                If True then set the cyclicty of all axes.
+
+               .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -4741,7 +4753,15 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
 
         old = set([data_axes.index(axis) for axis in cyclic_axes])
 
-        if axes is None:
+        if all_axes:
+            if iscyclic:
+                self._cyclic = set(range(len(data_axes)))
+            else:
+                self._cyclic = set()
+
+            return old
+        
+        if axes is None:            
             return old
 
         axes = [data_axes[i] for i in self._parse_axes(axes)]

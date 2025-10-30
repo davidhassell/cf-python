@@ -2874,6 +2874,7 @@ class FieldTest(unittest.TestCase):
         g = cf.example_field(2)  # this has a cyclic axes 'domainaxis2'
         # To delete a cyclic axes, must first delete this dimension coordinate
         # because 'domainaxis2' spans it.
+        g.cyclic()
         self.assertIsInstance(
             g.del_construct("dimensioncoordinate2"), cf.DimensionCoordinate
         )

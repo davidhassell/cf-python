@@ -430,7 +430,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             findices = indices
 
         new_data = data[tuple(findices)]
-
+        
         if 0 in new_data.shape:
             raise IndexError(
                 f"Indices {findices!r} result in a subspaced shape of "
@@ -444,24 +444,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         for axis, size in zip(data_axes, new_data.shape):
             domain_axes[axis].set_size(size)
 
-        # Record which axes were cyclic before the subspace
-        org_cyclic = [data_axes.index(axis) for axis in new.cyclic()]
-
         # Set the subspaced data
         new.set_data(new_data, axes=data_axes, copy=False)
-
-        # Update axis cylcicity. Note that this can only entail
-        # setting an originally cyclic axis to be non-cyclic. Doing
-        # this now enables us to disable the (possibly very slow)
-        # automatic check for cyclicity on the 'set_construct' calls
-        # below.
-        if org_cyclic:
-            new_cyclic = new_data.cyclic()
-            [
-                new.cyclic(i, iscyclic=False)
-                for i in org_cyclic
-                if i not in new_cyclic
-            ]
 
         # ------------------------------------------------------------
         # Subspace constructs with data
@@ -524,7 +508,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                         key=key,
                         axes=construct_axes,
                         copy=False,
-                        autocyclic={"no-op": True},
                     )
 
         return new
@@ -555,28 +538,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         data = self.get_data(_fill_value=False)
         data[indices] = value
-
-    #    @property
-    #    def _cyclic(self):
-    #        """Storage for axis cyclicity.
-    #
-    #        Do not change the value in-place.
-    #
-    #        """
-    #        return self._custom.get("_cyclic", _empty_set)
-    #
-    #    @_cyclic.setter
-    #    def _cyclic(self, value):
-    #        """value must be a set.
-    #
-    #        Do not change the value in-place.
-    #
-    #        """
-    #        self._custom["_cyclic"] = value
-    #
-    #    @_cyclic.deleter
-    #    def _cyclic(self):
-    #        self._custom["_cyclic"] = _empty_set
 
     def analyse_items(self, relaxed_identities=None):
         """Analyse a domain.
@@ -3772,8 +3733,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         waxes = [waxes[i] for i in transpose]
 
         # Set cyclicity
+        cyclic_axes =  self.cyclic()
         for axis in self.get_data_axes():
-            if axis in waxes and self.iscyclic(axis):
+            if axis in waxes and axis in cyclic_axes:
                 wdata.cyclic(waxes.index(axis), iscyclic=True)
 
         if data:
@@ -4832,7 +4794,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             c.set_data(
                 self.data.where(b, None, cf_masked), set_axes=False, copy=False
             )
-
             result = c.collapse(
                 method=method, weights=weights, measure=measure
             ).data
@@ -7597,7 +7558,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             return weights
 
         # START OF MAIN CODE
-
+        
         debug = is_log_level_debug(logger)
         if debug:
             logger.debug(
@@ -9031,16 +8992,6 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                     data.override_units(units, inplace=True)
 
         super(cfdm.Field, f).set_data(data, axes=axes, copy=copy, inplace=True)
-
-        # Apply cyclic axes
-        if axes:
-            cyclic = self._cyclic
-            if cyclic:
-                cyclic_axes = [
-                    axes.index(axis) for axis in cyclic if axis in axes
-                ]
-                if cyclic_axes:
-                    data.cyclic(cyclic_axes, True)
 
         return f
 

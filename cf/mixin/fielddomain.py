@@ -360,6 +360,7 @@ class FieldDomain:
             )
 
         mask = {}
+        cyclic_axes = {None}
 
         for canonical_axes, axes_key_construct_value_id in parsed.items():
             axes, keys, constructs, points, identities = tuple(
@@ -447,7 +448,7 @@ class FieldDomain:
                         and isinstance(value, Query)
                         and value.operator in ("wi", "wo")
                         and item.construct_type == "dimension_coordinate"
-                        and self.iscyclic(axis)
+                        and self.iscyclic(axis, cyclic_axes=cyclic_axes)
                     ):
                         # 1-d CASE 2: Axis is cyclic and subspace
                         #             criterion is a 'within' or
@@ -843,10 +844,10 @@ class FieldDomain:
                             # Index is a non-cyclic slice, but if the
                             # axis is cyclic then it could become a
                             # cyclic slice once the halo is added.
-                            cyclic = self.iscyclic(axis)
+                            cyclic = self.iscyclic(axis, cyclic_axes=cyclic_axes)
                     else:
                         # Index is a cyclic slice
-                        cyclic = self.iscyclic(axis)
+                        cyclic = self.iscyclic(axis, cyclic_axes=cyclic_axes)
                         if not cyclic:
                             raise IndexError(
                                 "Can't take a cyclic slice of a non-cyclic "
@@ -1414,6 +1415,7 @@ class FieldDomain:
                or `None` if no checks were done.
 
         """
+        print("RUNNING AUTOC")
         noop = config.get("no-op")
         if noop:
             # Don't do anything
@@ -1509,6 +1511,8 @@ class FieldDomain:
             bounds_range = abs(data.last_element() - data.first_element())
             if bounds_range is np.ma.masked:
                 bounds_range = None
+            else:
+                bounds_range = self._Data(bounds_range, data.Units)
 
         if bounds_range is None or bounds_range != period:
             if not dry_run:
@@ -2351,7 +2355,7 @@ class FieldDomain:
 
         return out
 
-    def iscyclic(self, *identity, **filter_kwargs):
+    def iscyclic(self, *identity, cyclic_axes=None, **filter_kwargs):
         """Returns True if the given axis is cyclic.
 
         {{unique construct}}
@@ -2366,6 +2370,17 @@ class FieldDomain:
                 Select the unique domain axis construct returned by
                 ``f.domain_axis(*identity, **filter_kwargs)``. See
                 `domain_axis` for details.
+
+            cyclic_axes: `None` or `set`, optional
+                If `None` (the default) then ascertain the cyclic axes
+                by inspection, which can be expensive. If ``{None}``
+                then ascertain the cyclic axes by inspection, and also
+                add them to the `set` in-place (removing the `None`
+                element). If any other `set` then assume that its
+                contents are the cyclic axes, and do _not_ ascertain
+                the cyclic axes by inspection.
+
+                .. versionadded:: NEXTVERSION
 
             {{filter_kwargs: optional}}
 
@@ -2397,7 +2412,15 @@ class FieldDomain:
         if axis is None:
             raise ValueError("Can't identify unique axis")
 
-        return axis in self.cyclic()
+        if cyclic_axes is None:
+            cyclic_axes = self.cyclic()
+        elif cyclic_axes == {None}:
+            cyclic_axes.pop()
+            cyclic_axes.update(self.cyclic())
+            
+        return axis in cyclic_axes
+
+        
 
     def is_discrete_axis(self, *identity, **filter_kwargs):
         """Return True if the given axis is discrete.
@@ -2651,7 +2674,7 @@ class FieldDomain:
         axes=None,
         set_axes=True,
         copy=True,
-        autocyclic={},
+        autocyclic=None,
         conform=True,
     ):
         """Set a metadata construct.
@@ -2721,10 +2744,13 @@ class FieldDomain:
                 If True then set a copy of the construct. By default the
                 construct is copied.
 
-            autocyclic: `dict`, optional
-                Additional parameters for optimising the operation,
-                relating to coordinate periodicity and cyclicity. See
-                the code for details.
+            autocyclic: `dict` or `None`, optional
+                Additional parameters for optimising the 'autocyclic'
+                and 'autoperiod' operations, that relate to coordinate
+                periodicity and cyclicity. If `None` (the default)
+                then the `autocyclic` will not be run at all and
+                'autoperiod' will be run with no configuration
+                parameters. See the code for details.
 
                 .. versionadded:: 3.9.0
 
@@ -2799,7 +2825,9 @@ class FieldDomain:
             if conform:
                 self._conform_coordinate_references(out)
 
-            self.autocyclic(key=out, coord=construct, config=autocyclic)
+            if autocyclic is not None:
+                self.autocyclic(key=out, coord=construct, config=autocyclic)
+
             if conform:
                 try:
                     self._conform_cell_methods()
@@ -2920,7 +2948,7 @@ class FieldDomain:
                 default, "Can't find unique construct to remove"
             )
 
-        # If the construct deleted was a cyclic axes, remove it from the set
+        # If the construct deleted was a cyclic axis, remove it from the set
         # of stored cyclic axes, to sync that. This is safe now, since given
         # the block above we can be sure the deletion was successful.
         if key in cyclic_axes:

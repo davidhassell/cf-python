@@ -105,7 +105,6 @@ class create_fieldTest(unittest.TestCase):
         properties = {"standard_name": "eastward_wind"}
 
         f = cf.Field(properties=properties)
-
         axisX = f.set_construct(cf.DomainAxis(9))
         axisY = f.set_construct(cf.DomainAxis(10))
         axisZ = f.set_construct(cf.DomainAxis(1))
@@ -147,7 +146,7 @@ class create_fieldTest(unittest.TestCase):
         orog.standard_name = "surface_altitude"
         orog.set_data(cf.Data(f.array * 2, "m"))
         orog.transpose([1, 0], inplace=True)
-
+        x
         orog_key = f.set_construct(orog, axes=["X", axisY])
 
         coordinate_conversion = cf.CoordinateConversion(
@@ -195,22 +194,26 @@ class create_fieldTest(unittest.TestCase):
         f.flag_values = [1, 2, 4]
         f.flag_meanings = ["a", "bb", "ccc"]
 
+        print(0)
         for cm in cf.CellMethod.create(
             "grid_longitude: mean grid_latitude: maximum"
         ):
             f.set_construct(cm)
 
+        print(0.5)
         # Write the file, and read it in
         cf.write(f, self.filename, verbose=0, string=True)
 
+        print(1)
         g = cf.read(self.filename, squeeze=True, verbose=0)[0]
 
+        print(2)
         self.assertTrue(
             g.equals(f, verbose=0), "Field not equal to itself read back in"
         )
 
-        x = g.dump(display=False)
-        x = f.dump(display=False)
+        g.dump(display=False)
+        f.dump(display=False)
 
 
 if __name__ == "__main__":
