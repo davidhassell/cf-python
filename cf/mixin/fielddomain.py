@@ -844,7 +844,9 @@ class FieldDomain:
                             # Index is a non-cyclic slice, but if the
                             # axis is cyclic then it could become a
                             # cyclic slice once the halo is added.
-                            cyclic = self.iscyclic(axis, cyclic_axes=cyclic_axes)
+                            cyclic = self.iscyclic(
+                                axis, cyclic_axes=cyclic_axes
+                            )
                     else:
                         # Index is a cyclic slice
                         cyclic = self.iscyclic(axis, cyclic_axes=cyclic_axes)
@@ -1415,7 +1417,7 @@ class FieldDomain:
                or `None` if no checks were done.
 
         """
-        print("RUNNING AUTOC")
+        print("RUNNING AUTOC")#
         noop = config.get("no-op")
         if noop:
             # Don't do anything
@@ -1494,25 +1496,30 @@ class FieldDomain:
             else:
                 has_period = True
 
-        if not has_period:
+        if has_period:
+            period = period.first_element()
+            period_units = bounds_units
+        else:
             if bounds_units.islongitude:
-                period = Data(360.0, units="degrees_east")
+                period = 360.0
+                period_units = Units("degrees_east")
             elif bounds_units.equivalent(_units_degrees):
-                period = Data(360.0, units="degrees")
+                period = 360.0
+                period_units = Units("degrees")
             else:
                 if not dry_run:
                     self.cyclic(key, iscyclic=False, config=config)
 
                 return False
 
-            period.Units = bounds_units
-
         if bounds_range is None:
             bounds_range = abs(data.last_element() - data.first_element())
             if bounds_range is np.ma.masked:
                 bounds_range = None
-            else:
-                bounds_range = self._Data(bounds_range, data.Units)
+            elif bounds_units != period_units:
+                bounds_range = Units.conform(
+                    bounds_units, period_units, bounds_range
+                )
 
         if bounds_range is None or bounds_range != period:
             if not dry_run:
@@ -2377,8 +2384,8 @@ class FieldDomain:
                 then ascertain the cyclic axes by inspection, and also
                 add them to the `set` in-place (removing the `None`
                 element). If any other `set` then assume that its
-                contents are the cyclic axes, and do _not_ ascertain
-                the cyclic axes by inspection.
+                contents are the correct cyclic axes, and do _not_
+                ascertain the cyclic axes by inspection.
 
                 .. versionadded:: NEXTVERSION
 
@@ -2405,6 +2412,10 @@ class FieldDomain:
         >>> x = f.iscyclic('ncdim%y')
         >>> x = f.iscyclic(2)
 
+        >>> cyclic_axes = {None}
+        >>> for axis in f.domain_axes():
+        ...     print(f.iscyclic(axis, cyclic_axes=cyclic_axes)
+
         """
         axis = self.domain_axis(
             *identity, key=True, default=None, **filter_kwargs
@@ -2417,10 +2428,8 @@ class FieldDomain:
         elif cyclic_axes == {None}:
             cyclic_axes.pop()
             cyclic_axes.update(self.cyclic())
-            
-        return axis in cyclic_axes
 
-        
+        return axis in cyclic_axes
 
     def is_discrete_axis(self, *identity, **filter_kwargs):
         """Return True if the given axis is discrete.

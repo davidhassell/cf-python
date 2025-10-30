@@ -419,6 +419,7 @@ class DomainTest(unittest.TestCase):
         # Test a domain with cyclic axes, to ensure the cyclic() set is
         # updated accordingly if a cyclic axes is the one removed.
         e = cf.example_field(2).domain  # this has a cyclic axes 'domainaxis2'
+        e.cyclic()
         # To delete a cyclic axes, must first delete this dimension coordinate
         # because 'domainaxis2' spans it.
         self.assertIsInstance(

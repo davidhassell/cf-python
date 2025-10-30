@@ -430,7 +430,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             findices = indices
 
         new_data = data[tuple(findices)]
-        
+
         if 0 in new_data.shape:
             raise IndexError(
                 f"Indices {findices!r} result in a subspaced shape of "
@@ -3733,9 +3733,9 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         waxes = [waxes[i] for i in transpose]
 
         # Set cyclicity
-        cyclic_axes =  self.cyclic()
+        cyclic_axes = {None}
         for axis in self.get_data_axes():
-            if axis in waxes and axis in cyclic_axes:
+            if axis in waxes and self.iscyclic(axis, cyclic_axes=cyclic_axes):
                 wdata.cyclic(waxes.index(axis), iscyclic=True)
 
         if data:
@@ -7558,7 +7558,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             return weights
 
         # START OF MAIN CODE
-        
+
         debug = is_log_level_debug(logger)
         if debug:
             logger.debug(

@@ -194,20 +194,16 @@ class create_fieldTest(unittest.TestCase):
         f.flag_values = [1, 2, 4]
         f.flag_meanings = ["a", "bb", "ccc"]
 
-        print(0)
         for cm in cf.CellMethod.create(
             "grid_longitude: mean grid_latitude: maximum"
         ):
             f.set_construct(cm)
 
-        print(0.5)
         # Write the file, and read it in
         cf.write(f, self.filename, verbose=0, string=True)
 
-        print(1)
         g = cf.read(self.filename, squeeze=True, verbose=0)[0]
 
-        print(2)
         self.assertTrue(
             g.equals(f, verbose=0), "Field not equal to itself read back in"
         )
