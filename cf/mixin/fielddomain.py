@@ -1417,7 +1417,6 @@ class FieldDomain:
                or `None` if no checks were done.
 
         """
-        print("RUNNING AUTOC")#
         noop = config.get("no-op")
         if noop:
             # Don't do anything
@@ -2379,12 +2378,14 @@ class FieldDomain:
                 `domain_axis` for details.
 
             cyclic_axes: `None` or `set`, optional
+                Cache of cyclic axes.
+
                 If `None` (the default) then ascertain the cyclic axes
                 by inspection, which can be expensive. If ``{None}``
                 then ascertain the cyclic axes by inspection, and also
                 add them to the `set` in-place (removing the `None`
                 element). If any other `set` then assume that its
-                contents are the correct cyclic axes, and do _not_
+                contents are the correct cyclic axes, and do *not*
                 ascertain the cyclic axes by inspection.
 
                 .. versionadded:: NEXTVERSION
@@ -2942,7 +2943,8 @@ class FieldDomain:
         # have the concept of cyclic axes, so have to update the
         # register of cyclic axes when we delete a construct in cf.
 
-        # Get the relevant key first because it will be lost upon deletion
+        # Get the relevant key first because it will be lost upon
+        # deletion
         key = self.construct_key(*identity, default=None, **filter_kwargs)
         cyclic_axes = self._cyclic
 
@@ -2957,12 +2959,13 @@ class FieldDomain:
                 default, "Can't find unique construct to remove"
             )
 
-        # If the construct deleted was a cyclic axis, remove it from the set
-        # of stored cyclic axes, to sync that. This is safe now, since given
-        # the block above we can be sure the deletion was successful.
+        # If the construct deleted was a cyclic domain axis then
+        # remove it from the set of stored cyclic axes. This is safe
+        # now, since given the block above we can be sure the deletion
+        # was successful.
         if key in cyclic_axes:
-            # Never change value of _cyclic attribute in-place. Only copy now
-            # when the copy is known to be required.
+            # Never change value of _cyclic attribute in-place. Only
+            # copy now when the copy is known to be required.
             cyclic_axes = cyclic_axes.copy()
             cyclic_axes.remove(key)
             self._cyclic = cyclic_axes

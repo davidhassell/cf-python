@@ -3732,7 +3732,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         wdata = wdata.transpose(transpose)
         waxes = [waxes[i] for i in transpose]
 
-        # Set cyclicity
+        # Set cyclicity (set up a cache of the cyclic case, so that
+        # they only ned to be discovered at most once)
         cyclic_axes = {None}
         for axis in self.get_data_axes():
             if axis in waxes and self.iscyclic(axis, cyclic_axes=cyclic_axes):

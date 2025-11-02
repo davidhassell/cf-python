@@ -340,9 +340,9 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         if cyclic_axes:
             # The original data has at least one cyclic axis.
             #
-            # If the size of a suspaced axis has changed, or its index
-            # is not a `slice`, then assume that the subspaced axis is
-            # *not* cyclic.
+            # Assume that a subspaced axis is *not* cyclic if a) the
+            # size of a suspaced axis has changed, or b) its index is
+            # not a `slice`.
             shape0 = [
                 n for n, axis in zip(shape, self._axes) if axis in new._axes
             ]
