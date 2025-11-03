@@ -18,9 +18,6 @@ class Coordinate:
 
     """
 
-    # ----------------------------------------------------------------
-    # Attributes
-    # ----------------------------------------------------------------
     @property
     def ctype(self):
         """The CF coordinate type.
@@ -295,9 +292,6 @@ class Coordinate:
 
         return False
 
-    # ----------------------------------------------------------------
-    # CF properties
-    # ----------------------------------------------------------------
     @property
     def axis(self):
         """The axis CF property.
@@ -346,7 +340,7 @@ class Coordinate:
 
         For example, if ocean depth coordinates encode the depth of
         the surface as 0 and the depth of 1000 meters as 1000 then the
-        `postive` property will have the value `'down'`.
+        `positive` property will have the value `'down'`.
 
         **Examples**
 
@@ -373,17 +367,14 @@ class Coordinate:
         self.del_property("positive")
         self._direction = None
 
-    # ----------------------------------------------------------------
-    # Methods
-    # ----------------------------------------------------------------
     @_inplace_enabled(default=False)
     def autoperiod(self, inplace=False, config=None):
         """Set the period of cyclicity where it can be determined.
 
-        TODO A dimension is set to be cyclic if it has a unique
-        longitude (or grid longitude) dimension coordinate construct
-        with bounds and the first and last bounds values differ by 360
-        degrees (or an equivalent amount in other units).
+        A dimension is set to be cyclic if it has a unique longitude
+        (or grid longitude) dimension coordinate construct with bounds
+        and the first and last bounds values differ by 360 degrees (or
+        an equivalent amount in other units).
 
         .. versionadded:: 3.5.0
 
@@ -391,7 +382,7 @@ class Coordinate:
 
         :Parameters:
 
-            TODO
+            {{inplace: `bool`, optional}}
 
             config: `dict` or `None`, optional
                 Additional parameters for optimising the operation. If
@@ -402,11 +393,21 @@ class Coordinate:
 
         :Returns:
 
-            TODO
+            ``{{class}}` or `None`
+                The construct with a registered period, if applicable,
+                or `None` if the operation was in-place.
 
         **Examples**
 
-        TODO
+        >>> c.dump()
+        Dimension coordinate: X
+            units = 'degrees_east'
+            Data(3) = [1, 2, 3] degrees_east
+        >>> print(c.period())
+        None
+        >>> d = c.autoperiod()
+        >>> d.period()
+        <CF Data(): 360.0 degrees_east>
 
         """
         c = _inplace_enabled_define_and_cleanup(self)

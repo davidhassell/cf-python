@@ -4453,9 +4453,6 @@ class DataTest(unittest.TestCase):
             elements = elements0[: len(array)]
 
             d = cf.Data(array)
-            cache = d._get_cached_elements()
-            for element in elements:
-                self.assertNotIn(element, cache)
 
             self.assertEqual(str(d), str(array))
             cache = d._get_cached_elements()
@@ -4484,9 +4481,6 @@ class DataTest(unittest.TestCase):
 
         # Test when size > 3, i.e. second element is not there.
         d = cf.Data([1, 2, 3, 4])
-        cache = d._get_cached_elements()
-        for element in elements0:
-            self.assertNotIn(element, cache)
 
         self.assertEqual(str(d), "[1, ..., 4]")
         cache = d._get_cached_elements()

@@ -871,15 +871,15 @@ class read_writeTest(unittest.TestCase):
         self.assertFalse(np.ma.count(g.array))
         self.assertTrue(np.ma.count(g.construct("grid_latitude").array))
 
-    #    @unittest.skipUnless(
-    #        True, "URL TEST: UNRELIABLE FLAKEY URL DESTINATION. TODO REPLACE URL"
-    #    )
+    @unittest.skipUnless(
+        False, "URL TEST: UNRELIABLE FLAKEY URL DESTINATION. TODO REPLACE URL"
+    )
     def test_read_url(self):
         """Test reading urls."""
         for scheme in ("http", "https"):
             remote = f"{scheme}:///psl.noaa.gov/thredds/dodsC/Datasets/cru/crutem5/Monthlies/air.mon.anom.nobs.nc"
             # Check that cf can access it
-            f = cf.read(remote)
+            f = cf.read(remote, cache=False)
             self.assertEqual(len(f), 1)
 
     @unittest.skipUnless(

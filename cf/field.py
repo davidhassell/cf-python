@@ -72,7 +72,7 @@ _units_1 = Units("1")
 
 # --------------------------------------------------------------------
 # Map each allowed input collapse method name to its corresponding
-# Data method. Input collapse methods not in this sictionary are
+# Data method. Input collapse methods not in this dictionary are
 # assumed to have a corresponding Data method with the same name.
 # --------------------------------------------------------------------
 _collapse_methods = {
@@ -197,7 +197,7 @@ class _Axis_characterisation:
     Used by `_binary_operation` to help with ascertaining if there is
     a common axis in two fields.
 
-    .. versionaddedd:: 3.16.3
+    .. versionadded:: 3.16.3
 
     """
 
@@ -205,7 +205,7 @@ class _Axis_characterisation:
     size: int = -1
     # The domain axis identifier. E.g. 'domainaxis0'
     axis: str = ""
-    # The coordinate constructs that characterize the axis
+    # The coordinate constructs that characterise the axis
     coords: tuple = ()
     # The identifiers of the coordinate
     # constructs. E.g. ('dimensioncoordinate1',)
@@ -1278,7 +1278,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         already_copied = {}
 
         # ------------------------------------------------------------
-        # Copy over coordinate and cell meausure constructs from
+        # Copy over coordinate and cell measure constructs from
         # field1
         # ------------------------------------------------------------
         #       if axes_added_from_field1:
@@ -3536,7 +3536,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 if not cell_measures:
                     raise ValueError(
                         "Can't create weights: Unable to use  "
-                        "volume cell measures when cell_meaures=False"
+                        "volume cell measures when cell_measures=False"
                     )
 
                 Weights.cell_measure(
@@ -3732,8 +3732,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         wdata = wdata.transpose(transpose)
         waxes = [waxes[i] for i in transpose]
 
-        # Set cyclicity (set up a cache of the cyclic case, so that
-        # they only ned to be discovered at most once)
+        # Set the cyclicity of weights array axes
         cyclic_axes = {None}
         for axis in self.get_data_axes():
             if axis in waxes and self.iscyclic(axis, cyclic_axes=cyclic_axes):
@@ -3933,7 +3932,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 multiplying it by ``1.0 - epsilon`` or ``1.0 + epsilon``,
                 whichever extends the boundary in the appropriate
                 direction, where ``epsilon`` is the smallest positive
-                64-bit float such that ``1.0 + epsilson != 1.0``. I.e. if
+                64-bit float such that ``1.0 + epsilon != 1.0``. I.e. if
                 *upper* is False then the largest upper bin boundary is
                 made slightly larger and if *upper* is True then the
                 lowest lower bin boundary is made slightly lower.
@@ -5138,7 +5137,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         Climatological statistics may be derived from corresponding
         portions of the annual cycle in a set of years (e.g. the average
         January temperatures in the climatology of 1961-1990, where the
-        values are derived by averaging the 30 Januarys from the separate
+        values are derived by averaging the 30 Januaries from the separate
         years); or from corresponding portions of the diurnal cycle in a
         set of days (e.g. the average temperatures for each hour in the
         day for May 1997). A diurnal climatology may also be combined with
@@ -6834,8 +6833,8 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
             # axes. Also delete the corresponding domain ancillaries.
             #
             # This is because missing domain ancillaries in a
-            # coordinate refernce are assumed to have the value zero,
-            # which is most likely inapproriate.
+            # coordinate reference are assumed to have the value zero,
+            # which is most likely inappropriate.
             # --------------------------------------------------------
             if remove_vertical_crs:
                 for ref_key, ref in f.coordinate_references(
@@ -7588,7 +7587,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
         # If group, rolling window, classification, etc, do something
         # special for size one axes - either return unchanged
-        # (possibly mofiying cell methods with , e.g, within_days', or
+        # (possibly modifying cell methods with , e.g, within_days', or
         # raising an exception for 'can't match', I suppose.
 
         classification = None
@@ -7708,7 +7707,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 if group.Units and not group.Units.equivalent(coord.Units):
                     axis_id = self.constructs.domain_axis_identity(axis)
                     raise ValueError(
-                        f"Group units {group.Units!r} are not eqivalent to "
+                        f"Group units {group.Units!r} are not equivalent to "
                         f"{axis_id!r} axis units {coord.Units!r}"
                     )
 
@@ -8151,7 +8150,7 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
                 elif within_years is None:
                     raise ValueError(
                         "Must set the within_years parameter for a "
-                        '"within years" climatalogical time collapse'
+                        '"within years" climatological time collapse'
                     )
 
                 if isinstance(within_years, TimeDuration):

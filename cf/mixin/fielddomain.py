@@ -513,7 +513,7 @@ class FieldDomain:
                                     raise ValueError(
                                         "Error: Can't specify multiple "
                                         "conditions for a single axis when "
-                                        f"one of those condtions ({value!r}) "
+                                        f"one of those conditions ({value!r}) "
                                         "is effectively a cyclic slice: "
                                         f"{index}. Consider applying the "
                                         "conditions separately."
@@ -658,7 +658,7 @@ class FieldDomain:
                     for value, construct in zip(points, transposed_constructs)
                 ]
 
-                # Find loctions that are True in all of the
+                # Find locations that are True in all of the
                 # constructs' matches
                 item_match = item_matches.pop()
                 for m in item_matches:
@@ -2447,7 +2447,7 @@ class FieldDomain:
 
         * The axis with geometry cells.
 
-        .. versionaddedd:: 3.16.3
+        .. versionadded:: 3.16.3
 
         .. seealso:: `domain_axis`, `coordinates`
 

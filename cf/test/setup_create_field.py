@@ -105,6 +105,7 @@ class create_fieldTest(unittest.TestCase):
         properties = {"standard_name": "eastward_wind"}
 
         f = cf.Field(properties=properties)
+
         axisX = f.set_construct(cf.DomainAxis(9))
         axisY = f.set_construct(cf.DomainAxis(10))
         axisZ = f.set_construct(cf.DomainAxis(1))
@@ -146,7 +147,7 @@ class create_fieldTest(unittest.TestCase):
         orog.standard_name = "surface_altitude"
         orog.set_data(cf.Data(f.array * 2, "m"))
         orog.transpose([1, 0], inplace=True)
-        x
+
         orog_key = f.set_construct(orog, axes=["X", axisY])
 
         coordinate_conversion = cf.CoordinateConversion(

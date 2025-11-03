@@ -340,9 +340,9 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         if cyclic_axes:
             # The original data has at least one cyclic axis.
             #
-            # Assume that a subspaced axis is *not* cyclic if a) the
-            # size of a suspaced axis has changed, or b) its index is
-            # not a `slice`.
+            # Assume that a subspace of a cyclic axis is *not* cyclic
+            # when i) the size of the axis has changed, or ii) the
+            # axis index is not a `slice`.
             shape0 = [
                 n for n, axis in zip(shape, self._axes) if axis in new._axes
             ]
@@ -353,10 +353,8 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
 
                 if n0 != n1:
                     non_cyclic_axes.append(axis)
-                else:
-                    index = indices[axes.index(axis)]
-                    if not isinstance(index, slice):
-                        non_cyclic_axes.append(axis)
+                elif not isinstance(indices[axes.index(axis)], slice):
+                    non_cyclic_axes.append(axis)
 
             if non_cyclic_axes:
                 # Never change the value of the _cyclic attribute
@@ -443,7 +441,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
             # requested on a cyclic axis (and we're not using numpy
             # indexing), then we roll that axis by two points and
             # assign to slice(0, 5) instead. The axis is then unrolled
-            # by two points afer the assignment has been made.
+            # by two points after the assignment has been made.
             axes = self._axes
             if not self._cyclic.issuperset([axes[i] for i in roll]):
                 raise IndexError(
@@ -659,7 +657,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
                 multiplying it by ``1.0 - epsilon`` or ``1.0 + epsilon``,
                 whichever extends the boundary in the appropriate
                 direction, where ``epsilon`` is the smallest positive
-                64-bit float such that ``1.0 + epsilson != 1.0``. I.e. if
+                64-bit float such that ``1.0 + epsilon != 1.0``. I.e. if
                 *upper* is False then the largest upper bin boundary is
                 made slightly larger and if *upper* is True then the
                 lowest lower bin boundary is made slightly lower.
@@ -3486,7 +3484,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         **Performance**
 
         For conversions which do not require a change in the
-        date-times implied by the data orginal values, this method
+        date-times implied by the data original values, this method
         will be considerably slower than a simple reassignment of the
         units. For example, if the original units are ``'days since
         2000-12-1'`` then ``d.Units = cf.Units('days since
@@ -3496,7 +3494,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
 
         .. versionadded:: 3.14.0
 
-        .. seeealso:: `change_calendar`, `datetime_array`, `Units`
+        .. seealso:: `change_calendar`, `datetime_array`, `Units`
 
         :Parameters:
 
@@ -3976,7 +3974,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         https://ncas-cms.github.io/cf-python/analysis.html#collapse-methods
         for mathematical definitions.
 
-         ..seealso:: `sample_size`, `mean_abslute_value`, `sd`, `sum`
+         ..seealso:: `sample_size`, `mean_absolute_value`, `sd`, `sum`
 
         :Parameters:
 
@@ -4933,7 +4931,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         d = self.copy()
 
         # Soften the hardmask so that the result doesn't contain a
-        # seperate missing value for each input chunk that contains
+        # separate missing value for each input chunk that contains
         # missing values. For any number greater than 0 of missing
         # values in the original data, we only want one missing value
         # in the result.
@@ -5784,7 +5782,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
                 arrays with one element (but any number of dimensions),
                 and the single element is returned. If positional
                 arguments are given then they must be one of the
-                fdlowing:
+                following:
 
                 * An integer. This argument is interpreted as a flat index
                   into the array, specifying which element to copy and
@@ -6993,7 +6991,7 @@ class Data(DataClassDeprecationsMixin, Container, cfdm.Data):
         condition = condition.to_dask_array(_force_to_memory=False)
 
         # If x or y is self then change it to None. This prevents an
-        # unnecessary copy; and, at compute time, an unncessary numpy
+        # unnecessary copy; and, at compute time, an unnecessary numpy
         # where.
         if x is self:
             x = None
