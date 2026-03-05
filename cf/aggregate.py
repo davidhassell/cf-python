@@ -2117,8 +2117,11 @@ class _Meta:
             if value is None:
                 continue
 
+            # Note: Setting chunks=-1 allows the result to be written
+            #       as a "unique value" CF aggregation variable.
             data = Data(
-                FullArray(value, shape=f.shape, dtype=np.array(value).dtype)
+                FullArray(value, shape=f.shape, dtype=np.array(value).dtype),
+                chunks=-1,
             )
 
             field_anc = FieldAncillary(
@@ -5050,6 +5053,7 @@ def _fix_promoted_field_ancillaries(output_meta, axes_aggregated):
 
             # Record the field ancillary as being able to be written
             # as a CF-netCDF aggregation 'value' variable
-            fa.data._nc_set_aggregation_fragment_type("value")
+            fa.data._nc_set_aggregation_fragment_type("unique_value")
+            fa.data._nc_set_aggregation_write_status(True)
 
             m.field.set_construct(fa, axes=fa_axes, copy=False)

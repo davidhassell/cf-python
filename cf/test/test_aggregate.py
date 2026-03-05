@@ -1,6 +1,8 @@
+import atexit
 import datetime
 import faulthandler
 import os
+import tempfile
 import unittest
 import warnings
 
@@ -13,6 +15,26 @@ import cf
 # To facilitate the testing of logging outputs (see test_aggregate_verbosity)
 log_name = __name__
 logger = cf.logging.getLogger(log_name)
+
+
+n_tmpfiles = 1
+tmpfiles = [
+    tempfile.mkstemp("_test_aggregate.nc", dir=os.getcwd())[1]
+    for i in range(n_tmpfiles)
+]
+[tmpfile] = tmpfiles
+
+
+def _remove_tmpfiles():
+    """Try to remove defined temporary files by deleting their paths."""
+    for f in tmpfiles:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
+atexit.register(_remove_tmpfiles)
 
 
 class aggregateTest(unittest.TestCase):
@@ -344,6 +366,17 @@ class aggregateTest(unittest.TestCase):
         self.assertEqual(anc.shape, f.shape[:1])
         self.assertTrue((anc[:2] == "bar_a").all())
         self.assertTrue((anc[2:] == "bar_b").all())
+
+        cf.write(c, tmpfile, cfa="field_ancillary")
+        d = cf.read(tmpfile, cfa_write="field_ancillary")[0]
+        anc = d.field_ancillary()
+        self.assertEqual(
+            anc.data.nc_get_aggregated_data(),
+            {
+                "map": "fragment_map",
+                "unique_values": "fragment_unique_values",
+            },
+        )
 
     def test_aggregate_cells(self):
         """Test the 'cells' keyword of cf.aggregate"""
