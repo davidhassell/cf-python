@@ -4,7 +4,7 @@ Version NEXTVERSION
 **2026-??-??**
 
 * Add index numbers to field and domain list `repr` output
-  (https://github.com/NCAS-CMS/cf-python/issues/9??)
+  (https://github.com/NCAS-CMS/cf-python/issues/790)
 * New default backend for netCDF-4 in `cf.write`: ``h5netcdf-h5py``,
   that allows control of the internal file metadata via the new
   ``h5py_options`` parameter
