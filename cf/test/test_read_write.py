@@ -370,7 +370,7 @@ class read_writeTest(unittest.TestCase):
                     #   False
                     #   >>> a = cf.aggregate([b, c])
                     #   >>> a
-                    #   [<CF Field: air_potential_temperature(
+                    #   [0: <CF Field: air_potential_temperature(
                     #    time(154), latitude(5), longitude(8)) K>]
                     #
                     # therefore need to check FL length hasn't changed and

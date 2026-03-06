@@ -78,9 +78,10 @@ class ConstructList(list, Container, cfdm.Container):
         x.__repr__() <==> repr(x)
 
         """
-        out = [repr(f) for f in self]
+        width = len(str(len(self)))
+        out = [f"{n:{width}}: {x!r}" for n, x in enumerate(self)]
         out = ",\n ".join(out)
-        return "[" + out + "]"
+        return f"[{out}]"
 
     def __str__(self):
         """Called by the `str` built-in function.

@@ -391,21 +391,21 @@ class read(cfdm.read):
 
     >>> f = cf.read('file*.nc')
     >>> f
-    [<CF Field: pmsl(30, 24)>,
-     <CF Field: z-squared(17, 30, 24)>,
-     <CF Field: temperature(17, 30, 24)>,
-     <CF Field: temperature_wind(17, 29, 24)>]
+    [0: <CF Field: pmsl(30, 24)>,
+     1: <CF Field: z-squared(17, 30, 24)>,
+     2: <CF Field: temperature(17, 30, 24)>,
+     3: <CF Field: temperature_wind(17, 29, 24)>]
 
     >>> cf.read('file*.nc')[0:2]
-    [<CF Field: pmsl(30, 24)>,
-     <CF Field: z-squared(17, 30, 24)>]
+    [0: <CF Field: pmsl(30, 24)>,
+     1: <CF Field: z-squared(17, 30, 24)>]
 
     >>> cf.read('file*.nc')[-1]
     <CF Field: temperature_wind(17, 29, 24)>
 
     >>> cf.read('file*.nc', select='units=K')
-    [<CF Field: temperature(17, 30, 24)>,
-     <CF Field: temperature_wind(17, 29, 24)>]
+    [0: <CF Field: temperature(17, 30, 24)>,
+     1: <CF Field: temperature_wind(17, 29, 24)>]
 
     >>> cf.read('file*.nc', select='ncvar%ta')
     <CF Field: temperature(17, 30, 24)>

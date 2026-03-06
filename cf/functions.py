@@ -2708,10 +2708,10 @@ def flat(x):
 
     >>> fl = cf.FieldList(cf.flat([f, [f, [f, f]]]))
     >>> fl
-    [<CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
-     <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
-     <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
-     <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>]
+    [0: <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
+     1: <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
+     2: <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>,
+     3: <CF Field: eastward_wind(air_pressure(5), latitude(110), longitude(106)) m s-1>]
 
     """
     if not isinstance(x, Iterable) or isinstance(x, str):

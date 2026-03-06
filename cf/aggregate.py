@@ -2653,19 +2653,19 @@ def aggregate(
     and for three different atmospheric heights for each time:
 
     >>> f
-    [<CF Field: eastward_wind(latitude(73), longitude(96)>,
-     <CF Field: eastward_wind(latitude(73), longitude(96)>,
-     <CF Field: eastward_wind(latitude(73), longitude(96)>,
-     <CF Field: eastward_wind(latitude(73), longitude(96)>,
-     <CF Field: eastward_wind(latitude(73), longitude(96)>,
-     <CF Field: eastward_wind(latitude(73), longitude(96)>]
+    [0: <CF Field: eastward_wind(latitude(73), longitude(96)>,
+     1: <CF Field: eastward_wind(latitude(73), longitude(96)>,
+     2: <CF Field: eastward_wind(latitude(73), longitude(96)>,
+     3: <CF Field: eastward_wind(latitude(73), longitude(96)>,
+     4: <CF Field: eastward_wind(latitude(73), longitude(96)>,
+     5: <CF Field: eastward_wind(latitude(73), longitude(96)>]
     >>> g = cf.aggregate(f)
     >>> g
-    [<CF Field: eastward_wind(height(3), time(2), latitude(73), longitude(96)>]
+    [0: <CF Field: eastward_wind(height(3), time(2), latitude(73), longitude(96)>]
     >>> g[0].source
     'Model A'
     >>> g = cf.aggregate(f, dimension=('source',))
-    [<CF Field: eastward_wind(source(1), height(3), time(2), latitude(73), longitude(96)>]
+    [0: <CF Field: eastward_wind(source(1), height(3), time(2), latitude(73), longitude(96)>]
     >>> g[0].source
     AttributeError: 'Field' object has no attribute 'source'
 

@@ -118,17 +118,17 @@ class FieldList(mixin.FieldDomainList, ConstructList):
 
         >>> f = cf.read("file.nc")
         >>> f
-        [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+        [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
          <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
         >>> f.select_by_naxes()
-        [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+        [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
         <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
         >>> f.select_by_naxes(1)
         []
         >>> f.select_by_naxes(2)
-        [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>]
+        [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>]
         >>> f.select_by_naxes(3)
-        [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+        [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
 
         """
         return type(self)(f for f in self if f.match_by_naxes(*naxes))
@@ -225,9 +225,9 @@ class FieldList(mixin.FieldDomainList, ConstructList):
         **Examples**
 
         >>> fl
-        [<CF Field: specific_humidity(latitude(73), longitude(96)) 1>,
-         <CF Field: specific_humidity(latitude(73), longitude(96)) 1>,
-         <CF Field: air_temperature(time(12), latitude(64), longitude(128)) K>]
+        [0: <CF Field: specific_humidity(latitude(73), longitude(96)) 1>,
+         1: <CF Field: specific_humidity(latitude(73), longitude(96)) 1>,
+         2: <CF Field: air_temperature(time(12), latitude(64), longitude(128)) K>]
         >>> fl.select_field('air_temperature')
         <CF Field: air_temperature(time(12), latitude(64), longitude(128)) K>
         >>> f.select_field('specific_humidity')

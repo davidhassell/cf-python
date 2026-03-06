@@ -12910,12 +12910,12 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
         >>> f
         <CF Field: eastward_wind(model_level_number(6), latitude(145), longitude(192)) m s-1>
         >>> f.section(('X', 'Y'))
-        [<CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
-         <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
-         <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
-         <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
-         <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
-         <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>]
+        [0: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
+         1: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
+         2: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
+         3: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
+         4: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>,
+         5: <CF Field: eastward_wind(model_level_number(1), latitude(145), longitude(192)) m s-1>]
 
         """
         # TODODASK: This still need some attention, keyword checking,

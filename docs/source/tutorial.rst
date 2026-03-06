@@ -301,8 +301,8 @@ alone at the interpreter prompt, returns a short, one-line description:
 
    >>> x = cf.read('file.nc')
    >>> x
-   [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
    >>> q = x[0]
    >>> t = x[1]
    >>> q
@@ -587,21 +587,21 @@ operations, such as indexing, iteration, and methods like
    >>> x = cf.read('file.nc')
    >>> y = cf.read('precipitation_flux.nc')
    >>> x
-   [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
    >>> y                                       
-   [<CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
+   [0: <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
    >>> y.extend(x)                                       
    >>> y
-   [<CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>,
-    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>,
+    1: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    2: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
    >>> y[2]
    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>
    >>> y[::-1]
-   [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
+   [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    1: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    2: <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
    >>> len(y)
    3
    >>> len(y + y)
@@ -3516,16 +3516,16 @@ criteria are possible.
 
    >>> fl = cf.read('file.nc')
    >>> fl
-   [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]   
+   [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
    >>> fl.sort()
    >>> fl
-   [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>]   
+   [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    1: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>]
    >>> fl.sort(key=lambda f: f.units)
    >>> fl
-   [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
 
 A field list has methods for selecting field constructs that meet
 various criteria:
@@ -3550,21 +3550,21 @@ contains the selected field constructs.
 
    >>> fl = cf.read('*.nc')
    >>> fl
-   [<CF Field: specific_humidity(cf_role=timeseries_id(4), ncdim%timeseries(9))>,
-    <CF Field: eastward_wind(latitude(10), longitude(9)) m s-1>,
-    <CF Field: cell_area(ncdim%longitude(9), ncdim%latitude(10)) m2>,
-    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>,
-    <CF Field: air_potential_temperature(time(120), latitude(5), longitude(8)) K>,
-    <CF Field: precipitation_flux(time(2), latitude(4), longitude(5)) kg m2 s-1>,
-    <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
+   [0: <CF Field: specific_humidity(cf_role=timeseries_id(4), ncdim%timeseries(9))>,
+    1: <CF Field: eastward_wind(latitude(10), longitude(9)) m s-1>,
+    2: <CF Field: cell_area(ncdim%longitude(9), ncdim%latitude(10)) m2>,
+    3: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    4: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    5: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>,
+    6: <CF Field: air_potential_temperature(time(120), latitude(5), longitude(8)) K>,
+    7: <CF Field: precipitation_flux(time(2), latitude(4), longitude(5)) kg m2 s-1>,
+    8: <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
    >>> fl.select_by_identity('precipitation_flux')
-   [<CF Field: precipitation_flux(time(2), latitude(4), longitude(5)) kg m2 s-1>,
-    <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
+   [0: <CF Field: precipitation_flux(time(2), latitude(4), longitude(5)) kg m2 s-1>,
+    1: <CF Field: precipitation_flux(time(1), latitude(64), longitude(128)) kg m-2 day-1>]
    >>> import re
    >>> fl.select_by_identity(re.compile('.*potential.*'))
-   [<CF Field: air_potential_temperature(time(120), latitude(5), longitude(8)) K>]
+   [0: <CF Field: air_potential_temperature(time(120), latitude(5), longitude(8)) K>]
    >>> fl.select_by_identity('relative_humidity')
    []
 
@@ -3577,11 +3577,11 @@ to its `~FieldList.select` method.
              instance directly, or with the 'select' method.*
 
    >>> fl('air_temperature')
-   [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    1: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
    >>> fl.select('air_temperature')
-   [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    1: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
 
 
 .. _Testing-criteria-on-a-field-construct:
@@ -4718,7 +4718,7 @@ was created manually can be :ref:`written to a netCDF dataset
    >>> cf.write(tas, 'tas.nc')
    >>> f = cf.read('tas.nc')
    >>> f
-   [<CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
 
 The `cf.read` function also allows field constructs to be derived
 directly from the netCDF variables that correspond to particular types
@@ -4736,10 +4736,10 @@ construct that has fewer metadata constructs than one created with the
 
    >>> fields = cf.read('tas.nc', extra='domain_ancillary')
    >>> fields
-   [<CF Field: ncvar%a(atmosphere_hybrid_height_coordinate(1)) m>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
-    <CF Field: ncvar%b(atmosphere_hybrid_height_coordinate(1)) 1>,
-    <CF Field: surface_altitude(grid_latitude(10), grid_longitude(9)) m>]
+   [0: <CF Field: ncvar%a(atmosphere_hybrid_height_coordinate(1)) m>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>,
+    2: <CF Field: ncvar%b(atmosphere_hybrid_height_coordinate(1)) 1>,
+    3: <CF Field: surface_altitude(grid_latitude(10), grid_longitude(9)) m>]
    >>> orog_from_file = fields[3]
    >>> print(orog_from_file)
    Field: surface_altitude (ncvar%surface_altitude)
@@ -5340,8 +5340,8 @@ A sequence of field constructs is written in exactly the same way:
              disk.*
 	     
    >>> x
-   [<CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
-    <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
+   [0: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>,
+    1: <CF Field: air_temperature(atmosphere_hybrid_height_coordinate(1), grid_latitude(10), grid_longitude(9)) K>]
    >>> cf.write(x, 'new_file.nc')
 
 By default the output file will be for CF-|version|.
@@ -5389,14 +5389,14 @@ in that file:
    >>> g = cf.example_field(2)
    >>> cf.write(g, 'append-example-file.nc')
    >>> cf.read('append-example-file.nc')
-   [<CF Field: air_potential_temperature(time(36), latitude(5), longitude(8)) K>]
+   [0: <CF Field: air_potential_temperature(time(36), latitude(5), longitude(8)) K>]
    >>> h = cf.example_field(0)
    >>> h
    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>
    >>> cf.write(h, 'append-example-file.nc', mode='a')
    >>> cf.read('append-example-file.nc')
-   [<CF Field: air_potential_temperature(time(36), latitude(5), longitude(8)) K>,
-    <CF Field: specific_humidity(latitude(5), longitude(8)) 1>]
+   [0: <CF Field: air_potential_temperature(time(36), latitude(5), longitude(8)) K>,
+    1: <CF Field: specific_humidity(latitude(5), longitude(8)) 1>]
 
 Output netCDF variable and dimension names read from a netCDF dataset
 are stored in the resulting field constructs, and may also be set
@@ -6049,10 +6049,10 @@ constructs in memory with the `cf.aggregate` function.
    <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>
    >>> a_parts = [a[0, : , 0:30], a[0, :, 30:96], a[1, :, 0:30], a[1, :, 30:96]]
    >>> a_parts
-   [<CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
-    <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>,
-    <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
-    <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>]
+   [0: <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
+    1: <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>,
+    2: <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
+    3: <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>]
    >>> for i, f in enumerate(a_parts):
    ...     cf.write(f, str(i)+'_air_temperature.nc')
    ...
@@ -6060,9 +6060,9 @@ constructs in memory with the `cf.aggregate` function.
    >>> y = cf.read('[0-3]_air_temperature.nc', aggregate=False)
    >>> z = cf.aggregate(y)
    >>> x
-   [<CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
    >>> z
-   [<CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
    >>> x.equals(z)
    True
 
@@ -6098,17 +6098,17 @@ are also aggregatable.
 
    >>> x = cf.aggregate(a_parts)
    >>> x
-   [<CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
    >>> a_parts[1].transpose(inplace=True)
    >>> a_parts[1].units = 'degreesC'
    >>> a_parts
-   [<CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
-    <CF Field: air_temperature(longitude(66), latitude(73), time(1)) degreesC>,
-    <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
-    <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>]
+   [0: <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
+    1: <CF Field: air_temperature(longitude(66), latitude(73), time(1)) degreesC>,
+    2: <CF Field: air_temperature(time(1), latitude(73), longitude(30)) K>,
+    3: <CF Field: air_temperature(time(1), latitude(73), longitude(66)) K>]
    >>> z = cf.aggregate(a_parts)
    >>> z   
-   [<CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
+   [0: <CF Field: air_temperature(time(2), latitude(73), longitude(96)) K>]
    >>> x.equals(z)
    True
 
@@ -6920,7 +6920,7 @@ carried out by the `cf.read` function.
    
    >>> pp = cf.read('umfile.pp')
    >>> pp
-   [<CF Field: surface_air_pressure(time(3), latitude(73), longitude(96)) Pa>]
+   [0: <CF Field: surface_air_pressure(time(3), latitude(73), longitude(96)) Pa>]
    >>> print(pp[0])
    Field: surface_air_pressure (ncvar%UM_m01s00i001_vn405)
    -------------------------------------------------------
