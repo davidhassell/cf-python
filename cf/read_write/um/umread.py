@@ -595,7 +595,9 @@ class UMField:
         attributes = {}
 
         self.fields = []
-
+        print(var)
+        print(var.file)
+        print(var.file.path)
         filename = abspath(var.file.path)
         self.filename = filename
 

@@ -103,7 +103,11 @@ class File:
 
         """
         if self.fd is None:
-            self.fd = os.open(self.path, os.O_RDONLY)
+            path = self.path
+            if isinstance(path, str):
+                self.fd = os.open(path, os.O_RDONLY)
+            else:
+                self.fd = self.path
 
         return self.fd
 
@@ -115,8 +119,13 @@ class File:
             `None`
 
         """
-        if self.fd:
-            os.close(self.fd)
+        fd = self.fd
+        if fd:
+            path = self.path
+            if isinstance(path, str):
+                os.close(fd)
+            else:
+                fd.close()
 
         self.fd = None
 
