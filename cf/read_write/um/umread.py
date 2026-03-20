@@ -487,12 +487,18 @@ class UMField:
         squeeze=False,
         unsqueeze=False,
         unpack=True,
-            protocol=None,storage_options=None,
+        storage_protocol=None,
+        storage_options=None,
         **kwargs,
     ):
         """**Initialisation**
 
         :Parameters:
+
+            filename: `str`
+                The name of the PP/UM file.
+
+                .. versionadded:: NEXTVERSION
 
             var: `umfile.Var`
 
@@ -567,6 +573,47 @@ class UMField:
 
                 .. versionadded:: 3.17.0
 
+            storage_protocol: `None` or `str`, optional
+                The `fsspec` file system protocol (e.g, ``'file'``,
+                ``'s3'``, ``'http'``). If `None` (the default) then a
+                local file system is assumed.
+
+                .. versionadded:: NEXTVERSION
+
+            storage_options: `dict` or `None`, optional
+                Key/value pairs to be passed on to the creation of
+                `s3fs.S3FileSystem` file systems to control the
+                opening of files in S3 object stores. Ignored for
+                files not in an S3 object store, i.e. those whose
+                names do not start with ``s3:``.
+
+                By default, or if `None`, then *storage_options* is
+                taken as ``{}``.
+
+                If the ``'endpoint_url'`` key is not in
+                *storage_options* or is not in a dictionary defined by
+                the ``'client_kwargs`` key (which is always the case
+                when *storage_options* is `None`), then one will be
+                automatically inserted for accessing an S3 file. For
+                example, for a file name of
+                ``'s3://store/data/file.nc'``, an ``'endpoint_url'``
+                key with value ``'https://store'`` would be created.
+
+                *Parameter example:*
+                  For a file name of ``'s3://store/data/file.nc'``,
+                  the following are equivalent: ``None``, ``{}``, and
+                  ``{'endpoint_url': 'https://store'}``,
+                  ``{'client_kwargs': {'endpoint_url':
+                  'https://store'}}``
+
+                *Parameter example:*
+                  ``{'key': 'scaleway-api-key...', 'secret':
+                  'scaleway-secretkey...', 'endpoint_url':
+                  'https://s3.fr-par.scw.cloud', 'client_kwargs':
+                  {'region_name': 'fr-par'}}``
+
+                .. versionadded:: NEXTVERSION
+
             kwargs: *optional*
                 Keyword arguments providing extra CF properties for each
                 return field construct.
@@ -598,12 +645,10 @@ class UMField:
 
         self.fields = []
 
-#        filename = abspath(var.file.path)
         self.filename = filename
-
-        self.protocol = protocol
+        self.storage_protocol = storage_protocol
         self.storage_options = storage_options
-        
+
         groups = var.group_records_by_extra_data()
 
         n_groups = len(groups)
@@ -2040,20 +2085,17 @@ class UMField:
         full_slice = Ellipsis
         klass_name = UMArray().__class__.__name__
 
-#        fmt = self.fmt
-#        unpack = self.unpack
-        
         umarray_kwargs = {
-            'filename': self.filename,
-            'fmt': self.fmt,
-            'word_size': self.word_size,
-            'byte_ordering': self.byte_ordering,
-            'attributes': attributes,
-            'unpack': self.unpack,
-            'protocol': self.protocol,
-            'storage_options': self.storage_options
+            "filename": self.filename,
+            "fmt": self.fmt,
+            "word_size": self.word_size,
+            "byte_ordering": self.byte_ordering,
+            "attributes": attributes,
+            "unpack": self.unpack,
+            "storage_protocol": self.storage_protocol,
+            "storage_options": self.storage_options,
         }
-        
+
         if len(recs) == 1:
             # --------------------------------------------------------
             # 0-d partition matrix
@@ -2070,18 +2112,10 @@ class UMField:
             data_shape = yx_shape
 
             subarray = UMArray(
-#                filename=filename,
                 address=rec.hdr_offset,
                 shape=yx_shape,
                 dtype=data_type_in_file(rec),
-#                fmt=fmt,
-#                word_size=self.word_size,
-#                byte_ordering=self.byte_ordering,
-#                attributes=attributes,
-#                unpack=unpack,
-#                protocol=self.protocol,
-#                storage_options=self.storage_options
-                **umarray_kwargs
+                **umarray_kwargs,
             )
 
             key = f"{klass_name}-{tokenize(subarray)}"
@@ -2111,9 +2145,6 @@ class UMField:
                     pmaxes = [_axis["t"]]
                     data_shape = (nt, LBROW, LBNPT)
 
-                word_size = self.word_size
-                byte_ordering = self.byte_ordering
-
                 indices = [(i, rec) for i, rec in enumerate(recs)]
 
                 if nz > 1 and z_axis in self.down_axes:
@@ -2127,16 +2158,10 @@ class UMField:
                     shape = (1,) + yx_shape
 
                     subarray = UMArray(
-#                        filename=filename,
                         address=rec.hdr_offset,
                         shape=shape,
                         dtype=file_data_type,
-#                        fmt=fmt,
-#                        word_size=word_size,
-#                        byte_ordering=byte_ordering,
-#                        attributes=attributes,
-#                        unpack=unpack,
-                        **umarray_kwargs
+                        **umarray_kwargs,
                     )
 
                     key = f"{klass_name}-{tokenize(subarray)}"
@@ -2162,9 +2187,6 @@ class UMField:
 
                 data_shape = (nt, nz, LBROW, LBNPT)
 
-                word_size = self.word_size
-                byte_ordering = self.byte_ordering
-
                 indices = [
                     divmod(i, nz) + (rec,) for i, rec in enumerate(recs)
                 ]
@@ -2179,16 +2201,10 @@ class UMField:
                     shape = (1, 1) + yx_shape
 
                     subarray = UMArray(
-#                        filename=filename,
                         address=rec.hdr_offset,
                         shape=shape,
                         dtype=file_data_type,
-#                        fmt=fmt,
-#                        word_size=word_size,
-#                        byte_ordering=byte_ordering,
-#                        attributes=attributes,
-#                        unpack=unpack,
-                        **umarray_kwargs
+                        **umarray_kwargs,
                     )
 
                     key = f"{klass_name}-{tokenize(subarray)}"
@@ -3380,8 +3396,8 @@ class UMRead(cfdm.read_write.IORead):
         dataset_type=None,
         ignore_unknown_type=False,
         unpack=True,
-            filesystem=None,
-            storage_options=None,
+        filesystem=None,
+        storage_options=None,
     ):
         """Read fields from a PP file or UM fields file.
 
@@ -3473,7 +3489,48 @@ class UMRead(cfdm.read_write.IORead):
                 ``scale_factor``, as applied to lookup header entries
                 BDATUM and BMKS respectively.
 
-                .. versionadded:: 3.17.0
+                .. versionadded:: 3.17.
+
+            storage_protocol: `None` or `str`, optional
+                The `fsspec` file system protocol (e.g, ``'file'``,
+                ``'s3'``, ``'http'``). If `None` (the default) then a
+                local file system is assumed.
+
+                .. versionadded:: NEXTVERSION
+
+            storage_options: `dict` or `None`, optional
+                Key/value pairs to be passed on to the creation of
+                `s3fs.S3FileSystem` file systems to control the
+                opening of files in S3 object stores. Ignored for
+                files not in an S3 object store, i.e. those whose
+                names do not start with ``s3:``.
+
+                By default, or if `None`, then *storage_options* is
+                taken as ``{}``.
+
+                If the ``'endpoint_url'`` key is not in
+                *storage_options* or is not in a dictionary defined by
+                the ``'client_kwargs`` key (which is always the case
+                when *storage_options* is `None`), then one will be
+                automatically inserted for accessing an S3 file. For
+                example, for a file name of
+                ``'s3://store/data/file.nc'``, an ``'endpoint_url'``
+                key with value ``'https://store'`` would be created.
+
+                *Parameter example:*
+                  For a file name of ``'s3://store/data/file.nc'``,
+                  the following are equivalent: ``None``, ``{}``, and
+                  ``{'endpoint_url': 'https://store'}``,
+                  ``{'client_kwargs': {'endpoint_url':
+                  'https://store'}}``
+
+                *Parameter example:*
+                  ``{'key': 'scaleway-api-key...', 'secret':
+                  'scaleway-secretkey...', 'endpoint_url':
+                  'https://s3.fr-par.scw.cloud', 'client_kwargs':
+                  {'region_name': 'fr-par'}}``
+
+                .. versionadded:: NEXTVERSION
 
         :Returns:
 
@@ -3512,12 +3569,21 @@ class UMRead(cfdm.read_write.IORead):
         else:
             um_version = float(str(um_version).replace(".", "0", 1))
 
-        filename=  dataset
+        # ------------------------------------------------------------
+        # Parse the 'dataset' keyword parameter
+        # ------------------------------------------------------------
+        if filesystem is None:
+            try:
+                dataset = abspath(dataset, uri=False)
+            except ValueError:
+                dataset = abspath(dataset)
+
+        filename = dataset
         self.read_vars = {
             "filename": filename,
             "byte_ordering": byte_ordering,
             "word_size": word_size,
-            "fmt": fmt,            
+            "fmt": fmt,
         }
 
         history = f"Converted from UM/PP by cf-python v{__version__}"
@@ -3538,7 +3604,7 @@ class UMRead(cfdm.read_write.IORead):
             if not dataset_type.intersection(("UM",)):
                 # Return now if there are valid file types
                 return []
-            
+
         # Parse the 'storage_options' keyword parameter
         if storage_options is None:
             storage_options = {}
@@ -3546,8 +3612,8 @@ class UMRead(cfdm.read_write.IORead):
             raise ValueError(
                 "Can't set both storage_options and filesystem keywords"
             )
-                
-        protocol = None
+
+        storage_protocol = None
 
         if filesystem is not None:
             # --------------------------------------------------------
@@ -3557,7 +3623,7 @@ class UMRead(cfdm.read_write.IORead):
             raise NotImplementedError(
                 "Can't yet open PP/UM files from a remote file system"
             )
-                        
+
             try:
                 dataset = filesystem.open(dataset, "rb")
             except AttributeError:
@@ -3571,10 +3637,10 @@ class UMRead(cfdm.read_write.IORead):
                     f"Failed to open {dataset!r} using the provided "
                     f"'filesystem' object {filesystem!r}: {exc}"
                 ) from exc
-            
+
         else:
-            from uritools import urisplit            
-            
+            from uritools import urisplit
+
             u = urisplit(dataset)
             if u.scheme == "s3":
                 # ----------------------------------------------------
@@ -3582,38 +3648,37 @@ class UMRead(cfdm.read_write.IORead):
                 # ----------------------------------------------------
                 raise NotImplementedError(
                     "Can't yet open PP/UM files from an s3 object store"
-                )                        
+                )
 
                 import fsspec
 
                 client_kwargs = storage_options.get("client_kwargs", {})
                 if (
-                        "endpoint_url" not in storage_options
-                        and "endpoint_url" not in client_kwargs
+                    "endpoint_url" not in storage_options
+                    and "endpoint_url" not in client_kwargs
                 ):
-                    authority = parsed_dataset.authority
+                    authority = u.authority
                     if not authority:
                         authority = ""
-                        
+
                     storage_options["endpoint_url"] = f"https://{authority}"
 
                 filesystem = fsspec.filesystem(
                     protocol=u.scheme, **storage_options
                 )
                 dataset = filesystem.open(u.path[1:], "rb")
-                
+
         if not storage_options:
             storage_options = None
 
         if filesystem is not None:
-            protocol = filesystem.protocol
+            storage_protocol = filesystem.protocol
             storage_options = filesystem.storage_options
 
         f = self.dataset_open(dataset, parse=True)
 
         info = is_log_level_info(logger)
 
-        
         um = [
             UMField(
                 filename,
@@ -3630,8 +3695,8 @@ class UMRead(cfdm.read_write.IORead):
                 select=select,
                 info=info,
                 unpack=unpack,
-                protocol=protocol,
-                storage_options=storage_options 
+                storage_protocol=storage_protocol,
+                storage_options=storage_options,
             )
             for var in f.vars
         ]
