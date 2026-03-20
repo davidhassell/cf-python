@@ -472,6 +472,7 @@ class UMField:
 
     def __init__(
         self,
+        filename,
         var,
         fmt,
         byte_ordering,
@@ -486,6 +487,7 @@ class UMField:
         squeeze=False,
         unsqueeze=False,
         unpack=True,
+            protocol=None,storage_options=None,
         **kwargs,
     ):
         """**Initialisation**
@@ -596,9 +598,12 @@ class UMField:
 
         self.fields = []
 
-        filename = abspath(var.file.path)
+#        filename = abspath(var.file.path)
         self.filename = filename
 
+        self.protocol = protocol
+        self.storage_options = storage_options
+        
         groups = var.group_records_by_extra_data()
 
         n_groups = len(groups)
@@ -2025,8 +2030,6 @@ class UMField:
 
         data_type_in_file = self.data_type_in_file
 
-        filename = self.filename
-
         data_axes = [_axis["y"], _axis["x"]]
 
         # Initialise a dask graph for the uncompressed array, and some
@@ -2037,9 +2040,20 @@ class UMField:
         full_slice = Ellipsis
         klass_name = UMArray().__class__.__name__
 
-        fmt = self.fmt
-        unpack = self.unpack
-
+#        fmt = self.fmt
+#        unpack = self.unpack
+        
+        umarray_kwargs = {
+            'filename': self.filename,
+            'fmt': self.fmt,
+            'word_size': self.word_size,
+            'byte_ordering': self.byte_ordering,
+            'attributes': attributes,
+            'unpack': self.unpack,
+            'protocol': self.protocol,
+            'storage_options': self.storage_options
+        }
+        
         if len(recs) == 1:
             # --------------------------------------------------------
             # 0-d partition matrix
@@ -2056,15 +2070,18 @@ class UMField:
             data_shape = yx_shape
 
             subarray = UMArray(
-                filename=filename,
+#                filename=filename,
                 address=rec.hdr_offset,
                 shape=yx_shape,
                 dtype=data_type_in_file(rec),
-                fmt=fmt,
-                word_size=self.word_size,
-                byte_ordering=self.byte_ordering,
-                attributes=attributes,
-                unpack=unpack,
+#                fmt=fmt,
+#                word_size=self.word_size,
+#                byte_ordering=self.byte_ordering,
+#                attributes=attributes,
+#                unpack=unpack,
+#                protocol=self.protocol,
+#                storage_options=self.storage_options
+                **umarray_kwargs
             )
 
             key = f"{klass_name}-{tokenize(subarray)}"
@@ -2110,15 +2127,16 @@ class UMField:
                     shape = (1,) + yx_shape
 
                     subarray = UMArray(
-                        filename=filename,
+#                        filename=filename,
                         address=rec.hdr_offset,
                         shape=shape,
                         dtype=file_data_type,
-                        fmt=fmt,
-                        word_size=word_size,
-                        byte_ordering=byte_ordering,
-                        attributes=attributes,
-                        unpack=unpack,
+#                        fmt=fmt,
+#                        word_size=word_size,
+#                        byte_ordering=byte_ordering,
+#                        attributes=attributes,
+#                        unpack=unpack,
+                        **umarray_kwargs
                     )
 
                     key = f"{klass_name}-{tokenize(subarray)}"
@@ -2161,15 +2179,16 @@ class UMField:
                     shape = (1, 1) + yx_shape
 
                     subarray = UMArray(
-                        filename=filename,
+#                        filename=filename,
                         address=rec.hdr_offset,
                         shape=shape,
                         dtype=file_data_type,
-                        fmt=fmt,
-                        word_size=word_size,
-                        byte_ordering=byte_ordering,
-                        attributes=attributes,
-                        unpack=unpack,
+#                        fmt=fmt,
+#                        word_size=word_size,
+#                        byte_ordering=byte_ordering,
+#                        attributes=attributes,
+#                        unpack=unpack,
+                        **umarray_kwargs
                     )
 
                     key = f"{klass_name}-{tokenize(subarray)}"
@@ -3344,7 +3363,7 @@ class UMRead(cfdm.read_write.IORead):
     @_manage_log_level_via_verbosity
     def read(
         self,
-        filename,
+        dataset,
         um_version=None,
         aggregate=True,
         endian=None,
@@ -3361,6 +3380,8 @@ class UMRead(cfdm.read_write.IORead):
         dataset_type=None,
         ignore_unknown_type=False,
         unpack=True,
+            filesystem=None,
+            storage_options=None,
     ):
         """Read fields from a PP file or UM fields file.
 
@@ -3368,7 +3389,7 @@ class UMRead(cfdm.read_write.IORead):
 
         :Parameters:
 
-            filename: `file` or `str`
+            dataset: `file` or `str`
                 A string giving the file name, or an open file object,
                 from which to read fields.
 
@@ -3491,11 +3512,12 @@ class UMRead(cfdm.read_write.IORead):
         else:
             um_version = float(str(um_version).replace(".", "0", 1))
 
+        filename=  dataset
         self.read_vars = {
             "filename": filename,
             "byte_ordering": byte_ordering,
             "word_size": word_size,
-            "fmt": fmt,
+            "fmt": fmt,            
         }
 
         history = f"Converted from UM/PP by cf-python v{__version__}"
@@ -3516,13 +3538,85 @@ class UMRead(cfdm.read_write.IORead):
             if not dataset_type.intersection(("UM",)):
                 # Return now if there are valid file types
                 return []
+            
+        # Parse the 'storage_options' keyword parameter
+        if storage_options is None:
+            storage_options = {}
+        elif filesystem is not None:
+            raise ValueError(
+                "Can't set both storage_options and filesystem keywords"
+            )
+                
+        protocol = None
 
-        f = self.dataset_open(filename, parse=True)
+        if filesystem is not None:
+            # --------------------------------------------------------
+            # A pre-authenticated filesystem was provided: open the
+            # dataset as a file-like object and pass it to the backend.
+            # --------------------------------------------------------
+            raise NotImplementedError(
+                "Can't yet open PP/UM files from a remote file system"
+            )
+                        
+            try:
+                dataset = filesystem.open(dataset, "rb")
+            except AttributeError:
+                raise AttributeError(
+                    f"The 'filesystem' object {filesystem!r} does not have "
+                    "an 'open' method. Please provide a valid filesystem "
+                    "object (e.g. an fsspec filesystem instance)."
+                )
+            except Exception as exc:
+                raise OSError(
+                    f"Failed to open {dataset!r} using the provided "
+                    f"'filesystem' object {filesystem!r}: {exc}"
+                ) from exc
+            
+        else:
+            from uritools import urisplit            
+            
+            u = urisplit(dataset)
+            if u.scheme == "s3":
+                # ----------------------------------------------------
+                # Dataset is an s3://... string.
+                # ----------------------------------------------------
+                raise NotImplementedError(
+                    "Can't yet open PP/UM files from an s3 object store"
+                )                        
+
+                import fsspec
+
+                client_kwargs = storage_options.get("client_kwargs", {})
+                if (
+                        "endpoint_url" not in storage_options
+                        and "endpoint_url" not in client_kwargs
+                ):
+                    authority = parsed_dataset.authority
+                    if not authority:
+                        authority = ""
+                        
+                    storage_options["endpoint_url"] = f"https://{authority}"
+
+                filesystem = fsspec.filesystem(
+                    protocol=u.scheme, **storage_options
+                )
+                dataset = filesystem.open(u.path[1:], "rb")
+                
+        if not storage_options:
+            storage_options = None
+
+        if filesystem is not None:
+            protocol = filesystem.protocol
+            storage_options = filesystem.storage_options
+
+        f = self.dataset_open(dataset, parse=True)
 
         info = is_log_level_info(logger)
 
+        
         um = [
             UMField(
+                filename,
                 var,
                 f.fmt,
                 f.byte_ordering,
@@ -3536,6 +3630,8 @@ class UMRead(cfdm.read_write.IORead):
                 select=select,
                 info=info,
                 unpack=unpack,
+                protocol=protocol,
+                storage_options=storage_options 
             )
             for var in f.vars
         ]
