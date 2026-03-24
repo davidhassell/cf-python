@@ -3,8 +3,29 @@ Version NEXTVERSION
 
 **2026-??-??**
 
-* Add index numbers to field and domain list `repr` output
-  (https://github.com/NCAS-CMS/cf-python/issues/790)
+* Add index numbers to `cf.FieldList` and `cf.DomainList` `repr`
+  output (https://github.com/NCAS-CMS/cf-python/issues/790)
+* Support for HEALPix grids
+  (https://github.com/NCAS-CMS/cf-python/issues/909)
+* New HEALPix methods: `cf.Field.healpix_info`,
+  `cf.Field.healpix_decrease_refinement_level`,
+  `cf.Field.healpix_increase_refinement_level`,
+  `cf.Field.healpix_change_indexing_scheme`,
+  `cf.Field.healpix_to_ugrid`, `cf.Domain.create_healpix`
+  (https://github.com/NCAS-CMS/cf-python/issues/909)
+* New method: `cf.Field.create_latlon_coordinates`
+  (https://github.com/NCAS-CMS/cf-python/issues/909)
+* New method: `cf.Data.coarsen`
+  (https://github.com/NCAS-CMS/cf-python/issues/909)
+* New functions: `cf.locate`, `cf.healpix_max_refinement_level`,
+  `cf.healpix_indexing_schemes`
+  (https://github.com/NCAS-CMS/cf-python/issues/909)
+* New keyword to `cf.read`: ``filesystem``
+  (https://github.com/NCAS-CMS/cf-python/issues/931)
+* New keyword parameter to `cf.Data.compute`: ``persist``
+  (https://github.com/NCAS-CMS/cf-python/issues/929)
+* New function to control the persistence of computed data:
+  `cf.persist_data` (https://github.com/NCAS-CMS/cf-python/issues/929)
 * New default backend for netCDF-4 in `cf.write`: ``h5netcdf-h5py``,
   that allows control of the internal file metadata via the new
   ``h5py_options`` parameter
@@ -15,9 +36,16 @@ Version NEXTVERSION
 * New optional backend for netCDF-3 in `cf.read` that allows parallel
   reading: ``netcdf_file``
   (https://github.com/NCAS-CMS/cf-python/issues/912)
-* Changed dependency: ``cfdm>=1.13.1.0, <1.13.2.0``
+* Fix bug in `cf.read` that wouldn't read non-Zarr and Zarr datasets
+  from the same directory
+  (https://github.com/NCAS-CMS/cfdm/issues/391)
 * Fix for subspacing with cyclic `cf.wi` and `cf.wo` arguments
   (https://github.com/NCAS-CMS/cf-python/issues/887)
+* New optional dependency: ``healpix>=2025.1``
+* New dependency: ``pyfive>=1.1.1``
+* Changed dependency: ``cfdm>=1.13.?.?, <1.13.?.0``
+
+----
 
 Version 3.19.0
 --------------
@@ -74,8 +102,8 @@ Version 3.18.1
 * Allow multiple conditions for the same axis in `cf.Field.subspace`
   and `cf.Field.indices`
   (https://github.com/NCAS-CMS/cf-python/issues/881)
-* Fix bug in `cf.Field.collapse` that causes a ``ValueError`` to be raised
-  for missing external cell measures data
+* Fix bug in `cf.Field.collapse` that causes a ``ValueError`` to be
+  raised for missing external cell measures data
   (https://github.com/NCAS-CMS/cf-python/issues/885)
 * New dependency: ``distributed>=2025.5.1``
 * Changed dependency: ``cfdm>=1.12.3.0, <1.12.4.0``

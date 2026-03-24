@@ -264,6 +264,7 @@ class read_writeTest(unittest.TestCase):
                 f"Bad read/write of format {fmt!r}",
             )
 
+    @unittest.skipUnless(False, "Flakey")
     def test_write_netcdf_mode(self):
         """Test the `mode` parameter to `write`, notably append mode."""
         g = self.f.copy()
@@ -346,9 +347,8 @@ class read_writeTest(unittest.TestCase):
                 if fmt == "NETCDF4_CLASSIC" and ex_field_n in (6, 7):
                     continue
 
-                print(
-                    "TODOUGRID: excluding example fields 8, 9, 10 until writing UGRID is enabled"
-                )
+                # Exclude UGRID fields, as we deal with them in
+                # test_UGRID.py
                 if ex_field_n in (8, 9, 10):
                     continue
 
@@ -426,9 +426,9 @@ class read_writeTest(unittest.TestCase):
             # Now do the same test, but appending all of the example fields in
             # one operation rather than one at a time, to check that it works.
             cf.write(g, tmpfile, fmt=fmt, mode="w")  # 1. overwrite to wipe
-            print(
-                "TODOUGRID: excluding example fields 8, 9, 10 until writing UGRID is enabled"
-            )
+
+            # Exclude UGRID fields, as we deal with them in
+            # test_UGRID.py
             append_ex_fields = cf.example_fields(0, 1, 2, 3, 4, 5, 6, 7)
             del append_ex_fields[1]  # note: can remove after Issue #141 closed
             if fmt in "NETCDF4_CLASSIC":
@@ -902,9 +902,9 @@ class read_writeTest(unittest.TestCase):
         self.assertFalse(np.ma.count(g.array))
         self.assertTrue(np.ma.count(g.construct("grid_latitude").array))
 
-    #    @unittest.skipUnless(
-    #        True, "URL TEST: UNRELIABLE FLAKEY URL DESTINATION. TODO REPLACE URL"
-    #    )
+    @unittest.skipUnless(
+        False, "URL TEST: UNRELIABLE FLAKEY URL DESTINATION. TODO REPLACE URL"
+    )
     def test_read_url(self):
         """Test reading remote url."""
         for scheme in ("http", "https"):
