@@ -647,7 +647,6 @@ class UMField:
         self.field = self.implementation.initialise_Field()
 
         cf_properties = {}
-        attributes = {}
 
         self.fields = []
 
