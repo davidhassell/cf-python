@@ -632,8 +632,10 @@ class UMArray(
             `None`
 
         """
-        if self._get_component("close"):
-            f.close_fd()
+        if self._get_component("close") and isinstance(
+            self.get_filename(), str
+        ):
+            f.file_handle.close()
 
     def get_byte_ordering(self):
         """The endianness of the data.

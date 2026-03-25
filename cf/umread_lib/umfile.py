@@ -23,7 +23,12 @@ class File:
     sets of PP records combined into variables."""
 
     def __init__(
-        self, path, byte_ordering=None, word_size=None, fmt=None, parse=True
+        self,
+        file_handle,
+        byte_ordering=None,
+        word_size=None,
+        fmt=None,
+        parse=True,
     ):
         """Open and parse a UM file.
 
@@ -34,8 +39,8 @@ class File:
 
         :Parameters:
 
-            path: `str`
-                The name of the UM file.
+            file_handle: file-like object
+                The UM file.
 
             byte_ordering: `str`, optional
                 'little_endian' or 'big_endian'
@@ -62,9 +67,7 @@ class File:
         c = cInterface.CInterface()
         self._c_interface = c
 
-        self.path = path
-        self.fd = None
-        self.open_fd()
+        self.file_handle = file_handle
 
         if byte_ordering and word_size and fmt:
             self.fmt = fmt
@@ -73,7 +76,6 @@ class File:
         else:
             self._detect_file_type()
 
-        self.path = path
         file_type_obj = c.create_file_type(
             self.fmt, self.byte_ordering, self.word_size
         )
@@ -89,36 +91,12 @@ class File:
             # Note that the word size used to interpret file pointers
             # needs to have been previously set.
             # --------------------------------------------------------
-            info = c.parse_file(self.fd, file_type_obj)
+
+            # TODOPP - do we need to file_handle.seek(0), or will
+            #          c.parse_file do it for us?
+            info = c.parse_file(self.file_handle, file_type_obj)
             self.vars = info["vars"]
             self._add_back_refs()
-
-    def open_fd(self):
-        """(Re)open the low-level file descriptor.
-
-        :Returns:
-
-            `int`
-                The file descriptor.
-
-        """
-        if self.fd is None:
-            self.fd = os.open(self.path, os.O_RDONLY)
-
-        return self.fd
-
-    def close_fd(self):
-        """Close the low-level file descriptor.
-
-        :Returns:
-
-            `None`
-
-        """
-        if self.fd:
-            os.close(self.fd)
-
-        self.fd = None
 
     def _detect_file_type(self):
         """Store string values describing the auto-detected file type.
@@ -128,13 +106,16 @@ class File:
             `None`
 
         """
+        # TODOPP - do we need to file_handle.seek(0), or will
+        #          c.detect_file_type do it or us?
+        self.file_handle.seek(0)
+
         c = self._c_interface
         try:
-            file_type_obj = c.detect_file_type(self.fd)
+            file_type_obj = c.detect_file_type(self.file_handle)
         except Exception:
-            self.close_fd()
             raise DatasetTypeError(
-                f"Can't open {self.path} as a PP or UM dataset"
+                f"Can't open {self.file_handle} as a PP or UM dataset"
             )
 
         d = c.file_type_obj_to_dict(file_type_obj)
@@ -143,10 +124,10 @@ class File:
         self.word_size = d["word_size"]
 
     def _add_back_refs(self):
-        """Add file attribute to `Var` objects, and both `!file` and
+        """Add `!f` attribute to `Var` objects, and both `!f` and
         `!var` attributes to `Rec` objects.
 
-        The important one is the file attribute in the `Rec` object, as
+        The important one is the `!f` attribute in the `Rec` object, as
         this is used when reading data. The others are provided for extra
         convenience.
 
@@ -156,10 +137,10 @@ class File:
 
         """
         for var in self.vars:
-            var.file = self
+            var.f = self
             for rec in var.recs:
                 rec.var = var
-                rec.file = self
+                rec.f = self
 
 
 class Var:
@@ -263,15 +244,15 @@ class Rec:
         hdr_offset,
         data_offset,
         disk_length,
-        file=None,
+        f=None,
     ):
         """Default instantiation, which stores the supplied headers and
         offsets.
 
         :Parameters:
 
-            file: `File`, optional
-                Used to set the `!file` attribute. Does not need to be
+            f: `File`, optional
+                Used to set the `!f` attribute. Does not need to be
                 supplied, but if it is not then it will have to be set on
                 the returned `Rec` object before calling `get_data` will
                 work. If set it should be set to the `File` object that
@@ -286,12 +267,12 @@ class Rec:
         self.data_offset = data_offset
         self.disk_length = disk_length
         self._extra_data = None
-        if file:
-            self.file = file
+        if f:
+            self.f = f
 
     @classmethod
     def from_file_and_offsets(
-        cls, file, hdr_offset, data_offset=None, disk_length=None
+        cls, f, hdr_offset, data_offset=None, disk_length=None
     ):
         """Instantiate a `Rec` object from the `File` object and the
         header and data offsets.
@@ -301,7 +282,7 @@ class Rec:
 
         :Parameters:
 
-            file: `File`
+            f: `File`
                 A view of a file including sets of PP records combined
                 into variables.
 
@@ -323,15 +304,15 @@ class Rec:
              `Rec`
 
         """
-        c = file._c_interface
-        word_size = file.word_size
+        c = f._c_interface
+        word_size = f.word_size
         int_hdr, real_hdr = c.read_header(
-            file.fd, hdr_offset, file.byte_ordering, word_size
+            f.file_handle, hdr_offset, f.byte_ordering, word_size
         )
 
         if data_offset is None:
             # Calculate the data offset from the integer header
-            if file.fmt == "PP":
+            if f.fmt == "PP":
                 # We only support 64-word headers, so the data starts
                 # 66 words after the header_offset, i.e. after 64
                 # words of the header, plus 2 block control words.
@@ -355,7 +336,7 @@ class Rec:
             hdr_offset,
             data_offset,
             disk_length,
-            file=file,
+            f=f,
         )
 
     def read_extra_data(self):
@@ -366,8 +347,8 @@ class Rec:
             `numpy.ndarray`
 
         """
-        file = self.file
-        c = file._c_interface
+        f = self.f
+        c = f._c_interface
 
         (
             extra_data_offset,
@@ -377,16 +358,14 @@ class Rec:
         )
 
         raw_extra_data = c.read_extra_data(
-            file.fd,
+            f.fd,
             extra_data_offset,
             extra_data_length,
-            file.byte_ordering,
-            file.word_size,
+            f.byte_ordering,
+            f.word_size,
         )
 
-        edu = ExtraDataUnpacker(
-            raw_extra_data, file.word_size, file.byte_ordering
-        )
+        edu = ExtraDataUnpacker(raw_extra_data, f.word_size, f.byte_ordering)
 
         return edu.get_data()
 
@@ -430,17 +409,17 @@ class Rec:
             `numpy.ndarray`
 
         """
-        file = self.file
-        c = file._c_interface
+        f = self.f
+        c = f._c_interface
         int_hdr = self.int_hdr
         data_type, nwords = c.get_type_and_num_words(int_hdr)
 
         return c.read_record_data(
-            file.fd,
+            f.fd,
             self.data_offset,
             self.disk_length,
-            file.byte_ordering,
-            file.word_size,
+            f.byte_ordering,
+            f.word_size,
             int_hdr,
             self.real_hdr,
             data_type,
@@ -452,7 +431,8 @@ if __name__ == "__main__":
     import sys
 
     path = sys.argv[1]
-    f = File(path)
+    fh = open(path, 'rb')
+    f = File(fh)
     print(f.fmt, f.byte_ordering, f.word_size)
     print("num variables: %s" % len(f.vars))
     for varno, var in enumerate(f.vars):
@@ -479,8 +459,6 @@ if __name__ == "__main__":
         )
         print("===============================")
 
-    f.close_fd()
-
     # also read a record using saved metadata
     if f.vars:
         fmt = f.fmt
@@ -494,7 +472,7 @@ if __name__ == "__main__":
         del f
 
         fnew = File(
-            path,
+            fh,
             fmt=fmt,
             byte_ordering=byte_ordering,
             word_size=word_size,

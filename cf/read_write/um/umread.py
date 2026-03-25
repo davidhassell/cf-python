@@ -473,6 +473,7 @@ class UMField:
     def __init__(
         self,
         filename,
+        file_handle,
         var,
         fmt,
         byte_ordering,
@@ -495,8 +496,13 @@ class UMField:
 
         :Parameters:
 
-            filename: `str`
-                The name of the PP/UM file.
+            filename: `str` or `None`
+                The name of the PP/UM file, or `None`.
+
+                .. versionadded:: NEXTVERSION
+
+            file_handle: file-like object
+                An open file-like object for the PP/UM file.
 
                 .. versionadded:: NEXTVERSION
 
@@ -646,6 +652,12 @@ class UMField:
         self.fields = []
 
         self.filename = filename
+        self.file_handle = file_handle
+        if filename is None:
+            self.dataset = file_handle
+        else:
+            self.dataset = filename
+
         self.storage_protocol = storage_protocol
         self.storage_options = storage_options
 
@@ -1106,11 +1118,6 @@ class UMField:
             # --------------------------------------------------------
             if LBUSER5 != 0:
                 self.pseudolevel_coordinate(LBUSER5)
-
-            attributes["int_hdr"] = int_hdr[:]
-            attributes["real_hdr"] = real_hdr[:]
-            attributes["file"] = filename
-            attributes["id"] = identity
 
             cf_properties["Conventions"] = __Conventions__
             cf_properties["runid"] = self.decode_lbexp()
@@ -2086,7 +2093,7 @@ class UMField:
         klass_name = UMArray().__class__.__name__
 
         umarray_kwargs = {
-            "filename": self.filename,
+            "filename": self.dataset,
             "fmt": self.fmt,
             "word_size": self.word_size,
             "byte_ordering": self.byte_ordering,
@@ -2373,7 +2380,7 @@ class UMField:
                 for key in sorted(self.extra):
                     out.append(f"{key}: {str(self.extra[key])}")
 
-            out.append("file: " + self.filename)
+            out.append(f"file: {self.dataset}")
             out.append(
                 f"fmt, byte order, word size: {self.fmt}, "
                 f"{self.byte_ordering}, {self.word_size}"
@@ -3550,18 +3557,29 @@ class UMRead(cfdm.read_write.IORead):
             )
 
         representation = self.dataset_representation(dataset)
-        if representation != "path":
-            raise NotImplementedError(
-                "Can't yet read Field constructs from a UM or PP "
-                f"{representation!r} dataset: {dataset!r}"
+        if representation not in ("path", "file_handle"):
+            raise ValueError(f"Unknown dataset representation: {dataset!r}")
+
+        if filesystem is not None and representation != "path":
+            raise ValueError(
+                "Can only set filesystem for datasets represented by "
+                f"a string-valued path. Got {representation!r} dataset: "
+                f"{dataset!r}"
             )
 
-            if filesystem is not None:
-                raise ValueError(
-                    "Can only set filesystem for datasets represented by "
-                    f"a string-valued path. Got {representation!r} dataset: "
-                    f"{dataset!r}"
-                )
+        # ------------------------------------------------------------
+        # Parse the 'storage_options' keyword parameter
+        # ------------------------------------------------------------
+        if storage_options is not None and filesystem is not None:
+            raise ValueError(
+                "Can't set both storage_options and filesystem keywords"
+            )
+
+        if storage_options is None:
+            # Set storage options as an empty `dict` to force the
+            # creation of a file system for a local file (see
+            # `filesystem_creation`).
+            storage_options = {}                 
 
         if not _stash2standard_name:
             # --------------------------------------------------------
@@ -3592,14 +3610,6 @@ class UMRead(cfdm.read_write.IORead):
             except ValueError:
                 dataset = abspath(dataset)
 
-        filename = dataset
-        self.read_vars = {
-            "filename": filename,
-            "byte_ordering": byte_ordering,
-            "word_size": word_size,
-            "fmt": fmt,
-        }
-
         history = f"Converted from UM/PP by cf-python v{__version__}"
 
         # ------------------------------------------------------------
@@ -3614,99 +3624,51 @@ class UMRead(cfdm.read_write.IORead):
                 # Return now if there are valid file types
                 return []
 
-        # ------------------------------------------------------------
-        # Parse the 'storage_options' keyword parameter
-        # ------------------------------------------------------------
-        if storage_options is None:
-            storage_options = {}
-        elif filesystem is not None:
-            raise ValueError(
-                "Can't set both storage_options and filesystem keywords"
-            )
-
-        storage_protocol = None
-
-        if filesystem is None:
+        if representation == "path" and filesystem is None:
             try:
                 dataset = abspath(dataset, uri=False)
             except ValueError:
                 dataset = abspath(dataset)
 
-            u = urisplit(dataset)
-            if u.scheme == "s3":
-                # ----------------------------------------------------
-                # Dataset is an s3://... string.
-                # ----------------------------------------------------
-                import fsspec
-
-                client_kwargs = storage_options.get("client_kwargs", {})
-                if (
-                    "endpoint_url" not in storage_options
-                    and "endpoint_url" not in client_kwargs
-                ):
-                    authority = u.authority
-                    if not authority:
-                        authority = ""
-
-                    storage_options["endpoint_url"] = f"https://{authority}"
-
-                filesystem = fsspec.filesystem(
-                    protocol=u.scheme, **storage_options
-                )
-
-                dataset = u.path[1:]
-
-            elif u.scheme in ("http", "https"):
-                # ----------------------------------------------------
-                # Dataset is an http://.. or https:// string.
-                # ----------------------------------------------------
-                import fsspec
-
-                filesystem = fsspec.filesystem(
-                    protocol=u.scheme, **storage_options
-                )
-
-        if filesystem is not None:
-            # --------------------------------------------------------
-            # A pre-authenticated filesystem was provided: open the
-            # dataset as a file-like object and pass it to the backend.
-            # --------------------------------------------------------
-            raise NotImplementedError(
-                "Can't yet open PP/UM files from a remote file system"
+            dataset, filesystem = self.create_filesystem(
+                dataset, storage_options
             )
 
-            try:
-                dataset = filesystem.open(dataset, "rb")
-            except AttributeError:
-                raise AttributeError(
-                    f"The 'filesystem' object {filesystem!r} does not have "
-                    "an 'open' method. Please provide a valid filesystem "
-                    "object (e.g. an fsspec filesystem instance)."
-                )
-            except Exception as exc:
-                raise OSError(
-                    f"Failed to open {dataset!r} using the provided "
-                    f"'filesystem' object {filesystem!r}: {exc}"
-                ) from exc
+        if filesystem is None:
+            # 'dataset' is already a file-like object
+            filename = None
+            file_handle = dataset
+            storage_protocol = None
+        else:
+            # Convert the string-valued 'dataset' to a file-like object
+            filename = dataset
+            file_handle = self.filesystem_open(filesystem, dataset)
 
             storage_options = filesystem.storage_options
-            protocol = filesystem.protocol
-            if isinstance(protocol, tuple):
-                protocol = protocol[0]
-
             storage_protocol = filesystem.protocol
-            storage_options = filesystem.storage_options
+            if isinstance(storage_protocol, tuple):
+                storage_protocol = storage_protocol[0]
 
         if not storage_options:
             storage_options = None
 
-        f = self.dataset_open(dataset, parse=True)
+        self.read_vars = {
+            "filename": filename,
+            "file_handle": file_handle,
+            "byte_ordering": byte_ordering,
+            "word_size": word_size,
+            "fmt": fmt,
+            "aggregate": aggregate,
+        }
+
+        f = self.dataset_open(file_handle, parse=True)
 
         info = is_log_level_info(logger)
 
         um = [
             UMField(
                 filename,
+                file_handle,
                 var,
                 f.fmt,
                 f.byte_ordering,
@@ -3733,6 +3695,7 @@ class UMRead(cfdm.read_write.IORead):
     def _open_um_file(
         self,
         filename,
+        file_handle,
         aggregate=True,
         fmt=None,
         word_size=None,
@@ -3743,7 +3706,7 @@ class UMRead(cfdm.read_write.IORead):
 
         :Parameters:
 
-            filename: `str`
+            file_handle: file-like object
                 The file to be opened.
 
             parse: `bool`, optional
@@ -3760,59 +3723,27 @@ class UMRead(cfdm.read_write.IORead):
                 The open PP or FF file object.
 
         """
-        self.dataset_close()
         try:
             f = File(
-                filename,
+                file_handle,
                 byte_ordering=byte_ordering,
                 word_size=word_size,
                 fmt=fmt,
                 parse=parse,
             )
         except Exception:
-            try:
-                f.close_fd()
-            except Exception:
-                pass
+            self.dataset_close()
+
+            if filename is not None:
+                dataset = filename
+            else:
+                dataset = file_handle
 
             raise DatasetTypeError(
-                f"\nCan't interpret {filename} as a PP or UM dataset"
+                f"\nCan't interpret {dataset} as a PP or UM dataset"
             )
 
-        self._um_file = f
         return f
-
-    def is_um_file(self, filename):
-        """Whether or not a file is a PP file or UM fields file.
-
-        Note that the file type is determined by inspecting the file's
-        content and any file suffix is not considered.
-
-        :Parameters:
-
-            filename: `str`
-                The file.
-
-        :Returns:
-
-            `bool`
-
-        **Examples**
-
-        >>> r.is_um_file('ppfile')
-        True
-
-        """
-        try:
-            # Note: No need to completely parse the file to ascertain
-            #       if it's PP or FF.
-            self.dataset_open(filename, parse=False)
-        except Exception:
-            self.dataset_close()
-            return False
-        else:
-            self.dataset_close()
-            return True
 
     def dataset_close(self):
         """Close the file that has been read.
@@ -3822,18 +3753,21 @@ class UMRead(cfdm.read_write.IORead):
             `None`
 
         """
-        f = getattr(self, "_um_file", None)
-        if f is not None:
-            f.close_fd()
+        filename = self.read_vars["filename"]
+        file_handle = self.read_vars["file_handle"]
+        if filename is not None:
+            # Close a file handle that was created internally
+            file_handle.close()
+        else:
+            # Rewind a file handle that was created externally
+            file_handle.seek(0)
 
-        self._um_file = None
-
-    def dataset_open(self, filename, parse=True):
+    def dataset_open(self, parse=True):
         """Open the file for reading.
 
         :Paramters:
 
-            filename: `str`
+            file_handle: file-like object TODOPP
                 The file to be read.
 
             parse: `bool`, optional
@@ -3850,13 +3784,15 @@ class UMRead(cfdm.read_write.IORead):
                 The open PP or FF file object.
 
         """
-        g = getattr(self, "read_vars", {})
+        g = self.read_vars
 
         return self._open_um_file(
-            filename,
-            byte_ordering=g.get("byte_ordering"),
-            word_size=g.get("word_size"),
-            fmt=g.get("fmt"),
+            g["filename"],
+            g["file_handle"],
+            aggregate=g["aggregate"],
+            byte_ordering=g["byte_ordering"],
+            word_size=g["word_size"],
+            fmt=g["fmt"],
             parse=parse,
         )
 
