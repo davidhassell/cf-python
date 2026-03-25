@@ -3556,6 +3556,13 @@ class UMRead(cfdm.read_write.IORead):
                 f"{representation!r} dataset: {dataset!r}"
             )
 
+            if filesystem is not None:
+                raise ValueError(
+                    "Can only set filesystem for datasets represented by "
+                    f"a string-valued path. Got {representation!r} dataset: "
+                    f"{dataset!r}"
+                )
+
         if not _stash2standard_name:
             # --------------------------------------------------------
             # Create the STASH code to standard_name conversion
@@ -3579,7 +3586,7 @@ class UMRead(cfdm.read_write.IORead):
         # ------------------------------------------------------------
         # Parse the 'dataset' keyword parameter
         # ------------------------------------------------------------
-        if filesystem is None:
+        if representation == "path" and filesystem is None:
             try:
                 dataset = abspath(dataset, uri=False)
             except ValueError:
@@ -3595,11 +3602,6 @@ class UMRead(cfdm.read_write.IORead):
 
         history = f"Converted from UM/PP by cf-python v{__version__}"
 
-        if endian:
-            byte_ordering = endian + "_endian"
-        else:
-            byte_ordering = None
-
         # ------------------------------------------------------------
         # Parse the 'dataset_type' keyword parameter
         # ------------------------------------------------------------
@@ -3612,7 +3614,9 @@ class UMRead(cfdm.read_write.IORead):
                 # Return now if there are valid file types
                 return []
 
+        # ------------------------------------------------------------
         # Parse the 'storage_options' keyword parameter
+        # ------------------------------------------------------------
         if storage_options is None:
             storage_options = {}
         elif filesystem is not None:
@@ -3621,6 +3625,46 @@ class UMRead(cfdm.read_write.IORead):
             )
 
         storage_protocol = None
+
+        if filesystem is None:
+            try:
+                dataset = abspath(dataset, uri=False)
+            except ValueError:
+                dataset = abspath(dataset)
+
+            u = urisplit(dataset)
+            if u.scheme == "s3":
+                # ----------------------------------------------------
+                # Dataset is an s3://... string.
+                # ----------------------------------------------------
+                import fsspec
+
+                client_kwargs = storage_options.get("client_kwargs", {})
+                if (
+                    "endpoint_url" not in storage_options
+                    and "endpoint_url" not in client_kwargs
+                ):
+                    authority = u.authority
+                    if not authority:
+                        authority = ""
+
+                    storage_options["endpoint_url"] = f"https://{authority}"
+
+                filesystem = fsspec.filesystem(
+                    protocol=u.scheme, **storage_options
+                )
+
+                dataset = u.path[1:]
+
+            elif u.scheme in ("http", "https"):
+                # ----------------------------------------------------
+                # Dataset is an http://.. or https:// string.
+                # ----------------------------------------------------
+                import fsspec
+
+                filesystem = fsspec.filesystem(
+                    protocol=u.scheme, **storage_options
+                )
 
         if filesystem is not None:
             # --------------------------------------------------------
@@ -3645,42 +3689,16 @@ class UMRead(cfdm.read_write.IORead):
                     f"'filesystem' object {filesystem!r}: {exc}"
                 ) from exc
 
-        else:
-            from uritools import urisplit
+            storage_options = filesystem.storage_options
+            protocol = filesystem.protocol
+            if isinstance(protocol, tuple):
+                protocol = protocol[0]
 
-            u = urisplit(dataset)
-            if u.scheme == "s3":
-                # ----------------------------------------------------
-                # Dataset is an s3://... string.
-                # ----------------------------------------------------
-                raise NotImplementedError(
-                    "Can't yet open PP/UM files from an s3 object store"
-                )
-
-                import fsspec
-
-                client_kwargs = storage_options.get("client_kwargs", {})
-                if (
-                    "endpoint_url" not in storage_options
-                    and "endpoint_url" not in client_kwargs
-                ):
-                    authority = u.authority
-                    if not authority:
-                        authority = ""
-
-                    storage_options["endpoint_url"] = f"https://{authority}"
-
-                filesystem = fsspec.filesystem(
-                    protocol=u.scheme, **storage_options
-                )
-                dataset = filesystem.open(u.path[1:], "rb")
+            storage_protocol = filesystem.protocol
+            storage_options = filesystem.storage_options
 
         if not storage_options:
             storage_options = None
-
-        if filesystem is not None:
-            storage_protocol = filesystem.protocol
-            storage_options = filesystem.storage_options
 
         f = self.dataset_open(dataset, parse=True)
 
