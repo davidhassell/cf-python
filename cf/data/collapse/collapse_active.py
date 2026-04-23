@@ -167,10 +167,11 @@ def active_chunk_function(method, *args, **kwargs):
         if isinstance(axis, Integral):
             axis = (axis,)
 
-        if len(axis) < x.ndim:
-            # Active storage is not (yet) allowed for reductions over
-            # a subset of the axes
-            return
+        # This now works :)
+        #if len(axis) < x.ndim:
+        #    # Active storage is not (yet) allowed for reductions over
+        #    # a subset of the axes
+        #    return
 
     # ----------------------------------------------------------------
     # Still here? Set up an Active instance that will carry out the
@@ -244,27 +245,28 @@ def active_chunk_function(method, *args, **kwargs):
         raise ActiveStorageError(
             f"FAILED in active storage {details} ({error}))"
         )
-    else:
-        # Active storage reduction was successful
-        if info:
-            # Do some detailed logging
-            try:
-                md = active.metric_data
-            except AttributeError:
-                logger.info(
-                    f"FINISHED active storage {details}: "
-                    f"{time.time() - start:6.2f}s"
-                )  # pragma: no cover
-            else:
-                logger.info(
-                    f"FINISHED active storage {details}: "
-                    f"dataset chunks: {md['dataset chunks']}, "
-                    f"load nc (s): {md['load nc time']:6.2f}, "
-                    f"indexing (s): {md['indexing time (s)']:6.2f}, "
-                    f"reduction (s): {md['reduction time (s)']:6.2f}, "
-                    f"selection 2 (s): {md['selection 2 time (s)']:6.2f}, "
-                    f"Total: {(time.time() - start):6.2f}s"
-                )  # pragma: no cover
+    # This does not work any more :(
+    #else:
+    #    # Active storage reduction was successful
+    #    if info:
+    #        # Do some detailed logging
+    #        try:
+    #            md = active.metric_data
+    #        except AttributeError:
+    #            logger.info(
+    #                f"FINISHED active storage {details}: "
+    #                f"{time.time() - start:6.2f}s"
+    #            )  # pragma: no cover
+    #        else:
+    #            logger.info(
+    #                f"FINISHED active storage {details}: "
+    #                f"dataset chunks: {md['dataset chunks']}, "
+    #                f"load nc (s): {md['load nc time']:6.2f}, "
+    #                f"indexing (s): {md['indexing time (s)']:6.2f}, "
+    #                f"reduction (s): {md['reduction time (s)']:6.2f}, "
+    #                f"selection 2 (s): {md['selection 2 time (s)']:6.2f}, "
+    #                f"Total: {(time.time() - start):6.2f}s"
+    #            )  # pragma: no cover
 
     # ----------------------------------------------------------------
     # Active storage reduction was a success. Reformat the resulting
