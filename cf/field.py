@@ -7207,6 +7207,17 @@ class Field(mixin.FieldDomain, mixin.PropertiesData, cfdm.Field):
 
                 for x in iterate_over:
                     a = f_latlon.domain_axis(x, key=True, default=None)
+                    if a is None and axis == "area":                        
+                        lon, keyx = f_latlon.auxiliary_coordinate('X', default=(None, None))
+                        lat, keyy = f_latlon.auxiliary_coordinate('Y', default=(None, None))                        
+                    if lat is not None and lon is not None and set(keyx) == set(keyy):
+                        a = f_latlon.get_data_axes(keyx)
+                        axes2.extend(a)
+                            
+                            
+                            
+
+
                     if a is None:
                         raise ValueError(msg.format(x))
 
