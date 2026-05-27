@@ -8,6 +8,7 @@ import cfdm
 import numpy as np
 from cfdm import Constructs, is_log_level_info
 from cfdm.read_write.exceptions import DatasetTypeError
+import ppfive
 
 from cf import __Conventions__, __version__
 from cf.constants import _stash2standard_name
@@ -21,7 +22,7 @@ from cf.functions import abspath
 from cf.functions import atol as cf_atol
 from cf.functions import load_stash2standard_name
 from cf.functions import rtol as cf_rtol
-from cf.umread_lib.umfile import File
+#from cf.umread_lib.umfile import File
 from cf.units import Units
 
 logger = logging.getLogger(__name__)
@@ -3647,7 +3648,8 @@ class UMRead(cfdm.read_write.IORead):
                 storage_protocol=storage_protocol,
                 storage_options=storage_options,
             )
-            for var in f.vars
+            for var in f.values()
+            #            for var in f.vars
         ]
 
         self.dataset_close()
@@ -3776,13 +3778,14 @@ class UMRead(cfdm.read_write.IORead):
         """
         g = getattr(self, "read_vars", {})
 
-        return self._open_um_file(
-            filename,
-            byte_ordering=g.get("byte_ordering"),
-            word_size=g.get("word_size"),
-            fmt=g.get("fmt"),
-            parse=parse,
-        )
+        return ppfive.File(filename)
+#        return self._open_um_file(
+#            filename,
+#            byte_ordering=g.get("byte_ordering"),
+#            word_size=g.get("word_size"),
+#            fmt=g.get("fmt"),
+#            parse=parse,
+#        )
 
     @classmethod
     def dataset_representation(cls, dataset):
