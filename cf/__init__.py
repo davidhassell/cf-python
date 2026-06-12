@@ -97,7 +97,6 @@ __branch_for_xconv2__ = "kerchunk-read"
 _minimum_vn = "1.13.0.0"
 _maximum_vn = "1.13.1.0"
 _cfdm_vn = Version(cfdm.__version__)
-print(_cfdm_vn)
 if _cfdm_vn < Version(_minimum_vn) or _cfdm_vn >= Version(_maximum_vn):
     raise RuntimeError(
         f"cf v{__version__} requires {_minimum_vn}<=cfdm<{_maximum_vn}. "
