@@ -89,6 +89,7 @@ __date__ = "2026-01-19"
 __version__ = "3.19.0"
 __cf_version__ = cfdm.__cf_version__
 __Conventions__ = f"CF-{__cf_version__}"
+__branch_for_xconv2__ = "kerchunk-read"
 
 # Check the version of cfdm (this is worth doing because of the very
 # tight coupling between cf and cfdm, and the risk of bad things
@@ -96,9 +97,17 @@ __Conventions__ = f"CF-{__cf_version__}"
 _minimum_vn = "1.13.0.0"
 _maximum_vn = "1.13.1.0"
 _cfdm_vn = Version(cfdm.__version__)
+print(_cfdm_vn)
 if _cfdm_vn < Version(_minimum_vn) or _cfdm_vn >= Version(_maximum_vn):
     raise RuntimeError(
         f"cf v{__version__} requires {_minimum_vn}<=cfdm<{_maximum_vn}. "
+        f"Got {_cfdm_vn} at {cfdm.__file__}"
+    )
+
+# Temporary check for xconv2 development
+if str(_cfdm_vn) != "1.13.0.0+pyfive.netcdf":
+    raise RuntimeError(
+        f"cf {__version__} requires {_cfdm_vn}. "
         f"Got {_cfdm_vn} at {cfdm.__file__}"
     )
 

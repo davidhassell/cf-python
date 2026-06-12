@@ -82,7 +82,7 @@ class ExtraData(dict):
             typ = self._key_to_type[key]
             if typ == float:
                 c = self._cmp_float_arrays(valsa, valsb)
-            elif type == str:
+            elif typ == str:
                 c = cmp(valsa, valsb)
             else:
                 assert False
