@@ -2092,8 +2092,6 @@ class UMField:
             "byte_ordering": self.byte_ordering,
             "attributes": attributes,
             "unpack": self.unpack,
-            "storage_protocol": self.storage_protocol,
-            "storage_options": self.storage_options,
         }
 
         if len(recs) == 1:

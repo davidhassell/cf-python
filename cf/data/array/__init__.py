@@ -14,4 +14,5 @@ from .raggedindexedarray import RaggedIndexedArray
 from .raggedindexedcontiguousarray import RaggedIndexedContiguousArray
 from .subsampledarray import SubsampledArray
 from .umarray import UMArray
+from .xnetcdfarray import XnetcdfArray
 from .zarrarray import ZarrArray

@@ -26,8 +26,7 @@ class UMArray(
         mask=True,
         unpack=True,
         attributes=None,
-        storage_protocol=None,
-        storage_options=None,
+        filesystem=None,
         source=None,
         copy=True,
     ):
@@ -117,8 +116,7 @@ class UMArray(
             mask=mask,
             unpack=unpack,
             attributes=attributes,
-            storage_protocol=storage_protocol,
-            storage_options=storage_options,
+            filesystem=filesystem,
             source=source,
             copy=copy,
         )

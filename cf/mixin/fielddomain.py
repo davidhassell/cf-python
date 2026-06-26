@@ -2453,14 +2453,14 @@ class FieldDomain:
     @_inplace_enabled(default=False)
     @_manage_log_level_via_verbosity
     def create_latlon_coordinates(
-            self,
-            one_d=True,
-            two_d=True,
-            pole_longitude=None,
-            overwrite=False,
-            cache=True,
-            inplace=False,
-            verbose=None,
+        self,
+        one_d=True,
+        two_d=True,
+        pole_longitude=None,
+        overwrite=False,
+        cache=True,
+        inplace=False,
+        verbose=None,
     ):
         """Create latitude and longitude coordinates.
 
@@ -2615,7 +2615,7 @@ class FieldDomain:
 
         # Remove a 'latitude_longitude' grid mapping (if there is one)
         # from the dictionary, saving it for later.
-        latlon_cr = coordinate_references.pop(
+        cr_latlon = coordinate_references.pop(
             "grid_mapping_name:latitude_longitude", None
         )
         if not coordinate_references:
@@ -2655,88 +2655,38 @@ class FieldDomain:
             # --------------------------------------------------------
             # 1-d lat/lon coordinates
             # --------------------------------------------------------
-            if identity == "grid_mapping_name:healpix":
-                # ----------------------------------------------------
-                # HEALPix
-                # ----------------------------------------------------
-                from ..healpix_utils import _healpix_create_latlon_coordinates
+            match identity:
+                case "grid_mapping_name:healpix":
+                    # ------------------------------------------------
+                    # HEALPix
+                    # ------------------------------------------------
+                    from ..healpix_utils import (
+                        _healpix_create_latlon_coordinates,
+                    )
 
-                lat_key, lon_key = _healpix_create_latlon_coordinates(
-                    f, pole_longitude, cache
-                )
-                coords_created = lat_key is not None
+                    lat_key, lon_key = _healpix_create_latlon_coordinates(
+                        f, pole_longitude, cache
+                    )
+                    coords_created = lat_key is not None
 
         if two_d and not coords_created:
             # --------------------------------------------------------
             # 2-d lat/lon coordinates
             # --------------------------------------------------------
-            proj = None
-            if identity == "grid_mapping_name:rotated_latitude_longitude":
-                key_x, coord_x = self.dimension_coordinate("grid_longitude", item=True)
-                key_y, coord_y = self.dimension_coordinate("grid_latitude", item=True)
-                
-                pole_lat = cr.coordinate_conversion.get_parameter("grid_north_pole_latitude")
-                pole_lon = cr.coordinate_conversion.get_parameter("grid_north_pole_longitude")
-                
-                # 3. Create a clean PyProj transformer under the hood to calculate the 2D matrix
-                import pyproj
-                
-                # Map the CF metadata explicitly to PROJ components
-                # The lon_0=180 parameter handles standard CF South-Pole shift convention
-                proj = pyproj.CRS(
-                    proj="ob_tran",
-                    o_proj="longlat",
-                    o_lon_p=pole_lon,
-                    o_lat_p=pole_lat,
-                    lon_0=180,
-                )
+            from .latlon_utils import _create_2d_latlon_coordinates
 
-            transformer = None
-            if proj is not None:
-                if latlon_cr:
-                    pass
-                else:
-                    # Default sphere
-                    proj_latlon = pyproj.CRS(proj="longlat", ellps="sphere")
-                    
-                transformer = pyproj.Transformer.from_crs(
-                    proj, proj_latlon, always_xy=True
-                )
-                
-            if transformer is not None:
-                # Meshgrid the raw data arrays from your 1D
-                # cf.Coordinate objects
-                lon_2d_mesh, lat_2d_mesh = np.meshgrid(coord_x.array, coord_y.array)
-                true_lon_2d, true_lat_2d = transformer.transform(lon_2d_mesh, lat_2d_mesh)
-                
-                # 4. Turn these 2D numpy arrays into proper CF
-                # Auxiliary Coordinates Identify the axis
-                # names/identifiers from your field to map dimensions
-                # properly
-                aux_lat = cf.AuxiliaryCoordinate(
-                    data=cf.Data(true_lat_2d, "degrees_north"),
-                    properties={"standard_name": "latitude"},
-                )
-                aux_lon = cf.AuxiliaryCoordinate(
-                    data=cf.Data(true_lon_2d, "degrees_east"),
-                    properties={"standard_name": "longitude"},
-                )
-                
-            # 5. Set the newly created 2D auxiliary coordinates back
-            # onto the Field Construct
-            axes = (self.get_data_axes(key_x)[0], self.get_data_axes(key_y)[0])
-            lat_key = field.set_construct(aux_lat, axes=axes, copy=False)
-            lon_key = field.set_construct(aux_lon, axes=axes, copy=False)
-
+            lat_key, lon_key = _create_2d_latlon_coordinates(
+                f, cr, cr_latlon, cache=cache
+            )
             coords_created = lat_key is not None
-            
+
         # ------------------------------------------------------------
         # Update the appropriate coordinate reference with any new
         # coordinate keys
         # ------------------------------------------------------------
         if coords_created:
-            if latlon_cr is not None:
-                latlon_cr.set_coordinates((lat_key, lon_key))
+            if cr_latlon is not None:
+                cr_latlon.set_coordinates((lat_key, lon_key))
             else:
                 cr.set_coordinates((lat_key, lon_key))
 

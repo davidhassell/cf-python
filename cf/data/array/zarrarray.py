@@ -1,15 +1,11 @@
-import cfdm
-
-from ...mixin_container import Container
-
-# Uncomment when we can use active storage on Zarr datasets:
-# from .mixin import ActiveStorageMixin
-
-
-class ZarrArray(
-    # Uncomment when we can use active storage on Zarr datasets:
-    # ActiveStorageMixin,
-    Container,
-    cfdm.ZarrArray,
-):
+class ZarrArray:
     """A Zarr array accessed with `zarr`."""
+
+    def __init__(self, *args, **kwargs):
+        class DeprecationError(Exception):
+            """Deprecation error."""
+
+        raise DeprecationError(
+            f"{self.__class__.__name__} was deprecated at version NEXTVERSION "
+            "and is no longer available. Use XnetcdfArray instead."
+        )

@@ -172,6 +172,7 @@ from .data.array import (
     ScipyNetcdfFileArray,
     SubsampledArray,
     UMArray,
+    XnetcdfArray,
     ZarrArray,
 )
 

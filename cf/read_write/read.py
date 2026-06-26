@@ -461,6 +461,7 @@ class read(cfdm.read):
         file_type=None,
         group_dimension_search="closest_ancestor",
         filesystem=None,
+        legacy_um_backend=False,
     ):
         """Read field or domain constructs from a dataset."""
         kwargs = locals()
@@ -682,93 +683,65 @@ class read(cfdm.read):
         """
         dataset_type = self.dataset_type
 
+        kwargs = self.kwargs
+        legacy_um_backend = bool(kwargs.get("legacy_um_backend"))
+
         # ------------------------------------------------------------
         # Try to read as a netCDF dataset
         # ------------------------------------------------------------
-        super()._read(dataset)
+        if not legacy_um_backend:
+            super()._read(dataset)
 
-        if self.dataset_contents is not None:
-            # Successfully read the dataset
-            return
-
-        # ------------------------------------------------------------
-        # Try to read as a PP/UM dataset
-        # ------------------------------------------------------------
-        if dataset_type is None or dataset_type.intersection(
-            self.UM_dataset_types
-        ):
-            if not hasattr(self, "um_read"):
-                # Initialise the UM read function
-                kwargs = self.kwargs
-                um_kwargs = {
-                    key: kwargs[key]
-                    for key in (
-                        "height_at_top_of_model",
-                        "squeeze",
-                        "unsqueeze",
-                        "domain",
-                        "dataset_type",
-                        "unpack",
-                        "verbose",
-                        "filesystem",
-                        "storage_options",
-                    )
-                }
-                um_kwargs["set_standard_name"] = False
-                um_kwargs["select"] = self.select
-                um = self.um
-                um_kwargs["um_version"] = um.get("version")
-                um_kwargs["fmt"] = um.get("fmt")
-                um_kwargs["word_size"] = um.get("word_size")
-                um_kwargs["endian"] = um.get("endian")
-
-                self.um_read = partial(
-                    UMRead(self.implementation).read, **um_kwargs
-                )
-
-            try:
-                # Try to read the dataset
-                self.dataset_contents = self.um_read(dataset)
-            except DatasetTypeError as error:
-                if dataset_type is None:
-                    self.dataset_format_errors.append(error)
-            else:
+            if self.dataset_contents is not None:
                 # Successfully read the dataset
-                self.unique_dataset_categories.add("UM")
+                return
+
+        else:
+            # ------------------------------------------------------------
+            # Try to read as a PP/UM dataset using the legacy UM backend
+            # ------------------------------------------------------------
+            if dataset_type is None or dataset_type.intersection(
+                self.UM_dataset_types
+            ):
+                if not hasattr(self, "um_read"):
+                    # Initialise the UM read function
+                    kwargs = self.kwargs
+                    um_kwargs = {
+                        key: kwargs[key]
+                        for key in (
+                            "height_at_top_of_model",
+                            "squeeze",
+                            "unsqueeze",
+                            "domain",
+                            "dataset_type",
+                            "unpack",
+                            "verbose",
+                            "filesystem",
+                            "storage_options",
+                        )
+                    }
+                    um_kwargs["set_standard_name"] = False
+                    um_kwargs["select"] = self.select
+                    um = self.um
+                    um_kwargs["um_version"] = um.get("version")
+                    um_kwargs["fmt"] = um.get("fmt")
+                    um_kwargs["word_size"] = um.get("word_size")
+                    um_kwargs["endian"] = um.get("endian")
+
+                    self.um_read = partial(
+                        UMRead(self.implementation).read, **um_kwargs
+                    )
+
+                try:
+                    # Try to read the dataset
+                    self.dataset_contents = self.um_read(dataset)
+                except DatasetTypeError as error:
+                    if dataset_type is None:
+                        self.dataset_format_errors.append(error)
+                else:
+                    # Successfully read the dataset
+                    self.unique_dataset_categories.add("UM")
 
         if self.dataset_contents is not None:
             # Successfully read the dataset
             return
-
-        # ------------------------------------------------------------
-        # Try to read as a GRIB dataset
-        #
-        # Not yet available. When (if!) the time comes, the framework
-        # will be:
-        # ------------------------------------------------------------
-        #
-        # if dataset_type is None or dataset_type.intersection(
-        #     self.GRIB_dataset_types
-        # ):
-        #     if not hasattr(self, "grib_read"):
-        #         # Initialise the GRIB read function
-        #         kwargs = self.kwargs
-        #         grib_kwargs = ...  # <ADD SOME CODE HERE>
-        #
-        #         self.grib_read = partial(
-        #             GRIBRead(self.implementation).read, **grib_kwargs
-        #         )
-        #
-        #     try:
-        #         # Try to read the dataset
-        #         self.dataset_contents = self.grib_read(dataset)
-        #     except DatasetTypeError as error:
-        #         if dataset_type is None:
-        #             self.dataset_format_errors.append(error)
-        #     else:
-        #         # Successfully read the dataset
-        #         self.unique_dataset_categories.add("GRIB")
-        #
-        # if self.dataset_contents is not None:
-        #     # Successfully read the dataset
-        #     return
