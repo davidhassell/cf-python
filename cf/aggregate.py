@@ -2911,6 +2911,7 @@ def aggregate(
 
     for signature in signatures:  # sorted(signatures):
         meta = signatures[signature]
+        print(len(meta))
 
         # Print useful information
         meta[0].print_info()
@@ -3041,8 +3042,9 @@ def aggregate(
 
         # Record the names of the axes that are actually aggregated
         axes_aggregated = []
-
+        print(2222, aggregating_axes)
         for axis in aggregating_axes:
+            print(axis)
             number_of_fields = len(meta)
             if number_of_fields == 1:
                 break
@@ -3085,6 +3087,7 @@ def aggregate(
                 if len(m) == 1:
                     continue
 
+                print ('here 1')
                 # ----------------------------------------------------
                 # Still here? The sort the fields in place by the
                 # canonical first values of their 1-d coordinates for
@@ -3107,8 +3110,10 @@ def aggregate(
                         )
 
                     unaggregatable = True
+                    print('unaggregatable 1')
                     break
 
+                print ('here 2')
                 # ----------------------------------------------------
                 # Still here? Then pass through the fields
                 # ----------------------------------------------------
@@ -3193,6 +3198,7 @@ def aggregate(
                         break
 
                 if not unaggregatable:
+                    print('here 3')
                     # -------------------------------------------------
                     # The aggregation along this axis was successful
                     # for this sub-group, so concatenate all of the
@@ -3215,6 +3221,7 @@ def aggregate(
                     #   0.00035, 0.0012, 0.013, 0.064
                     # ------------------------------------------------
                     field = m0.field
+                    print(field)
                     field_arrays = data_concatenation.pop("field")
                     if field_arrays:
                         # Concatenate the field data

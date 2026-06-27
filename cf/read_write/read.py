@@ -586,10 +586,14 @@ class read(cfdm.read):
         if self.aggregate and len(self.constructs) > 1:
             aggregate_options = self.aggregate_options
 
-            # Set aggregate options for UM fields
+            # Find out if there is at least one field created from UM
+            # data
             UM = False
             for f in self.constructs:
-                um_identity = f.get_property("um_identity",None):
+                if not f.has_property("long_name"):
+                    continue
+                
+                um_identity = f.get_property("um_identity",None)
                 if um_identity is None:
                     continue
                 
@@ -600,12 +604,28 @@ class read(cfdm.read):
                 except AttributeError:
                     pass
 
+            # Set aggregate options wh there is at least one field
+            # created from UM data
             if UM:
                 aggregate_options["field_identity"] = "long_name"
-                aggregate_options["equal"] = ("um_identity",) TODO
+                
+                equal = aggregate_options.get("equal")
+                if equal is  None:
+                    equal = ["um_identity"]
+                else:
+                    if isintance(equal, str):
+                        equal = [equal, "um_identity"]
+                    else:
+                        equal = list(equal) 
+                        equal.append("um_identity")
+
+                aggregate_options["equal"] = equal
+
                 if "strict_units" not in aggregate_options:
                     aggregate_options["relaxed_units"] = True
-                    
+
+
+            print(aggregate_options)
             self.constructs = cf_aggregate(
                 self.constructs, **aggregate_options
             )
