@@ -948,6 +948,8 @@ class UMField:
         if um_condition:
             identity += f"_{um_condition}"
 
+        cf_properties["um_identity"] = identity
+
         if long_name is None:
             cf_properties["long_name"] = identity
 

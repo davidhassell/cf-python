@@ -4587,8 +4587,8 @@ class PropertiesData(Properties):
 
         By default the identity is the first found of the following:
 
-        * The "standard_name" property.
         * The "id" attribute, preceded by ``'id%'``.
+        * The "standard_name" property.
         * The "cf_role" property, preceded by ``'cf_role='``.
         * The "axis" property, preceded by ``'axis='``.
         * The "long_name" property, preceded by ``'long_name='``.
@@ -4671,13 +4671,13 @@ class PropertiesData(Properties):
 
             return default
 
-        n = self.get_property("standard_name", None)
-        if n is not None:
-            return str(n)
-
         n = getattr(self, "id", None)
         if n is not None:
             return f"id%{n}"
+
+        n = self.get_property("standard_name", None)
+        if n is not None:
+            return str(n)
 
         if relaxed:
             if strict:

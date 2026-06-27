@@ -249,6 +249,16 @@ class read(cfdm.read):
 
             .. versionadded:: 1.5
 
+        legacy_um_backend: `bool`, optional
+            If True then read datasets with the legacy UM backend that
+            is embedded within the {{package}} library. This backend
+            was the only backend available prior to version
+            vNEXTVERSION. From vNEXTVERSION onwards, the UM backend
+            provided by `xnetcdf` is used when *legacy_um_backend* is
+            False (the default).
+    
+            .. versionadded:: NEXTVERSION
+
         aggregate: `bool` or `dict`, optional
             If True (the default) or a dictionary (possibly empty)
             then aggregate the field constructs read in from all input
@@ -556,18 +566,18 @@ class read(cfdm.read):
             `None`
 
         """
-        # Whether or not there were only netCDF datasets
-        only_netCDF = self.unique_dataset_categories == set(("netCDF",))
-
-        # Whether or not there were any UM datasets
-        some_UM = "UM" in self.unique_dataset_categories
+        ## Whether or not there were only netCDF datasets
+        #only_netCDF = self.unique_dataset_categories == set(("netCDF",))
+        #
+        ## Whether or not there were any UM datasets
+        #some_UM = "UM" in self.unique_dataset_categories
 
         # ----------------------------------------------------------------
         # Select matching constructs from netCDF datasets (before
         # aggregation)
         # ----------------------------------------------------------------
         select = self.select
-        if select and only_netCDF:
+        if select: # and only_netCDF:
             self.constructs = self.constructs.select_by_identity(*select)
 
         # ----------------------------------------------------------------
@@ -575,30 +585,47 @@ class read(cfdm.read):
         # ----------------------------------------------------------------
         if self.aggregate and len(self.constructs) > 1:
             aggregate_options = self.aggregate_options
-            # Set defaults specific to UM fields
-            if some_UM and "strict_units" not in aggregate_options:
-                aggregate_options["relaxed_units"] = True
 
+            # Set aggregate options for UM fields
+            UM = False
+            for f in self.constructs:
+                um_identity = f.get_property("um_identity",None):
+                if um_identity is None:
+                    continue
+                
+                try:
+                    if um_identity.startswith("UM_"):
+                        UM = True
+                        break
+                except AttributeError:
+                    pass
+
+            if UM:
+                aggregate_options["field_identity"] = "long_name"
+                aggregate_options["equal"] = ("um_identity",) TODO
+                if "strict_units" not in aggregate_options:
+                    aggregate_options["relaxed_units"] = True
+                    
             self.constructs = cf_aggregate(
                 self.constructs, **aggregate_options
             )
 
-        # ----------------------------------------------------------------
-        # Add standard names to non-netCDF fields (after aggregation)
-        # ----------------------------------------------------------------
-        if not only_netCDF:
-            for f in self.constructs:
-                standard_name = f._custom.get("standard_name", None)
-                if standard_name is not None:
-                    f.set_property("standard_name", standard_name, copy=False)
-                    del f._custom["standard_name"]
-
-        # ----------------------------------------------------------------
-        # Select matching constructs from non-netCDF files (after
-        # setting their standard names)
-        # ----------------------------------------------------------------
-        if select and not only_netCDF:
-            self.constructs = self.constructs.select_by_identity(*select)
+#        # ----------------------------------------------------------------
+#        # Add standard names to non-netCDF fields (after aggregation)
+#        # ----------------------------------------------------------------
+#        if not only_netCDF:
+#            for f in self.constructs:
+#                standard_name = f._custom.get("standard_name", None)
+#                if standard_name is not None:
+#                    f.set_property("standard_name", standard_name, copy=False)
+#                    del f._custom["standard_name"]
+#
+#        # ----------------------------------------------------------------
+#        # Select matching constructs from non-netCDF files (after
+#        # setting their standard names)
+#        # ----------------------------------------------------------------
+#        if select and not only_netCDF:
+#            self.constructs = self.constructs.select_by_identity(*select)
 
         super()._finalise()
 
@@ -698,8 +725,17 @@ class read(cfdm.read):
 
         else:
             # ------------------------------------------------------------
-            # Try to read as a PP/UM dataset using the legacy UM backend
+            # Read as a PP/UM dataset using the legacy UM backend
             # ------------------------------------------------------------
+            logger.warning(
+                "The 'legacy_um_backend' parameter will be removed in some "
+                "release after vNEXTVERSION, at which time only the UM "
+                "backend provided by `ppfive` will be available. "
+                "If there are questions about the parsing of UM datasets, "
+                "please raise an issue at "
+                "https://github.com/NCAS-CMS/ppfive/issues"
+            )
+   
             if dataset_type is None or dataset_type.intersection(
                 self.UM_dataset_types
             ):
