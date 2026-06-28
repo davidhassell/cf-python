@@ -250,20 +250,20 @@ class read(cfdm.read):
             .. versionadded:: 1.5
 
         legacy_um_backend: `bool`, optional
-            If True then read datasets with the legacy UM backend that
-            is embedded within the cf library, which was the only
+            If True then read the datasets with the legacy UM backend
+            that is embedded within the cf library, which was the only
             backend available prior to version NEXTVERSION. From
             version NEXTVERSION onwards, the `ppfive` UM backend
             provided by `xnetcdf` is used when *legacy_um_backend* is
             False (the default).
-    
+
             .. note:: The *legacy_um_backend* parameter will
                       eventually be removed, at which time only the
                       `ppfive` UM backend provided by `xnetcdf` will
                       be available. If there are questions about the
                       parsing of UM datasets, please raise an issue at
                       https://github.com/NCAS-CMS/ppfive/issues.
-    
+
             .. versionadded:: NEXTVERSION
 
         aggregate: `bool` or `dict`, optional
@@ -592,11 +592,11 @@ class read(cfdm.read):
                 if UM and non_UM:
                     break
 
-                um_identity = f.get_property("um_identity",None)
+                um_identity = f.get_property("um_identity", None)
                 if um_identity is None:
                     non_UM = True
                     continue
-                
+
                 try:
                     if not um_identity.startswith("UM_"):
                         non_UM = True
@@ -605,22 +605,18 @@ class read(cfdm.read):
                     non_UM = True
                     continue
 
-                if not f.has_property("long_name"):
-                    non_UM = True
-                    continue
-
                 UM = True
-                
+
             if UM and non_UM:
                 self.aggregate = False
                 logger.warning(
                     "Not aggregating fields from a mixture of UM and "
-                    "non-UM sources (a field from a UM source has a "
-                    "a long_name property; and a string-valued um_identity "
-                    "property that starts with 'UM_'). Aggregation may still "
-                    "be possible with cf.aggregate."
-                )            
-                            
+                    "non-UM sources (a field from a UM source has "
+                    "a string-valued um_identity property that starts "
+                    "with 'UM_'). Aggregation may still be possible with "
+                    "cf.aggregate."
+                )
+
         if self.aggregate:
             aggregate_options = self.aggregate_options
 
@@ -631,23 +627,9 @@ class read(cfdm.read):
                 # We can't trust the the standard_name to provide the
                 # identity for UM fields (multiple STASH codes can
                 # have the same standard name), so instead we have to
-                # use the long_name (which in general is taken from
-                # the STASHmaster name) and the um_identity (which
-                # encapsulates the submodel, stash/field code and UM
-                # version).
-                aggregate_options["field_identity"] = "long_name"
-                
-                equal = aggregate_options.get("equal")
-                if equal is  None:
-                    equal = ["um_identity"]
-                else:
-                    if isintance(equal, str):
-                        equal = [equal, "um_identity"]
-                    else:
-                        equal = list(equal) 
-                        equal.append("um_identity")
-                        
-                aggregate_options["equal"] = equal
+                # the um_identity propery (which encapsulates the
+                # submodel, stash/field code and UM version).
+                aggregate_options["field_identity"] = "um_identity"
 
                 if "strict_units" not in aggregate_options:
                     aggregate_options["relaxed_units"] = True
@@ -765,7 +747,7 @@ class read(cfdm.read):
                 "please raise an issue at "
                 "https://github.com/NCAS-CMS/ppfive/issues"
             )
-   
+
             if dataset_type is None or dataset_type.intersection(
                 self.UM_dataset_types
             ):

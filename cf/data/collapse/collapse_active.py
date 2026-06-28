@@ -193,10 +193,15 @@ def active_chunk_function(method, *args, **kwargs):
     address = None
     dataset = x.get_variable(None)
     if dataset is None:
-        # Dateaset is a string, not a variable object.
+        # Dataset is a string, not a variable object.
         storage_options = x.get_storage_options()
         address = x.get_address()
         dataset = x.get_filename()
+    else:
+        if dataset.backend_api not in "pyfive":
+            return
+        x
+        dataset = dataset.backend_accessor
 
     active_kwargs = {
         "dataset": dataset,

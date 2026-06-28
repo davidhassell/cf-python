@@ -345,6 +345,7 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
 # These functions are called by `_create_2d_latlon_coordinates`
 # ====================================================================
 
+
 def _rotated_latitude_longitude(cr):
     """Create a `pyproj.CRS` instance for a coordinate reference.
 
