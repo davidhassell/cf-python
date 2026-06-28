@@ -251,11 +251,18 @@ class read(cfdm.read):
 
         legacy_um_backend: `bool`, optional
             If True then read datasets with the legacy UM backend that
-            is embedded within the {{package}} library. This backend
-            was the only backend available prior to version
-            vNEXTVERSION. From vNEXTVERSION onwards, the UM backend
+            is embedded within the cf library, which was the only
+            backend available prior to version NEXTVERSION. From
+            version NEXTVERSION onwards, the `ppfive` UM backend
             provided by `xnetcdf` is used when *legacy_um_backend* is
             False (the default).
+    
+            .. note:: The *legacy_um_backend* parameter will
+                      eventually be removed, at which time only the
+                      `ppfive` UM backend provided by `xnetcdf` will
+                      be available. If there are questions about the
+                      parsing of UM datasets, please raise an issue at
+                      https://github.com/NCAS-CMS/ppfive/issues.
     
             .. versionadded:: NEXTVERSION
 
@@ -566,47 +573,68 @@ class read(cfdm.read):
             `None`
 
         """
-        ## Whether or not there were only netCDF datasets
-        #only_netCDF = self.unique_dataset_categories == set(("netCDF",))
-        #
-        ## Whether or not there were any UM datasets
-        #some_UM = "UM" in self.unique_dataset_categories
-
         # ----------------------------------------------------------------
         # Select matching constructs from netCDF datasets (before
         # aggregation)
         # ----------------------------------------------------------------
         select = self.select
-        if select: # and only_netCDF:
+        if select:
             self.constructs = self.constructs.select_by_identity(*select)
 
         # ----------------------------------------------------------------
         # Aggregate the output fields or domains
         # ----------------------------------------------------------------
-        if self.aggregate and len(self.constructs) > 1:
-            aggregate_options = self.aggregate_options
-
-            # Find out if there is at least one field created from UM
-            # data
-            UM = False
+        self.aggregate = self.aggregate and len(self.constructs) > 1
+        if self.aggregate:
+            UM = False  # True if there is at least one UM field
+            non_UM = False  # True if there is at least one non-UM field
             for f in self.constructs:
-                if not f.has_property("long_name"):
-                    continue
-                
+                if UM and non_UM:
+                    break
+
                 um_identity = f.get_property("um_identity",None)
                 if um_identity is None:
+                    non_UM = True
                     continue
                 
                 try:
-                    if um_identity.startswith("UM_"):
-                        UM = True
-                        break
+                    if not um_identity.startswith("UM_"):
+                        non_UM = True
+                        continue
                 except AttributeError:
-                    pass
+                    non_UM = True
+                    continue
 
-            # Set aggregate options wh there is at least one field
-            # created from UM data
+                if not f.has_property("long_name"):
+                    non_UM = True
+                    continue
+
+                UM = True
+                
+            if UM and non_UM:
+                self.aggregate = False
+                logger.warning(
+                    "Not aggregating fields from a mixture of UM and "
+                    "non-UM sources (a field from a UM source has a "
+                    "a long_name property; and a string-valued um_identity "
+                    "property that starts with 'UM_'). Aggregation may still "
+                    "be possible with cf.aggregate."
+                )            
+                            
+        if self.aggregate:
+            aggregate_options = self.aggregate_options
+
             if UM:
+                # Set extra aggregate options for fields created from
+                # UM data.
+                #
+                # We can't trust the the standard_name to provide the
+                # identity for UM fields (multiple STASH codes can
+                # have the same standard name), so instead we have to
+                # use the long_name (which in general is taken from
+                # the STASHmaster name) and the um_identity (which
+                # encapsulates the submodel, stash/field code and UM
+                # version).
                 aggregate_options["field_identity"] = "long_name"
                 
                 equal = aggregate_options.get("equal")
@@ -618,34 +646,16 @@ class read(cfdm.read):
                     else:
                         equal = list(equal) 
                         equal.append("um_identity")
-
+                        
                 aggregate_options["equal"] = equal
 
                 if "strict_units" not in aggregate_options:
                     aggregate_options["relaxed_units"] = True
 
-
-            print(aggregate_options)
+            # Do the aggregation
             self.constructs = cf_aggregate(
                 self.constructs, **aggregate_options
             )
-
-#        # ----------------------------------------------------------------
-#        # Add standard names to non-netCDF fields (after aggregation)
-#        # ----------------------------------------------------------------
-#        if not only_netCDF:
-#            for f in self.constructs:
-#                standard_name = f._custom.get("standard_name", None)
-#                if standard_name is not None:
-#                    f.set_property("standard_name", standard_name, copy=False)
-#                    del f._custom["standard_name"]
-#
-#        # ----------------------------------------------------------------
-#        # Select matching constructs from non-netCDF files (after
-#        # setting their standard names)
-#        # ----------------------------------------------------------------
-#        if select and not only_netCDF:
-#            self.constructs = self.constructs.select_by_identity(*select)
 
         super()._finalise()
 
@@ -748,9 +758,9 @@ class read(cfdm.read):
             # Read as a PP/UM dataset using the legacy UM backend
             # ------------------------------------------------------------
             logger.warning(
-                "The 'legacy_um_backend' parameter will be removed in some "
-                "release after vNEXTVERSION, at which time only the UM "
-                "backend provided by `ppfive` will be available. "
+                "The 'legacy_um_backend' parameter will eventually be "
+                "removed, at which time only the `ppfive` UM backend "
+                "provided by `ppfive` will be available. "
                 "If there are questions about the parsing of UM datasets, "
                 "please raise an issue at "
                 "https://github.com/NCAS-CMS/ppfive/issues"
