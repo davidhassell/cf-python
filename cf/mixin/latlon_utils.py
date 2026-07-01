@@ -81,13 +81,36 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # Create the source grid mapping pyproj CRS
     # ----------------------------------------------------------------
     match grid_mapping_name:
+        case "albers_equal_area":
+            proj_src = _albers_equal_area(cr)
+        case "azimuthal_equidistant":
+            proj_src = _azimuthal_equidistant(cr)
+        case "geostationary":
+            proj_src = _geostationary(cr)
+        case "lambert_azimuthal_equal_area":
+            proj_src = _lambert_azimuthal_equal_area(cr)
+        case "lambert_conformal_conic":
+            proj_src = _lambert_conformal_conic(cr)
+        case "lambert_cylindrical_equal_area":
+            proj_src = _lambert_cylindrical_equal_area(cr)
+        case "mercator":
+            proj_src = _mercator(cr)
+        case "oblique_mercator":
+            proj_src = _oblique_mercator(cr)
+        case "orthographic":
+            proj_src = _orthographic(cr)
+        case "polar_stereographic":
+            proj_src = _polar_stereographic(cr)
         case "rotated_latitude_longitude":
             proj_src = _rotated_latitude_longitude(cr)
-        case "healpix" | "reduced_gaussian":
-            raise ValueError(
-                "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}"
-            )
+        case "sinusoidal":
+            proj_src = _sinusoidal(cr)
+        case "stereographic":
+            proj_src = _stereographic(cr)
+        case "transverse_mercator":
+            proj_src = _transverse_mercator(cr)
+        case "vertical_perspective":
+            proj_src = _vertical_perspective(cr)
         case _:
             if is_log_level_info(logger):
                 logger.info(
@@ -111,7 +134,7 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # ----------------------------------------------------------------
     # Create the target latitude_longitude pyproj CRS
     # ----------------------------------------------------------------
-    proj_latlon = _create_latitude_longitude_CRS(cr_latlon)
+    proj_latlon = _latitude_longitude(cr_latlon)
     if proj_latlon is None:
         return (None, None)
 
@@ -355,9 +378,10 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
 # These functions are called by `_create_2d_latlon_coordinates`
 # ====================================================================
 
+def _albers_equal_area(cr):
+    """Create an azimuthal_equidistant CRS.
 
-def _rotated_latitude_longitude(cr):
-    """Create a rotated_latitude_longitude `pyproj.CRS` instance.
+    https://proj.org/en/stable/operations/projections/aea.html
 
     .. versionadded:: NEXTVERSION
 
@@ -373,34 +397,504 @@ def _rotated_latitude_longitude(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "aea",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
 
-    pole_lon = p.get("grid_north_pole_longitude")
+    lat_2 = None
+    standard_parallel = p.get("standard_parallel")
     try:
-        pole_lon = float(pole_lon)
+        lat_1 = standard_parallel[0]
     except Exception:
-        if is_log_level_info(logger):
-            logger.info(
-                "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}: Bad 'grid_north_pole_longitude' parameter: "
-                f"{pole_lon!r}"
-            )  # pragma: no cover
+        lat_1 =     standard_parallel
+    else:
+        try:            
+            lat_2 = standard_parallel[1]
+        except Exception:
+            pass
 
-        return
+    kwargs['lat_1'] = lat_1
+    kwargs['lat_2'] = lat_2
 
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _azimuthal_equidistant(cr):
+    """Create an azimuthal_equidistant CRS.
+
+    https://proj.org/en/stable/operations/projections/aeqd.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "aeqd",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _geostationary(cr):
+    """Create a geostationary CRS.
+
+    https://proj.org/en/stable/operations/projections/geos.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = 
+        "proj": "geos",
+        "h": p.get("perspective_point_height"),
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    sweep_angle_axis = p.get("sweep_angle_axis")
+    fixed_angle_axis = p.get("fixed_angle_axis")
+    match sweep_angle_axis:
+        case 'x':
+            ok = fixed_angle_axis in (None, 'y')
+        case 'y':
+            ok = fixed_angle_axis in (None, 'x')
+        case None:
+            ok = True
+            if fixed_angle_axis == "x":
+                sweep_angle_axis = "y"
+            elif fixed_angle_axis == "y":
+                sweep_angle_axis = "x"
+            else:
+                ok = False
+        case _:
+            ok = False
+
+    if not ok:
+        logger.info(
+            "Can't create 2-d latitude and longitude coordinates "
+            f"for {cr!r}: Bad 'sweep_angle_axis' parameter: "
+            f"{sweep_angle_axis!r}, or bad 'fixed_angle_axis' "
+            f"parameter: {fixed_angle_axis!r}"
+        )  # pragma: no cover
+   
+    kwargs["sweep"] = sweep_angle_axis
+    
+    return _create_proj_CRS(kwargs, cr)
+
+def _lambert_azimuthal_equal_area(cr):
+    """Create a lambert_azimuthal_equal_area CRS.
+
+    https://proj.org/en/stable/operations/projections/laea.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "laea",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _lambert_conformal_conic(cr):
+    """Create a lambert_conformal_conic CRS.
+
+    https://proj.org/en/stable/operations/projections/lcc.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "lcc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    lat_2 = None
+    standard_parallel = p.get("standard_parallel")
+    try:
+        lat_1 = standard_parallel[0]
+    except Exception:
+        lat_1 =     standard_parallel
+    else:
+        try:            
+            lat_2 = standard_parallel[1]
+        except Exception:
+            pass
+
+    kwargs['lat_1'] = lat_1
+    kwargs['lat_2'] = lat_2
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _lambert_cylindrical_equal_area(cr):
+    """Create a lambert_cylindrical_equal_area CRS.
+
+    https://proj.org/en/stable/operations/projections/cea.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "cea",
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+        
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _latitude_longitude(cr):
+    """create a latitude_longitude CRS.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The latitude_longitude coordinate reference construct from
+            which to create the CRS, or `None` if there isn't one (in
+            which case a spherical CRS is created).
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    kwargs = {"proj": "longlat"}
+    if cr is None:
+        kwargs["ellps"] = "sphere"
+        
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _mercator(cr):
+    """Create a mercator CRS.
+
+    https://proj.org/en/stable/operations/projections/merc.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "merc",
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _oblique_mercator(cr):
+    """Create an oblique_mercator CRS.
+
+    https://proj.org/en/stable/operations/projections/omerc.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "omerc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "alpha": p.get("azimuth_of_central_line"),
+        "k_0": p.get("scale_factor_at_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _orthographic(cr):
+    """Create an orthographic CRS.
+
+    https://proj.org/en/stable/operations/projections/ortho.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "ortho",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _polar_stereographic(cr):
+    """Create a polar_stereographic CRS.
+
+    https://proj.org/en/stable/operations/projections/stere.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "stere",
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    longitude_of_projection_origin = p.get("longitude_of_projection_origin") 
+    if longitude_of_projection_origin is not None:
+        kwargs["lon_0"] = longitude_of_projection_origin
+    else:
+        kwargs["lon_0"] = p.get("straight_vertical_longitude_from_pole")
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+
+    latitude_of_projection_origin = p.get("latitude_of_projection_origin")
+    try:
+        ok = latitude_of_projection_origin == -90 or latitude_of_projection_origin == 90
+    except Exception:
+        ok = False
+        
+    if not ok:
+        logger.info(
+            "Can't create 2-d latitude and longitude coordinates "
+            f"for {cr!r}: Bad 'latitude_of_projection_origin' parameter: "
+            f"{latitude_of_projection_origin!r}"
+        )  # pragma: no cover
+        
+    kwargs["lat_0"] = latitude_of_projection_origin
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _rotated_latitude_longitude(cr):
+    """Create a rotated_latitude_longitude CRS`.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "ob_tran",
         "o_proj": "longlat",
         "o_lon_p": p.get("north_pole_grid_longitude", 0),
         "o_lat_p": p.get("grid_north_pole_latitude"),
-        "lon_0": pole_lon + 180,
     }
-    proj = _create_proj_CRS(kwargs, cr)
 
-    return proj
+    grid_north_pole_longitude = p.get("grid_north_pole_longitude")
+    try:
+        kwargs["lon_0"] = float(grid_north_pole_longitude) + 180
+    except Exception:
+        if is_log_level_info(logger):
+            logger.info(
+                "Can't create 2-d latitude and longitude coordinates "
+                f"for {cr!r}: Bad 'grid_north_pole_longitude' parameter: "
+                f"{grid_north_pole_longitude!r}"
+            )  # pragma: no cover
+        
+        return            
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _sinusoidal(cr):
+    """Create a sinusoidal CRS.
+
+    https://proj.org/en/stable/operations/projections/sinu.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "sinu",
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _stereographic(cr):
+    """Create a stereographic CRS.
+
+    https://proj.org/en/stable/operations/projections/stere.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "stere",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "k_0": p.get("scale_factor_at_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
 
 def _transverse_mercator(cr):
-    """Create a transerve_mercator `pyproj.CRS` instance.
+    """Create a tranverse_mercator CRS.
 
+    https://proj.org/en/stable/operations/projections/tmerc.html
+    
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -421,17 +915,47 @@ def _transverse_mercator(cr):
         "lat_0": p.get("latitude_of_projection_origin"),
         "lon_0": p.get("longitude_of_central_meridian"),
         "k_0":   p.get("scale_factor_at_central_meridian"),
-        "x_0":   p.get("false_easting"),
-        "y_0":   p.get("false_northing"),
+        "x_0":   p.get("false_easting", 0),
+        "y_0":   p.get("false_northing", 0),
     }
 
     return _create_proj_CRS(kwargs, cr)
 
-#---------------
 
+def _vertical_perspective(cr):
+    """Create a vertical_perspective CRS.
+
+    https://proj.org/en/stable/operations/projections/nsper.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "nsper",
+        "h": p.get("perspective_point_height"),
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+##########################
 
 def _albers_equal_area(cr):
-    """Create a albers_equal_area `pyproj.CRS` instance.
+    """Create an azimuthal_equidistant CRS.
+
+    https://proj.org/en/stable/operations/projections/aea.html
 
     .. versionadded:: NEXTVERSION
 
@@ -451,49 +975,553 @@ def _albers_equal_area(cr):
         "proj": "aea",
         "lat_0": p.get("latitude_of_projection_origin"),
         "lon_0": p.get("longitude_of_central_meridian"),
-        "x_0": p.get("false_easting"),
-        "y_0": p.get("false_northing"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
     }
 
+    lat_2 = None
     standard_parallel = p.get("standard_parallel")
     try:
         lat_1 = standard_parallel[0]
     except Exception:
         lat_1 =     standard_parallel
     else:
-        
-    kwargs = {
-        "lat_1": p.get("standard_parallel")[0] if isinstance(p.get("standard_parallel"), (list, tuple)) else p.get("standard_parallel"),
-        "lat_2": p.get("standard_parallel")[1] if isinstance(p.get("standard_parallel"), (list, tuple)) and len(p.get("standard_parallel")) > 1 else None,
-    }
+        try:            
+            lat_2 = standard_parallel[1]
+        except Exception:
+            pass
 
-    return _create_proj_CRS(kwargs)
+    kwargs['lat_1'] = lat_1
+    kwargs['lat_2'] = lat_2
+
+    return _create_proj_CRS(kwargs, cr)
 
 
 def _azimuthal_equidistant(cr):
-    """Create a `pyproj.CRS` instance for Azimuthal Equidistant."""
+    """Create an azimuthal_equidistant CRS.
+
+    https://proj.org/en/stable/operations/projections/aeqd.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "aeqd",
         "lat_0": p.get("latitude_of_projection_origin"),
         "lon_0": p.get("longitude_of_projection_origin"),
-        "x_0": p.get("false_easting"),
-        "y_0": p.get("false_northing"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
     }
-    kwargs.update(_extract_datum_parameters(cr))
-    return _create_proj_CRS({k: v for k, v in kwargs.items() if v is not None}, cr)
+
+    return _create_proj_CRS(kwargs, cr)
 
 
 def _geostationary(cr):
-    """Create a `pyproj.CRS` instance for Geostationary Satellite."""
+    """Create a geostationary CRS.
+
+    https://proj.org/en/stable/operations/projections/geos.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
     p = cr.coordinate_conversion.parameters()
-    kwargs = {
+    kwargs = 
         "proj": "geos",
         "h": p.get("perspective_point_height"),
+        "lat_0": p.get("latitude_of_projection_origin"),
         "lon_0": p.get("longitude_of_projection_origin"),
-        "sweep": p.get("sweep_angle_axis"),
-        "x_0": p.get("false_easting"),
-        "y_0": p.get("false_northing"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
     }
-    kwargs.update(_extract_datum_parameters(cr))
-    return _create_proj_CRS({k: v for k, v in kwargs.items() if v is not None}, cr)
+
+    sweep_angle_axis = p.get("sweep_angle_axis")
+    fixed_angle_axis = p.get("fixed_angle_axis")
+    match sweep_angle_axis:
+        case 'x':
+            ok = fixed_angle_axis in (None, 'y')
+        case 'y':
+            ok = fixed_angle_axis in (None, 'x')
+        case None:
+            ok = True
+            if fixed_angle_axis == "x":
+                sweep_angle_axis = "y"
+            elif fixed_angle_axis == "y":
+                sweep_angle_axis = "x"
+            else:
+                ok = False
+        case _:
+            ok = False
+
+    if not ok:
+        logger.info(
+            "Can't create 2-d latitude and longitude coordinates "
+            f"for {cr!r}: Bad 'sweep_angle_axis' parameter: "
+            f"{sweep_angle_axis!r}, or bad 'fixed_angle_axis' "
+            f"parameter: {fixed_angle_axis!r}"
+        )  # pragma: no cover
+   
+    kwargs["sweep"] = sweep_angle_axis
+    
+    return _create_proj_CRS(kwargs, cr)
+
+def _lambert_azimuthal_equal_area(cr):
+    """Create a lambert_azimuthal_equal_area CRS.
+
+    https://proj.org/en/stable/operations/projections/laea.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "laea",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _lambert_conformal_conic(cr):
+    """Create a lambert_conformal_conic CRS.
+
+    https://proj.org/en/stable/operations/projections/lcc.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "lcc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    lat_2 = None
+    standard_parallel = p.get("standard_parallel")
+    try:
+        lat_1 = standard_parallel[0]
+    except Exception:
+        lat_1 =     standard_parallel
+    else:
+        try:            
+            lat_2 = standard_parallel[1]
+        except Exception:
+            pass
+
+    kwargs['lat_1'] = lat_1
+    kwargs['lat_2'] = lat_2
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _lambert_cylindrical_equal_area(cr):
+    """Create a lambert_cylindrical_equal_area CRS.
+
+    https://proj.org/en/stable/operations/projections/cea.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "cea",
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+        
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _latitude_longitude(cr):
+    """create a latitude_longitude CRS.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The latitude_longitude coordinate reference construct from
+            which to create the CRS, or `None` if there isn't one (in
+            which case a spherical CRS is created).
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    kwargs = {"proj": "longlat"}
+    if cr is None:
+        kwargs["ellps"] = "sphere"
+        
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _mercator(cr):
+    """Create a mercator CRS.
+
+    https://proj.org/en/stable/operations/projections/merc.html
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "merc",
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _oblique_mercator(cr):
+    """Create an oblique_mercator CRS.
+
+    https://proj.org/en/stable/operations/projections/omerc.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "omerc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "alpha": p.get("azimuth_of_central_line"),
+        "k_0": p.get("scale_factor_at_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _orthographic(cr):
+    """Create an orthographic CRS.
+
+    https://proj.org/en/stable/operations/projections/ortho.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "ortho",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _polar_stereographic(cr):
+    """Create a polar_stereographic CRS.
+
+    https://proj.org/en/stable/operations/projections/stere.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "stere",
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    longitude_of_projection_origin = p.get("longitude_of_projection_origin") 
+    if longitude_of_projection_origin is not None:
+        kwargs["lon_0"] = longitude_of_projection_origin
+    else:
+        kwargs["lon_0"] = p.get("straight_vertical_longitude_from_pole")
+
+    standard_parallel = p.get("standard_parallel")
+    if standard_parallel is not None:
+        kwargs["lat_ts"] = standard_parallel
+    else:
+        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+
+    latitude_of_projection_origin = p.get("latitude_of_projection_origin")
+    try:
+        ok = latitude_of_projection_origin == -90 or latitude_of_projection_origin == 90
+    except Exception:
+        ok = False
+        
+    if not ok:
+        logger.info(
+            "Can't create 2-d latitude and longitude coordinates "
+            f"for {cr!r}: Bad 'latitude_of_projection_origin' parameter: "
+            f"{latitude_of_projection_origin!r}"
+        )  # pragma: no cover
+        
+    kwargs["lat_0"] = latitude_of_projection_origin
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _rotated_latitude_longitude(cr):
+    """Create a rotated_latitude_longitude CRS`.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "ob_tran",
+        "o_proj": "longlat",
+        "o_lon_p": p.get("north_pole_grid_longitude", 0),
+        "o_lat_p": p.get("grid_north_pole_latitude"),
+    }
+
+    grid_north_pole_longitude = p.get("grid_north_pole_longitude")
+    try:
+        kwargs["lon_0"] = float(grid_north_pole_longitude) + 180
+    except Exception:
+        if is_log_level_info(logger):
+            logger.info(
+                "Can't create 2-d latitude and longitude coordinates "
+                f"for {cr!r}: Bad 'grid_north_pole_longitude' parameter: "
+                f"{grid_north_pole_longitude!r}"
+            )  # pragma: no cover
+        
+        return            
+
+    return _create_proj_CRS(kwargs, cr)
+
+def _sinusoidal(cr):
+    """Create a sinusoidal CRS.
+
+    https://proj.org/en/stable/operations/projections/sinu.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "sinu",
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _stereographic(cr):
+    """Create a stereographic CRS.
+
+    https://proj.org/en/stable/operations/projections/stere.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "stere",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "k_0": p.get("scale_factor_at_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
+def _transverse_mercator(cr):
+    """Create a tranverse_mercator CRS.
+
+    https://proj.org/en/stable/operations/projections/tmerc.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+
+    kwargs = {
+        "proj": "tmerc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "k_0":   p.get("scale_factor_at_central_meridian"),
+        "x_0":   p.get("false_easting", 0),
+        "y_0":   p.get("false_northing", 0),
+    }
+
+    return _create_proj_CRS(kwargs, cr)
+
+
+def _vertical_perspective(cr):
+    """Create a vertical_perspective CRS.
+
+    https://proj.org/en/stable/operations/projections/nsper.html
+    
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "nsper",
+        "h": p.get("perspective_point_height"),
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting", 0),
+        "y_0": p.get("false_northing", 0),
+    }
+    return _create_proj_CRS(kwargs, cr)
+
