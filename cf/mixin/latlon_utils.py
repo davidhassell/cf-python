@@ -211,6 +211,10 @@ def _create_proj_CRS(kwargs, cr):
     """
     import pyproj
 
+    # Create the pyproj.CRS keywword arguments, which include
+    # parameters for describing the ellipsoid
+    kwargs = _get_ellipsoid_parameters(cr) | kwargs
+    
     # Remove `None` values
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
@@ -220,14 +224,39 @@ def _create_proj_CRS(kwargs, cr):
         if is_log_level_info(logger):
             logger.info(
                 "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}: Bad grid mapping parameters: "
-                f"{cr.coordinate_conversion.parameters()!r}"
+                f"for {cr!r}: Bad pyproj.CRS parameters: {kwargs}"
             )  # pragma: no cover
-
+            
         return
 
     return proj
 
+def _get_ellipsoid_parameters(cr):
+    """TODO"""
+    kwargs = {}
+    if cr is None:
+        return kwargs
+    
+    parameters = cr_latlon.coordinate_conversion.parameters()
+    
+    if "earth_radius" in parameters:
+        kwargs["R"] = parameters.get("earth_radius")
+    elif "semi_major_axis" in parameters:
+        kwargs["a"] = parameters.get("semi_major_axis")
+        kwargs["rf"] = parameters.get("inverse_flattening")
+        kwargs["b"] = parameters.get("semi_minor_axis")
+    elif "reference_ellipsoid_name" in parameters:
+        kwargs["ellps"] = parameters.get("reference_ellipsoid_name")
+    else:
+        kwargs["ellps"] = "sphere"
+        
+    if "longitude_of_prime_meridian" in parameters:
+        kwargs["pm"] = parameters.get("longitude_of_prime_meridian", 0)
+    elif "prime_meridian_name" in parameters:
+        kwargs["pm"] = parameters.get("prime_meridian_name")
+
+    return kwargs
+            
 
 def _create_latitude_longitude_CRS(cr_latlon):
     """Create a latitude_longitude `pyproj.CRS` instance.
@@ -247,27 +276,8 @@ def _create_latitude_longitude_CRS(cr_latlon):
 
     """
     kwargs = {"proj": "longlat"}
-
     if cr_latlon is None:
         kwargs["ellps"] = "sphere"
-    else:
-        parameters = cr_latlon.coordinate_conversion.parameters()
-
-        if "earth_radius" in parameters:
-            kwargs["R"] = parameters.get("earth_radius")
-        elif "semi_major_axis" in parameters:
-            kwargs["a"] = parameters.get("semi_major_axis")
-            kwargs["rf"] = parameters.get("inverse_flattening")
-            kwargs["b"] = parameters.get("semi_minor_axis")
-        elif "reference_ellipsoid_name" in parameters:
-            kwargs["ellps"] = parameters.get("reference_ellipsoid_name")
-        else:
-            kwargs["ellps"] = "sphere"
-
-        if "longitude_of_prime_meridian" in parameters:
-            kwargs["pm"] = parameters.get("longitude_of_prime_meridian", 0)
-        elif "prime_meridian_name" in parameters:
-            kwargs["pm"] = parameters.get("prime_meridian_name")
 
     return _create_proj_CRS(kwargs, cr_latlon)
 
@@ -347,35 +357,32 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
 
 
 def _rotated_latitude_longitude(cr):
-    """Create a `pyproj.CRS` instance for a coordinate reference.
+    """Create a rotated_latitude_longitude `pyproj.CRS` instance.
 
     .. versionadded:: NEXTVERSION
 
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct that references the 1-d
-            coordinates.
-
+            The coordinate reference construct.
+    
     :Returns:
 
         `pyproj.CRS`
             The created CRS, or `None` if one couldn't be created.
 
     """
-    parameters = cr.coordinate_conversion.parameters()
+    p = cr.coordinate_conversion.parameters()
 
-    pole_lat = parameters.get("grid_north_pole_latitude")
-    pole_lon = parameters.get("grid_north_pole_longitude")
-    npgl = parameters.get("north_pole_grid_longitude", 0)
-
+    pole_lon = p.get("grid_north_pole_longitude")
     try:
         pole_lon = float(pole_lon)
     except Exception:
         if is_log_level_info(logger):
             logger.info(
                 "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}: Bad grid mapping parameters: {parameters!r}"
+                f"for {cr!r}: Bad 'grid_north_pole_longitude' parameter: "
+                f"{pole_lon!r}"
             )  # pragma: no cover
 
         return
@@ -383,10 +390,110 @@ def _rotated_latitude_longitude(cr):
     kwargs = {
         "proj": "ob_tran",
         "o_proj": "longlat",
-        "o_lon_p": npgl,
-        "o_lat_p": pole_lat,
+        "o_lon_p": p.get("north_pole_grid_longitude", 0),
+        "o_lat_p": p.get("grid_north_pole_latitude"),
         "lon_0": pole_lon + 180,
     }
     proj = _create_proj_CRS(kwargs, cr)
 
     return proj
+
+def _transverse_mercator(cr):
+    """Create a transerve_mercator `pyproj.CRS` instance.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+
+    kwargs = {
+        "proj": "tmerc",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "k_0":   p.get("scale_factor_at_central_meridian"),
+        "x_0":   p.get("false_easting"),
+        "y_0":   p.get("false_northing"),
+    }
+
+    return _create_proj_CRS(kwargs, cr)
+
+#---------------
+
+
+def _albers_equal_area(cr):
+    """Create a albers_equal_area `pyproj.CRS` instance.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference`
+            The coordinate reference construct.
+    
+    :Returns:
+
+        `pyproj.CRS`
+            The created CRS, or `None` if one couldn't be created.
+
+    """
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "aea",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_central_meridian"),
+        "x_0": p.get("false_easting"),
+        "y_0": p.get("false_northing"),
+    }
+
+    standard_parallel = p.get("standard_parallel")
+    try:
+        lat_1 = standard_parallel[0]
+    except Exception:
+        lat_1 =     standard_parallel
+    else:
+        
+    kwargs = {
+        "lat_1": p.get("standard_parallel")[0] if isinstance(p.get("standard_parallel"), (list, tuple)) else p.get("standard_parallel"),
+        "lat_2": p.get("standard_parallel")[1] if isinstance(p.get("standard_parallel"), (list, tuple)) and len(p.get("standard_parallel")) > 1 else None,
+    }
+
+    return _create_proj_CRS(kwargs)
+
+
+def _azimuthal_equidistant(cr):
+    """Create a `pyproj.CRS` instance for Azimuthal Equidistant."""
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "aeqd",
+        "lat_0": p.get("latitude_of_projection_origin"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "x_0": p.get("false_easting"),
+        "y_0": p.get("false_northing"),
+    }
+    kwargs.update(_extract_datum_parameters(cr))
+    return _create_proj_CRS({k: v for k, v in kwargs.items() if v is not None}, cr)
+
+
+def _geostationary(cr):
+    """Create a `pyproj.CRS` instance for Geostationary Satellite."""
+    p = cr.coordinate_conversion.parameters()
+    kwargs = {
+        "proj": "geos",
+        "h": p.get("perspective_point_height"),
+        "lon_0": p.get("longitude_of_projection_origin"),
+        "sweep": p.get("sweep_angle_axis"),
+        "x_0": p.get("false_easting"),
+        "y_0": p.get("false_northing"),
+    }
+    kwargs.update(_extract_datum_parameters(cr))
+    return _create_proj_CRS({k: v for k, v in kwargs.items() if v is not None}, cr)

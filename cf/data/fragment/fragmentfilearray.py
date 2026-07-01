@@ -12,19 +12,3 @@ class FragmentFileArray(
     .. versionadded:: 3.17.0
 
     """
-    TODO - fragmentxnetcdfarray and activestorage
-    def __new__(cls, *args, **kwargs):
-        """Store fragment classes.
-
-        .. versionadded:: 3.17.0
-
-        """
-        # Import fragment classes. Do this here (as opposed to outside
-        # the class) to aid subclassing.
-        from .fragmentumarray import FragmentUMArray
-
-        instance = super().__new__(cls)
-        instance._FragmentArrays = instance._FragmentArrays + (
-            FragmentUMArray,
-        )
-        return instance
