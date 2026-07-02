@@ -2673,9 +2673,9 @@ class FieldDomain:
             # --------------------------------------------------------
             # 2-d lat/lon coordinates
             # --------------------------------------------------------
-            from .latlon_utils import _create_2d_latlon_coordinates
+            from .utils import create_2d_latlon_coordinates
 
-            lat_key, lon_key = _create_2d_latlon_coordinates(
+            lat_key, lon_key = create_2d_latlon_coordinates(
                 f, cr, cr_latlon, cache=cache
             )
             coords_created = lat_key is not None
