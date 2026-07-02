@@ -143,12 +143,14 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # ----------------------------------------------------------------
     x = one_d["x"]
     y = one_d["y"]
-    lon_2d_mesh, lat_2d_mesh = np.meshgrid(x.array, y.array)
+    x = x.to_units('m')
+    y = x.to_units('m')
+    x_mesh, y_mesh = np.meshgrid(x.array, y.array)
 
     transformer = pyproj.Transformer.from_crs(
-        proj_src, proj_latlon, always_xy=True
+        proj_src, proj_latlon, always_xy=True, errcheck=True, radians=False
     )
-    lon_2d, lat_2d = transformer.transform(lon_2d_mesh, lat_2d_mesh)
+    lon_2d, lat_2d = transformer.transform(x_mesh, y_mesh)
 
     # ----------------------------------------------------------------
     # Create the 2-d lat/lon bounds from 1-d grid coordinate bounds
@@ -164,10 +166,11 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
         xb = np.append(xb[:, 0], xb[-1, 1])
         yb = np.append(yb[:, 0], yb[-1, 1])
 
-        lon_2d_mesh, lat_2d_mesh = np.meshgrid(xb, yb)
+        x_mesh, y_mesh = np.meshgrid(xb, yb)
+        del xb, yb
 
         lon_2d_vertices, lat_2d_vertices = transformer.transform(
-            lon_2d_mesh, lat_2d_mesh
+            x_mesh, y_mesh
         )
 
         shape = (y.size, x.size, 4)
