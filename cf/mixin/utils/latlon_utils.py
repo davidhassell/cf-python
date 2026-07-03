@@ -27,7 +27,7 @@ from .grid_mapping import (
 logger = logging.getLogger(__name__)
 
 
-def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
+def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     """Create 2-d latitude and longitude coordinates and bounds.
 
     When it is not possible to create latitude and longitude
@@ -42,8 +42,8 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     :Parameters:
 
         f: `Field` or `Domain`
-            The Field or Domain containing the ??? grid, which will be
-            updated in-place.
+            The Field or Domain, which will be updated in-place,
+            containing non-latitude_longitude grid.
 
         cr: `CoordinateReference`
             The coordinate reference construct for the
@@ -68,7 +68,7 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
 
         (`str`, `str`) or (`None`, `None`)
             The keys of the new 2-d latitude and longitude coordinate
-            constructs, in that order, or two `None`s if the 2-d
+            constructs, in that order; or two `None`s if the 2-d
             coordinates could not be created.
 
     """
@@ -102,36 +102,39 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # Create the source grid mapping pyproj CRS
     # ----------------------------------------------------------------
     match grid_mapping_name:
-        case "albers_equal_area":
-            proj_src = albers_equal_area(cr)
-        case "azimuthal_equidistant":
-            proj_src = azimuthal_equidistant(cr)
-        case "geostationary":
-            proj_src = geostationary(cr)
-        case "lambert_azimuthal_equal_area":
-            proj_src = lambert_azimuthal_equal_area(cr)
-        case "lambert_conformal_conic":
-            proj_src = lambert_conformal_conic(cr)
-        case "lambert_cylindrical_equal_area":
-            proj_src = lambert_cylindrical_equal_area(cr)
-        case "mercator":
-            proj_src = mercator(cr)
-        case "oblique_mercator":
-            proj_src = oblique_mercator(cr)
-        case "orthographic":
-            proj_src = orthographic(cr)
-        case "polar_stereographic":
-            proj_src = polar_stereographic(cr)
+        # The commented-out grid mappings do not yet have unit tests,
+        # and so are not yet available.
+        
+        # case "albers_equal_area":
+        #     proj_src = albers_equal_area(cr)
+        # case "azimuthal_equidistant":            
+        #     proj_src = azimuthal_equidistant(cr)
+        # case "geostationary":
+        #     proj_src = geostationary(cr)
+        # case "lambert_azimuthal_equal_area":
+        #     proj_src = lambert_azimuthal_equal_area(cr)
+        # case "lambert_conformal_conic":
+        #     proj_src = lambert_conformal_conic(cr)
+        # case "lambert_cylindrical_equal_area":
+        #     proj_src = lambert_cylindrical_equal_area(cr)
+        # case "mercator":
+        #     proj_src = mercator(cr)
+        # case "oblique_mercator":
+        #     proj_src = oblique_mercator(cr)
+        # case "orthographic":
+        #     proj_src = orthographic(cr)
+        # case "polar_stereographic":
+        #     proj_src = polar_stereographic(cr)
         case "rotated_latitude_longitude":
-            proj_src = rotated_latitude_longitude(cr)
-        case "sinusoidal":
-            proj_src = sinusoidal(cr)
-        case "stereographic":
-            proj_src = stereographic(cr)
-        case "transverse_mercator":
-            proj_src = transverse_mercator(cr)
-        case "vertical_perspective":
-            proj_src = vertical_perspective(cr)
+             proj_src = rotated_latitude_longitude(cr)
+        # case "sinusoidal":
+        #     proj_src = sinusoidal(cr)
+        # case "stereographic":
+        #     proj_src = stereographic(cr)
+        # case "transverse_mercator":
+        #     proj_src = transverse_mercator(cr)
+        # case "vertical_perspective":
+        #     proj_src = vertical_perspective(cr)
         case _:
             if is_log_level_info(logger):
                 logger.info(
@@ -241,26 +244,26 @@ def _create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
 
 
 def _get_1d_coordinates(f, cr, grid_mapping_name):
-    """Get 1-d coordinates and axes.
-
+    """Get 1-d dimension coordinates and axes.
+    
     .. versionadded:: NEXTVERSION
 
     :Parameters:
 
         f: `Field` or `Domain`
-            The Field or Domain containing the 1-d coordinates.
+            The Field or Domain containing the 1-d dimension
+            coordinates.
 
         cr: `CoordinateReference`
-            The coordinate reference construct that implies the 1-d
-            coordinates.
+            The coordinate reference construct that defines or implies
+            the 1-d dimension coordinates.
 
         grid_mapping_name: `str`
             The grid_mapping_name parameter of *cr*.
 
     :Returns:
 
-        `dict`
-
+        `dict` or `None`
             The 1-d coordinates and axes in the following dictionary
             keys:
 
@@ -269,22 +272,25 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
             * ``'axis_x'``: The X domain axis construct key
             * ``'axis_y'``: The Y domain axis construct key
 
+            If both 1-d dimension coordinates could not be found then
+            `None` is returned.
+
     """
     x = None
     y = None
 
     # Look for 1-d coordinates named by the coordinate reference
     for key in cr.coordinates():
-        c = f.dimension_construct(f"key%{key}", default=None)
-        if c is None:
+        dc = f.dimension_coordinate(f"key%{key}", default=None)
+        if dc is None:
             continue
 
-        if c.X:
+        if dc.X:
             key_x = key
-            x = c
-        elif c.Y:
+            x = dc
+        elif dc.Y:
             key_y = key
-            y = c
+            y = dc
 
     if x is None and y is None:
         # Look for 1-d coordinates by identity

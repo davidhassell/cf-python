@@ -2530,8 +2530,8 @@ class FieldDomain:
         :Returns:
 
             `{{class}}` or `None`
-                A new {{class}}, with new latitude and longitude
-                constructs if any could be created. If the operation
+                The {{class}} with new latitude and longitude
+                constructs, if any could be created. If the operation
                 was in-place then `None` is returned.
 
         **Examples**
