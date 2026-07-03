@@ -1,4 +1,4 @@
-"""Utilities for creating `proj.CRS` instances."""
+"""Utilities for creating `pyproj.CRS` instances."""
 
 import logging
 
@@ -21,7 +21,7 @@ def get_ellipsoid_parameters(cr):
     :Returns:
 
         `dict`
-            The `proj.CRS` ellpsoid parameters.
+            The `pyproj.CRS` ellpsoid parameters.
 
     """
     kwargs = {}

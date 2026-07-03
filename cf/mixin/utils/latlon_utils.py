@@ -5,6 +5,8 @@ import logging
 import numpy as np
 from cfdm import is_log_level_info
 
+from cf import Units
+
 from .grid_mapping import (
     albers_equal_area,
     azimuthal_equidistant,
@@ -104,10 +106,10 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     match grid_mapping_name:
         # The commented-out grid mappings do not yet have unit tests,
         # and so are not yet available.
-        
+
         # case "albers_equal_area":
         #     proj_src = albers_equal_area(cr)
-        # case "azimuthal_equidistant":            
+        # case "azimuthal_equidistant":
         #     proj_src = azimuthal_equidistant(cr)
         # case "geostationary":
         #     proj_src = geostationary(cr)
@@ -126,7 +128,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
         # case "polar_stereographic":
         #     proj_src = polar_stereographic(cr)
         case "rotated_latitude_longitude":
-             proj_src = rotated_latitude_longitude(cr)
+            proj_src = rotated_latitude_longitude(cr)
         # case "sinusoidal":
         #     proj_src = sinusoidal(cr)
         # case "stereographic":
@@ -168,16 +170,23 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # ----------------------------------------------------------------
     x = one_d["x"]
     y = one_d["y"]
-    x = x.to_units("m")
-    y = x.to_units("m")
+
+    metres = Units("m")
+    if x.Units.equivalent(metres):
+        x = x.to_units(metres)
+
+    if y.Units.equivalent(metres):
+        y = y.to_units(metres)
 
     # Create x and y 2-d meshes of cell centres
     x_mesh, y_mesh = np.meshgrid(x.array, y.array)
 
     transformer = pyproj.Transformer.from_crs(
-        proj_src, proj_latlon, always_xy=True, errcheck=True, radians=False
+        proj_src, proj_latlon, always_xy=True
     )
-    lon, lat = transformer.transform(x_mesh, y_mesh)
+    lon, lat = transformer.transform(
+        x_mesh, y_mesh, errcheck=True, radians=False
+    )
 
     lat = f._Data(lat, "degrees_north")
     lon = f._Data(lon, "degrees_east")
@@ -245,7 +254,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
 
 def _get_1d_coordinates(f, cr, grid_mapping_name):
     """Get 1-d dimension coordinates and axes.
-    
+
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -317,6 +326,10 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
             )  # pragma: no cover
 
         return
+
+    # Make sure the 1-d coordinates are referenced from the coordinate
+    # reference
+    cr.set_coordinates((key_x, key_y))
 
     return {
         "x": x,
