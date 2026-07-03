@@ -1927,6 +1927,7 @@ class FieldDomain:
 
         return domain_axis
 
+    
     def coordinate_reference_domain_axes(self, identity=None):
         """Return the domain axes that apply to a coordinate reference
         construct.
@@ -2450,6 +2451,15 @@ class FieldDomain:
 
         return f
 
+    @_inplace_enabled(default=False)
+    @_manage_log_level_via_verbosity
+    def create_projection_coordinates(self
+        overwrite=False,
+        cache=True,
+        inplace=False,
+        verbose=None):
+        """TODO"""
+        
     @_inplace_enabled(default=False)
     @_manage_log_level_via_verbosity
     def create_latlon_coordinates(

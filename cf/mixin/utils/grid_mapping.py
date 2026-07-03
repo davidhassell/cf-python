@@ -88,13 +88,13 @@ def create_proj_CRS(kwargs, cr):
     try:
         proj = pyproj.CRS(**kwargs)
     except Exception:
+        proj = None
         if is_log_level_info(logger):
             logger.info(
-                "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}: Bad pyproj.CRS parameters: {kwargs!r}"
+                f"Can't create a pyproj.CRS for {cr!r}: "
+                f"Bad pyproj.CRS parameters: {kwargs!r}"
             )  # pragma: no cover
 
-        return
 
     return proj
 
@@ -230,10 +230,9 @@ def geostationary(cr):
 
     if not ok:
         logger.info(
-            "Can't create 2-d latitude and longitude coordinates "
-            f"for {cr!r}: Bad 'sweep_angle_axis' parameter: "
-            f"{sweep_angle_axis!r}, or bad 'fixed_angle_axis' "
-            f"parameter: {fixed_angle_axis!r}"
+            f"Can't create coordinates for {cr!r}: "
+            f"Bad 'sweep_angle_axis' parameter: {sweep_angle_axis!r}, "
+            f"or bad 'fixed_angle_axis' parameter: {fixed_angle_axis!r}"
         )  # pragma: no cover
 
     kwargs["sweep"] = sweep_angle_axis
@@ -515,8 +514,8 @@ def polar_stereographic(cr):
 
     if not ok:
         logger.info(
-            "Can't create 2-d latitude and longitude coordinates "
-            f"for {cr!r}: Bad 'latitude_of_projection_origin' parameter: "
+            f"Can't create coordinates for {cr!r}: "
+            "Bad 'latitude_of_projection_origin' parameter: "
             f"{latitude_of_projection_origin!r}"
         )  # pragma: no cover
 
@@ -555,8 +554,8 @@ def rotated_latitude_longitude(cr):
     except Exception:
         if is_log_level_info(logger):
             logger.info(
-                "Can't create 2-d latitude and longitude coordinates "
-                f"for {cr!r}: Bad 'grid_north_pole_longitude' parameter: "
+                f"Can't create coordinates for {cr!r}: "
+                "Bad 'grid_north_pole_longitude' parameter: "
                 f"{grid_north_pole_longitude!r}"
             )  # pragma: no cover
 
