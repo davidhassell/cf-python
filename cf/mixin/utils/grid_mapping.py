@@ -1,4 +1,74 @@
-"""Utilities for creating `pyproj.CRS` instances."""
+"""Utilities for creating `pyproj.CRS` instances.
+
+:Glossary:
+
+Defintions of `pyproj.CRS` parameters that map to CF grid mapping
+parameters. See https://proj.org/en/stable/operations/projections for
+details.
+
+* a: Semi-major axis of the ellipsoid.
+
+* alpha: Azimuth of centerline clockwise from north at the center
+         point of the line. If gamma is not given then alpha
+         determines the value of gamma.
+
+* b: Semi-minor axis of the ellipsoid.
+
+* ellps: The name of a built-in ellipsoid definition.
+
+* f: Flattening of the ellipsoid.
+
+* h: Height of the view point above the Earth and must be in the same
+     units as the radius of the sphere or semimajor axis of the
+     ellipsoid.
+
+* k_0: Scale factor. Determines scale factor used in the projection.
+
+* lat_0: Latitude of natural origin, latitude of false origin or
+         latitude of projection centre (naming and meaning depend on
+         the projection method).
+
+* lat_1: First standard parallel.
+
+* lat_2: Second standard parallel.
+
+* lat_ts: Defines the latitude where scale is not distorted. It is
+          only taken into account for Polar Stereographic formulations
+          (lat_0 = +/- 90 ), and then defaults to the lat_0 value. If
+          set to a value different from +/- 90, it takes precedence
+          over k_0 if both options are used together.
+
+* lon_0: Central meridian/longitude of natural origin, longitude of
+         origin or longitude of false origin (naming and meaning
+         depend on the projection method).
+
+* o_lat_p: Latitude of the North pole of the unrotated source CRS,
+           expressed in the rotated geographic CRS.
+
+* o_lon_p: Longitude of the North pole of the unrotated source CRS,
+           expressed in the rotated geographic CRS.
+
+* o_proj: Oblique projection.
+
+* pm: Prime meridian.
+
+* R: Radius of the sphere, given in meters. If used in conjunction
+     with ellps, R takes precedence.
+
+* rf: Reverse flattening of the ellipsoid, 1/f
+
+* sweep: Sweep angle axis of the viewing instrument. Valid options are
+         "x" and "y".
+
+* y_0: False northing, northing at false origin or northing at
+       projection centre (naming and meaning depend on the projection
+       method). Always in meters.
+
+* x_0: False easting, easting at false origin or easting at projection
+       centre (naming and meaning depend on the projection
+       method). Always in meters.
+
+"""
 
 import logging
 
@@ -7,8 +77,12 @@ from cfdm import is_log_level_info
 logger = logging.getLogger(__name__)
 
 
-def get_ellipsoid_parameters(cr):
+def _get_ellipsoid_parameters(cr):
     """Get ellipsoid parmaeters from a coordinate reference construct.
+
+    https://proj.org/en/stable/usage/ellipsoids.html
+
+    https://proj.org/en/stable/usage/projections.html
 
     .. versionadded:: NEXTVERSION
 
@@ -55,7 +129,7 @@ def get_ellipsoid_parameters(cr):
     return kwargs
 
 
-def create_proj_CRS(kwargs, cr):
+def _create_pyproj_CRS(kwargs, cr):
     """Create a `pyproj.CRS` instance.
 
     .. versionadded:: NEXTVERSION
@@ -80,21 +154,20 @@ def create_proj_CRS(kwargs, cr):
 
     # Create the `pyproj.CRS` keywword arguments, which include
     # parameters for describing the ellipsoid
-    kwargs = get_ellipsoid_parameters(cr) | kwargs
+    kwargs = _get_ellipsoid_parameters(cr) | kwargs
 
     # Remove `None` values
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
     try:
         proj = pyproj.CRS(**kwargs)
-    except Exception:
-        proj = None
+    except Exception as error:
         if is_log_level_info(logger):
             logger.info(
-                f"Can't create a pyproj.CRS for {cr!r}: "
-                f"Bad pyproj.CRS parameters: {kwargs!r}"
+                f"Can't create a pyproj.CRS for {cr!r}: {error}"
             )  # pragma: no cover
 
+        return
 
     return proj
 
@@ -102,8 +175,6 @@ def create_proj_CRS(kwargs, cr):
 # ====================================================================
 # Functions for creating `pyproj.CRS` instances for each CF grid
 # mapping type.
-#
-# These functions are called by `_create_2d_latlon_coordinates`.
 # ====================================================================
 
 
@@ -149,7 +220,7 @@ def albers_equal_area(cr):
     kwargs["lat_1"] = lat_1
     kwargs["lat_2"] = lat_2
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def azimuthal_equidistant(cr):
@@ -179,7 +250,7 @@ def azimuthal_equidistant(cr):
         "y_0": p.get("false_northing", 0),
     }
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def geostationary(cr):
@@ -229,15 +300,18 @@ def geostationary(cr):
             ok = False
 
     if not ok:
-        logger.info(
-            f"Can't create coordinates for {cr!r}: "
-            f"Bad 'sweep_angle_axis' parameter: {sweep_angle_axis!r}, "
-            f"or bad 'fixed_angle_axis' parameter: {fixed_angle_axis!r}"
-        )  # pragma: no cover
+        if is_log_level_info(logger):
+            logger.info(
+                f"Can't create coordinates for {cr!r}: "
+                f"Bad 'sweep_angle_axis' parameter: {sweep_angle_axis!r}, "
+                f"or bad 'fixed_angle_axis' parameter: {fixed_angle_axis!r}"
+            )  # pragma: no cover
+
+        return
 
     kwargs["sweep"] = sweep_angle_axis
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def lambert_azimuthal_equal_area(cr):
@@ -266,7 +340,7 @@ def lambert_azimuthal_equal_area(cr):
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def lambert_conformal_conic(cr):
@@ -311,7 +385,7 @@ def lambert_conformal_conic(cr):
     kwargs["lat_1"] = lat_1
     kwargs["lat_2"] = lat_2
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def lambert_cylindrical_equal_area(cr):
@@ -346,7 +420,7 @@ def lambert_cylindrical_equal_area(cr):
     else:
         kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def latitude_longitude(cr):
@@ -368,7 +442,7 @@ def latitude_longitude(cr):
 
     """
     kwargs = {"proj": "longlat"}
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def mercator(cr):
@@ -403,7 +477,7 @@ def mercator(cr):
     else:
         kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def oblique_mercator(cr):
@@ -434,7 +508,7 @@ def oblique_mercator(cr):
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def orthographic(cr):
@@ -463,7 +537,7 @@ def orthographic(cr):
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def polar_stereographic(cr):
@@ -513,19 +587,24 @@ def polar_stereographic(cr):
         ok = False
 
     if not ok:
-        logger.info(
-            f"Can't create coordinates for {cr!r}: "
-            "Bad 'latitude_of_projection_origin' parameter: "
-            f"{latitude_of_projection_origin!r}"
-        )  # pragma: no cover
+        if is_log_level_info(logger):
+            logger.info(
+                f"Can't create coordinates for {cr!r}: "
+                "Bad 'latitude_of_projection_origin' parameter: "
+                f"{latitude_of_projection_origin!r}"
+            )  # pragma: no cover
+
+        return
 
     kwargs["lat_0"] = latitude_of_projection_origin
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def rotated_latitude_longitude(cr):
     """Create a rotated_latitude_longitude CRS`.
+
+    https://proj.org/en/stable/operations/projections/ob_tran.html
 
     .. versionadded:: NEXTVERSION
 
@@ -561,7 +640,7 @@ def rotated_latitude_longitude(cr):
 
         return
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def sinusoidal(cr):
@@ -590,7 +669,7 @@ def sinusoidal(cr):
         "y_0": p.get("false_northing", 0),
     }
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def stereographic(cr):
@@ -620,7 +699,7 @@ def stereographic(cr):
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def transverse_mercator(cr):
@@ -652,7 +731,7 @@ def transverse_mercator(cr):
         "y_0": p.get("false_northing", 0),
     }
 
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
 
 
 def vertical_perspective(cr):
@@ -682,4 +761,65 @@ def vertical_perspective(cr):
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
-    return create_proj_CRS(kwargs, cr)
+    return _create_pyproj_CRS(kwargs, cr)
+
+
+def create_projection_CRS(cr, grid_mapping_name):
+    """Create a projection CRS.
+
+    .. versionadded:: NEXTVERSION
+
+    :Parameters:
+
+        cr: `CoordinateReference` or `None`
+            The coordinate reference construct that defines the
+            projection, or `None` if the there isn't one and the
+            projection is latitude_longitude.
+
+        grid_mapping_name: `str`
+            The ``grid_mapping_name`` parameter of *cr*. Mut be
+            ``'latitude_longitude'`` if *cr* is `None`.
+
+    :Returns:
+
+        `pyproj.CRS` or `None`
+            The projection CRS, or `None` if it coulcn't be created.
+
+    """
+    match grid_mapping_name:
+        case "albers_equal_area":
+            proj = albers_equal_area(cr)
+        case "azimuthal_equidistant":
+            proj = azimuthal_equidistant(cr)
+        case "geostationary":
+            proj = geostationary(cr)
+        case "lambert_azimuthal_equal_area":
+            proj = lambert_azimuthal_equal_area(cr)
+        case "lambert_conformal_conic":
+            proj = lambert_conformal_conic(cr)
+        case "lambert_cylindrical_equal_area":
+            proj = lambert_cylindrical_equal_area(cr)
+        case "latitude_longitude":
+            proj = latitude_longitude(cr)
+        case "mercator":
+            proj = mercator(cr)
+        case "oblique_mercator":
+            proj = oblique_mercator(cr)
+        case "orthographic":
+            proj = orthographic(cr)
+        case "polar_stereographic":
+            proj = polar_stereographic(cr)
+        case "rotated_latitude_longitude":
+            proj = rotated_latitude_longitude(cr)
+        case "sinusoidal":
+            proj = sinusoidal(cr)
+        case "stereographic":
+            proj = stereographic(cr)
+        case "transverse_mercator":
+            proj = transverse_mercator(cr)
+        case "vertical_perspective":
+            proj = vertical_perspective(cr)
+        case _:
+            proj = None
+
+    return proj
