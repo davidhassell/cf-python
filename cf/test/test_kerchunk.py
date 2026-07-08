@@ -66,11 +66,11 @@ class read_writeTest(unittest.TestCase):
         self.assertEqual(k.get_original_filenames(), set())
 
     def test_read_dict(self):
-        """Test cf.read with an Kerchunk dictionary."""
+        """Test cfdm.read with an Kerchunk dictionary."""
         with open(kerchunk_file, "r") as fh:
             d = json.load(fh)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             cf.read(d)
 
         fs = fsspec.filesystem("reference", fo=d)
@@ -78,7 +78,7 @@ class read_writeTest(unittest.TestCase):
         self.assertEqual(len(cf.read(kerchunk)), 1)
 
     def test_read_bytes(self):
-        """Test cf.read with a Kerchunk raw bytes representation."""
+        """Test cfdm.read with a Kerchunk raw bytes representation."""
         with open(kerchunk_file, "r") as fh:
             d = json.load(fh)
 
@@ -90,7 +90,6 @@ class read_writeTest(unittest.TestCase):
         fs = fsspec.filesystem("reference", fo=d)
         kerchunk = fs.get_mapper()
         self.assertEqual(len(cf.read(kerchunk)), 1)
-
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())

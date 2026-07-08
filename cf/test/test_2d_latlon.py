@@ -26,7 +26,7 @@ class LatLon2dTest(unittest.TestCase):
         self.assertFalse(f.auxiliary_coordinates())
 
         self.assertIsNone(f.create_latlon_coordinates(inplace=True))
-        
+
         # Compare the 2-d lat/lon corodinates against
         # known-to-be-correct values
         lat = f.auxiliary_coordinate("latitude")

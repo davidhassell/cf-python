@@ -54,26 +54,19 @@ class ppTest(unittest.TestCase):
     def test_PP_read_um(self):
         f = cf.read(self.ppextradata)[0]
 
-        g = cf.read(self.ppextradata, um={"fmt": "pp"})[0]
+        g = cf.read(self.ppextradata)[0]
         self.assertTrue(f.equals(g))
 
-        for vn in (4.5, 405, "4.5"):
-            g = cf.read(self.ppextradata, um={"fmt": "pp", "version": vn})[0]
-            self.assertTrue(f.equals(g))
+        g = cf.read(self.ppextradata, um={"um_version": "4.5"})[0]
+        self.assertTrue(f.equals(g))
 
         p = cf.read("wgdos_packed.pp")[0]
         p0 = cf.read(
             "wgdos_packed.pp",
-            um={
-                "fmt": "PP",
-                "endian": "little",
-                "word_size": 4,
-                "version": 4.5,
-                "height_at_top_of_model": 23423.65,
-            },
+            um={"um_version": "4.5", "height_at_top_of_model": 23423.65},
         )[0]
 
-        self.assertTrue(p.equals(p0, verbose=2))
+        self.assertTrue(p.equals(p0))
 
     def test_load_stash2standard_name(self):
         f = cf.read(self.ppfile)[0]
@@ -85,7 +78,7 @@ class ppTest(unittest.TestCase):
             f = cf.read(self.ppfile)[0]
             self.assertEqual(f.identity(), "NEW_NAME")
             self.assertEqual(f.Units, cf.Units("Pa"))
-            cf.load_stash2standard_name()
+            cf.load_stash2standard_name(reset=True)
             f = cf.read(self.ppfile)[0]
             self.assertEqual(f.identity(), "eastward_wind")
             self.assertEqual(f.Units, cf.Units("m s-1"))
@@ -117,7 +110,7 @@ class ppTest(unittest.TestCase):
             g = cf.read(tmpfile)[0]
 
             self.assertTrue((f.array == array).all())
-            self.assertTrue(f.equals(g, verbose=2))
+            self.assertTrue(f.equals(g))
 
     def test_PP_extra_data(self):
         f = cf.read(self.ppextradata)[0]
@@ -128,9 +121,9 @@ class ppTest(unittest.TestCase):
         sites = f.dimension_coordinate("long_name=site")
         self.assertTrue(np.allclose(sites, [1, 2, 3]))
 
-        regions = f.auxiliary_coordinate("region").array
+        regions = f.auxiliary_coordinate("region")
         self.assertEqual(
-            regions.tolist(),
+            regions.array.tolist(),
             ["Northern Hemisphere", "Southern Hemisphere", "Global"],
         )
 
@@ -142,7 +135,7 @@ class ppTest(unittest.TestCase):
         f = cf.read(self.ppfile)[0]
         self.assertEqual(f.get_property("um_version"), "11.0")
 
-        f = cf.read(self.ppfile, um={"version": "6.6.3"})[0]
+        f = cf.read(self.ppfile, um={"um_version": "6.6.3"})[0]
         self.assertEqual(f.get_property("um_version"), "6.6.3")
 
     # def test_PP_file_object(self):

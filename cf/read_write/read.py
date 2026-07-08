@@ -94,16 +94,12 @@ class read(cfdm.read):
 
     **PP and UM fields files**
 
-    32-bit and 64-bit PP and UM fields files of any endian-ness can be
-    read. In nearly all cases the file format is auto-detected from
-    the first 64 bits in the file, but for the few occasions when this
-    is not possible, the *um* keyword allows the format to be
-    specified, as well as the UM version (if the latter is not
-    inferrable from the PP or lookup header information).
+    32-bit and 64-bit Met Office (UK) PP files and Met Office (UK)
+    fields files of any endian-ness can be read.
 
-    2-d "slices" within a single file are always combined, where
-    possible, into field constructs with 3-d, 4-d or 5-d data. This is
-    done prior to any field construct aggregation (see the *aggregate*
+    2-d "slices" within a single file are combined, where possible,
+    into field constructs with 3-d, 4-d or 5-d data. This is done
+    prior to any field construct aggregation (see the *aggregate*
     parameter).
 
     When reading PP and UM fields files, the *relaxed_units* aggregate
@@ -176,76 +172,7 @@ class read(cfdm.read):
 
         {{read warnings: `bool`, optional}}
 
-        um: `dict`, optional
-            For Met Office (UK) PP files and Met Office (UK) fields
-            files only, provide extra decoding instructions. This
-            option is ignored for input files which are not PP or
-            fields files. In most cases, how to decode a file is
-            inferrable from the file's contents, but if not then each
-            key/value pair in the dictionary sets a decoding option as
-            follows:
-
-            * ``'fmt'``: `str`
-
-              The file format (``'PP'`` or  ``'FF'``)
-
-            * ``'word_size'``: `int`
-
-              The word size in bytes (``4`` or ``8``).
-
-            * ``'endian'``: `str`
-
-              The byte order (``'big'`` or ``'little'``).
-
-            * ``'version'``: `int` or `str`
-
-              The UM version to be used when decoding the
-              header. Valid versions are, for example, ``4.2``,
-              ``'6.6.3'`` and ``'8.2'``. In general, a given version
-              is ignored if it can be inferred from the header (which
-              is usually the case for files created by the UM at
-              versions 5.3 and later). The exception to this is when
-              the given version has a third element (such as the 3 in
-              6.6.3), in which case any version in the header is
-              ignored. The default version is ``4.5``.
-
-            * ``'height_at_top_of_model'``: `float`
-
-              The height in metres of the upper bound of the top model
-              level. By default the height at top model is taken from
-              the top level's upper bound defined by BRSVD1 in the
-              lookup header. If the height can't be determined from
-              the header, or the given height is less than or equal to
-              0, then a coordinate reference system will still be
-              created that contains the 'a' and 'b' formula term
-              values, but without an atmosphere hybrid height
-              dimension coordinate construct.
-
-              .. note:: A current limitation is that if pseudolevels
-                        and atmosphere hybrid height coordinates are
-                        defined by same the lookup headers then the
-                        height **can't be determined
-                        automatically**. In this case the height may
-                        be found after reading as the maximum value of
-                        the bounds of the domain ancillary construct
-                        containing the 'a' formula term. The file can
-                        then be re-read with this height as a *um*
-                        parameter.
-
-            If format is specified as ``'PP'`` then the word size and
-            byte order default to ``4`` and ``'big'`` respectively.
-
-            This parameter replaces the deprecated *umversion* and
-            *height_at_top_of_model* parameters.
-
-            *Parameter example:*
-              To specify that the input files are 32-bit, big-endian
-              PP files: ``um={'fmt': 'PP'}``
-
-            *Parameter example:*
-              To specify that the input files are 32-bit,
-              little-endian PP files from version 5.1 of the UM:
-              ``um={'fmt': 'PP', 'endian': 'little', 'version': 5.1}``
+        {{read um: `dict` or `None`, optional}}
 
             .. versionadded:: 1.5
 
@@ -253,16 +180,17 @@ class read(cfdm.read):
             If True then read the datasets with the legacy UM backend
             that is embedded within the cf library, which was the only
             backend available prior to version NEXTVERSION. From
-            version NEXTVERSION onwards, the `ppfive` UM backend
+            version NEXTVERSION onwards, the `umfive` UM backend
             provided by `xnetcdf` is used when *legacy_um_backend* is
             False (the default).
 
-            .. note:: The *legacy_um_backend* parameter will
-                      eventually be removed, at which time only the
-                      `ppfive` UM backend provided by `xnetcdf` will
-                      be available. If there are questions about the
-                      parsing of UM datasets, please raise an issue at
-                      https://github.com/NCAS-CMS/ppfive/issues.
+            .. note:: The *legacy_um_backend* parameter will be
+                      removed at a future version, at which time only
+                      the `umfive` UM backend (provided via `xnetcdf`)
+                      will be available. If there are questions about
+                      the parsing of UM datasets, please raise an
+                      issue at
+                      https://github.com/NCAS-CMS/umfive/issues.
 
             .. versionadded:: NEXTVERSION
 
@@ -314,9 +242,13 @@ class read(cfdm.read):
 
             .. versionadded:: 3.11.0
 
-        {{read netcdf_backend: `None` or (sequence of) `str`, optional}}
+        {{read backend: `None` or (sequence of) `str`, optional}}
 
-            .. versionadded:: 3.17.0
+            .. versionadded:: (cfdm) NEXTVERSION
+
+        {{read backend_options: `None` or `dict`, optional}}
+
+            .. versionadded:: (cfdm) NEXTVERSION
 
         {{read storage_options: `dict` or `None`, optional}}
 
@@ -387,6 +319,9 @@ class read(cfdm.read):
 
         file_type: deprecated at version 3.18.0
             Use the *dataset_type* parameter instead.
+
+        netcdf_backend: Deprecated at version NEXTVERSION
+            Use *backend* instead.
 
     :Returns:
 
@@ -469,7 +404,8 @@ class read(cfdm.read):
         cfa=None,
         cfa_write=None,
         to_memory=None,
-        netcdf_backend=None,
+        backend=None,
+        backend_options=None,
         storage_options=None,
         cache=True,
         chunks="auto",
@@ -479,6 +415,7 @@ class read(cfdm.read):
         group_dimension_search="closest_ancestor",
         filesystem=None,
         legacy_um_backend=False,
+        netcdf_backend=None,
     ):
         """Read field or domain constructs from a dataset."""
         kwargs = locals()
@@ -730,22 +667,17 @@ class read(cfdm.read):
         # ------------------------------------------------------------
         if not legacy_um_backend:
             super()._read(dataset)
-
-            if self.dataset_contents is not None:
-                # Successfully read the dataset
-                return
-
         else:
             # ------------------------------------------------------------
             # Read as a PP/UM dataset using the legacy UM backend
             # ------------------------------------------------------------
             logger.warning(
-                "The 'legacy_um_backend' parameter will eventually be "
-                "removed, at which time only the `ppfive` UM backend "
-                "provided by `ppfive` will be available. "
+                "The 'legacy_um_backend' parameter will be removed "
+                "at a future version, at which time only the `umfive` "
+                "UM backend (provided via `xnetcdf`) will be available. "
                 "If there are questions about the parsing of UM datasets, "
                 "please raise an issue at "
-                "https://github.com/NCAS-CMS/ppfive/issues"
+                "https://github.com/NCAS-CMS/umfive/issues"
             )
 
             if dataset_type is None or dataset_type.intersection(
@@ -789,7 +721,3 @@ class read(cfdm.read):
                 else:
                     # Successfully read the dataset
                     self.unique_dataset_categories.add("UM")
-
-        if self.dataset_contents is not None:
-            # Successfully read the dataset
-            return

@@ -357,7 +357,7 @@ class read_writeTest(unittest.TestCase):
                     tmpfile,
                     fmt=fmt,
                     mode="a",
-                    netcdf_backend="netCDF4",
+                    backend="netCDF4",
                 )
                 f = cf.read(tmpfile)
 
@@ -443,21 +443,21 @@ class read_writeTest(unittest.TestCase):
                 tmpfile,
                 fmt=fmt,
                 mode="a",
-                netcdf_backend="netCDF4",
+                backend="netCDF4",
             )  # 2. now append
             f = cf.read(tmpfile)
             self.assertEqual(len(f), overall_length)
 
             # Also test the mode="r+" alias for mode="a".
             cf.write(
-                g, tmpfile, fmt=fmt, mode="w", netcdf_backend="netCDF4"
+                g, tmpfile, fmt=fmt, mode="w", backend="netCDF4"
             )  # 1. overwrite to wipe
             cf.write(
                 append_ex_fields,
                 tmpfile,
                 fmt=fmt,
                 mode="r+",
-                netcdf_backend="netCDF4",
+                backend="netCDF4",
             )  # 2. now append
             f = cf.read(tmpfile)
             self.assertEqual(len(f), overall_length)
@@ -560,10 +560,10 @@ class read_writeTest(unittest.TestCase):
 
             # Check behaviour when append identical fields, as an edge case:
             cf.write(
-                g, tmpfile, fmt=fmt, mode="w", netcdf_backend="netCDF4"
+                g, tmpfile, fmt=fmt, mode="w", backend="netCDF4"
             )  # 1. overwrite to wipe
             cf.write(
-                g_copy, tmpfile, fmt=fmt, mode="a", netcdf_backend="netCDF4"
+                g_copy, tmpfile, fmt=fmt, mode="a", backend="netCDF4"
             )  # 2. now append
             f = cf.read(tmpfile)
             self.assertEqual(len(f), 2)
@@ -653,7 +653,7 @@ class read_writeTest(unittest.TestCase):
             else:
                 backend = None
 
-            g = cf.read(tmpfile, netcdf_backend=backend)[0]
+            g = cf.read(tmpfile, backend=backend)[0]
             domain_axes = g.domain_axes()
             self.assertTrue(domain_axes["domainaxis0"].nc_is_unlimited(), fmt)
 
@@ -869,7 +869,7 @@ class read_writeTest(unittest.TestCase):
         f = self.f1
         cf.write(f, tmpfile)
 
-        cf.write(f, tmpfile, omit_data="all", netcdf_backend="netCDF4")
+        cf.write(f, tmpfile, omit_data="all", backend="netCDF4")
         g = cf.read(tmpfile)
         self.assertEqual(len(g), 1)
         g = g[0]
@@ -885,7 +885,7 @@ class read_writeTest(unittest.TestCase):
             f,
             tmpfile,
             omit_data=("field", "dimension_coordinate"),
-            netcdf_backend="netCDF4",
+            backend="netCDF4",
         )
         g = cf.read(tmpfile)[0]
 
@@ -895,7 +895,7 @@ class read_writeTest(unittest.TestCase):
         self.assertFalse(np.ma.count(g.construct("grid_latitude").array))
         self.assertTrue(np.ma.count(g.construct("latitude").array))
 
-        cf.write(f, tmpfile, omit_data="field", netcdf_backend="netCDF4")
+        cf.write(f, tmpfile, omit_data="field", backend="netCDF4")
         g = cf.read(tmpfile)[0]
 
         # Check that only the field data are missing
@@ -909,7 +909,7 @@ class read_writeTest(unittest.TestCase):
         """Test reading remote url."""
         for scheme in ("http", "https"):
             remote = f"{scheme}:///psl.noaa.gov/thredds/dodsC/Datasets/cru/crutem5/Monthlies/air.mon.anom.nobs.nc"
-            f = cf.read(remote, netcdf_backend="netCDF4")
+            f = cf.read(remote, backend="netCDF4")
             self.assertEqual(len(f), 1)
 
     @unittest.skipUnless(
@@ -981,19 +981,19 @@ class read_writeTest(unittest.TestCase):
             z = cf.read(zarr_dataset, dataset_type="Zarr")
             self.assertEqual(len(z), 1)
 
-    def test_write_netcdf_backend(self):
-        """Test cf.write with different netCDF backends."""
+    def test_write_backend(self):
+        """Test cf.write with different backends."""
         f = self.f0
 
-        cf.write(f, tmpfile0, netcdf_backend="h5netcdf-h5py")
-        cf.write(f, tmpfile1, netcdf_backend="netCDF4")
+        cf.write(f, tmpfile0, backend="h5netcdf-h5py")
+        cf.write(f, tmpfile1, backend="netCDF4")
         f0 = cf.read(tmpfile0)[0]
         f1 = cf.read(tmpfile1)[0]
         self.assertTrue(f1.equals(f0))
 
         f = cf.read(filename)
-        cf.write(f, tmpfile0, netcdf_backend="h5netcdf-h5py")
-        cf.write(f, tmpfile1, netcdf_backend="netCDF4")
+        cf.write(f, tmpfile0, backend="h5netcdf-h5py")
+        cf.write(f, tmpfile1, backend="netCDF4")
         f0 = cf.read(tmpfile0)[0]
         f1 = cf.read(tmpfile1)[0]
         self.assertTrue(f1.equals(f0))
@@ -1001,17 +1001,15 @@ class read_writeTest(unittest.TestCase):
         # Bad fmt/backend combinations
         for backend in ("netCDF4", "h5netcdf-h5py"):
             with self.assertRaises(ValueError):
-                cf.write(f, tmpfile, fmt="ZARR3", netcdf_backend=backend)
+                cf.write(f, tmpfile, fmt="ZARR3", backend=backend)
 
         for backend in ("zarr", "h5netcdf-h5py"):
             with self.assertRaises(ValueError):
-                cf.write(
-                    f, tmpfile, fmt="NETCDF3_CLASSIC", netcdf_backend=backend
-                )
+                cf.write(f, tmpfile, fmt="NETCDF3_CLASSIC", backend=backend)
 
         for backend in ("zarr",):
             with self.assertRaises(ValueError):
-                cf.write(f, tmpfile, fmt="NETCDF4", netcdf_backend=backend)
+                cf.write(f, tmpfile, fmt="NETCDF4", backend=backend)
 
     def test_write_h5py_options(self):
         """Test cf.write with h5py_options."""
@@ -1026,7 +1024,7 @@ class read_writeTest(unittest.TestCase):
         cf.write(
             f,
             tmpfile1,
-            netcdf_backend="h5netcdf-h5py",
+            backend="h5netcdf-h5py",
             h5py_options=h5py_options,
         )
         self.assertTrue(os.path.getsize(tmpfile1) > size)
@@ -1039,7 +1037,7 @@ class read_writeTest(unittest.TestCase):
             cf.write(
                 f,
                 tmpfile0,
-                netcdf_backend="netCDF4",
+                backend="netCDF4",
                 h5py_options=h5py_options,
             )
 
@@ -1053,7 +1051,7 @@ class read_writeTest(unittest.TestCase):
         f = self.f0
 
         cf.write(f, tmpfile, fmt="NETCDF3_CLASSIC")
-        g = cf.read(tmpfile, netcdf_backend="netcdf_file")[0]
+        g = cf.read(tmpfile, backend="netcdf_file")[0]
 
         self.assertTrue(g.equals(f))
 

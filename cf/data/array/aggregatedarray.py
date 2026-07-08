@@ -19,5 +19,5 @@ class AggregatedArray(Container, cfdm.AggregatedArray):
         """
         # Override the inherited FragmentFileArray class
         instance = super().__new__(cls)
-        instance._FragmentArray["uri"] = FragmentFileArray
+        instance._AggregatedArray__FragmentArray["uri"] = FragmentFileArray
         return instance

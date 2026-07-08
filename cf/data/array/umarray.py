@@ -71,14 +71,6 @@ class UMArray(
 
                 .. versionadded:: 3.16.3
 
-            {{init storage_protocol: `None` or `str`, optional}}
-
-                .. versionadded:: 3.20.0
-
-            {{init storage_options: `dict` or `None`, optional}}
-
-                .. versionadded:: 3.20.0
-
             {{init source: optional}}
 
             {{init copy: `bool`, optional}}
@@ -106,6 +98,12 @@ class UMArray(
             calendar: `str` or `None`, optional
                 Deprecated at version 3.16.3. Use the
                 *attributes* parameter instead.
+
+            storage_protocol: Deprecated at version NEXTVERSION
+                Use *filesystem* instead.
+
+            storage_protocol: Deprecated at version NEXTVERSION
+                Use *filesystem* instead.
 
         """
         super().__init__(

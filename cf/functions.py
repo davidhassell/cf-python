@@ -2469,7 +2469,9 @@ def equivalent(x, y, rtol=None, atol=None, traceback=False):
     )
 
 
-def load_stash2standard_name(table=None, delimiter="!", merge=True):
+def load_stash2standard_name(
+    table=None, delimiter="!", merge=True, reset=False
+):
     """Load a STASH to standard name conversion table from a file.
 
     This used when reading PP and UM fields files.
@@ -2502,7 +2504,7 @@ def load_stash2standard_name(table=None, delimiter="!", merge=True):
 
     :Parameters:
 
-        table: `str`, optional
+        table: `str` or `None`, optional
             Use the conversion table at this file location. By default
             the table will be looked for at
             ``os.path.join(os.path.dirname(cf.__file__),'etc/STASH_to_CF.txt')``
@@ -2521,8 +2523,7 @@ def load_stash2standard_name(table=None, delimiter="!", merge=True):
             into the existing table, overwriting any entries which
             already exist.
 
-            If *table* is `None` then *merge* is taken as False,
-            regardless of its given value.
+
 
     :Returns:
 
@@ -2538,121 +2539,17 @@ def load_stash2standard_name(table=None, delimiter="!", merge=True):
     >>> cf.load_stash2standard_name('my_table4.txt', merge=False)
 
     """
-    import csv
-    import re
+    try:
+        import umfive
+    except Exception:
+        return
 
-    # 0  Model
-    # 1  STASH code
-    # 2  STASH name
-    # 3  units
-    # 4  valid from UM vn
-    # 5  valid to   UM vn
-    # 6  standard_name
-    # 7  CF extra info
-    # 8  PP extra info
-    # Number matching regular expression
-    number_regex = r"([-+]?\d*\.?\d+(e[-+]?\d+)?)"
-
-    if table is None:
-        # Use default conversion table
-        merge = False
-        package_path = os.path.dirname(__file__)
-        table = os.path.join(package_path, "etc/STASH_to_CF.txt")
-    else:
-        # User supplied table
-        table = abspath(os.path.expanduser(os.path.expandvars(table)))
-
-    with open(table, "r") as open_table:
-        lines = csv.reader(
-            open_table, delimiter=delimiter, skipinitialspace=True
-        )
-        lines = list(lines)
-
-    raw_list = []
-    [raw_list.append(line) for line in lines]
-
-    # Get rid of comments
-    for line in raw_list[:]:
-        if line[0].startswith("#"):
-            raw_list.pop(0)
-            continue
-
-        break
-
-    # Convert to a dictionary which is keyed by (submodel, STASHcode)
-    # tuples
-    (
-        model,
-        stash,
-        name,
-        units,
-        valid_from,
-        valid_to,
-        standard_name,
-        cf,
-        pp,
-    ) = list(range(9))
-
-    stash2sn = {}
-    for x in raw_list:
-        key = (int(x[model]), int(x[stash]))
-
-        if not x[units]:
-            x[units] = None
-
-        try:
-            cf_info = {}
-            if x[cf]:
-                for d in x[7].split():
-                    if d.startswith("height="):
-                        cf_info["height"] = re.split(
-                            number_regex, d, re.IGNORECASE
-                        )[1:4:2]
-                        if cf_info["height"] == "":
-                            cf_info["height"][1] = "1"
-
-                    if d.startswith("below_"):
-                        cf_info["below"] = re.split(
-                            number_regex, d, re.IGNORECASE
-                        )[1:4:2]
-                        if cf_info["below"] == "":
-                            cf_info["below"][1] = "1"
-
-                    if d.startswith("where_"):
-                        cf_info["where"] = d.replace("where_", "where ", 1)
-                    if d.startswith("over_"):
-                        cf_info["over"] = d.replace("over_", "over ", 1)
-
-            x[cf] = cf_info
-        except IndexError:
-            pass
-
-        try:
-            x[valid_from] = float(x[valid_from])
-        except ValueError:
-            x[valid_from] = None
-
-        try:
-            x[valid_to] = float(x[valid_to])
-        except ValueError:
-            x[valid_to] = None
-
-        x[pp] = x[pp].rstrip()
-
-        line = (x[name:],)
-
-        if key in stash2sn:
-            stash2sn[key] += line
-        else:
-            stash2sn[key] = line
-
-    if not merge:
-        _stash2standard_name.clear()
-
-    _stash2standard_name.update(stash2sn)
+    umfive.load_stash_table(
+        table=table, delimiter=delimiter, merge=merge, reset=reset
+    )
 
 
-def stash2standard_name():
+def stash2standard_name(reset=False):
     """Return a copy of the loaded STASH to standard name conversion
     table.
 
@@ -2661,7 +2558,12 @@ def stash2standard_name():
     .. seealso:: `load_stash2standard_name`
 
     """
-    return _stash2standard_name.copy()
+    try:
+        import umfive
+    except Exception:
+        return {}
+
+    return umfive.stash_table(reset=reset)
 
 
 def flat(x):

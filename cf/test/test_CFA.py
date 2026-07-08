@@ -287,8 +287,8 @@ class CFATest(unittest.TestCase):
             self.assertEqual(
                 fa.data.nc_get_aggregated_data(),
                 {
-                    "map": "fragment_map_uid",
-                    "unique_values": "fragment_value_uid",
+                    "map": "/fragment_map_uid",
+                    "unique_values": "/fragment_value_uid",
                 },
             )
 
