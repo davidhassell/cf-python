@@ -134,7 +134,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
         # been provided, then get the shape of the ellipsoid from the
         # projection coordinate reference.
         cr_latlon = cr
-        
+
     proj_latlon = create_projection_CRS(cr_latlon, "latitude_longitude")
     if proj_latlon is None:
         # Invalid latitude_longitude coordinate reference

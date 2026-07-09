@@ -91,6 +91,7 @@ class read_writeTest(unittest.TestCase):
         kerchunk = fs.get_mapper()
         self.assertEqual(len(cf.read(kerchunk)), 1)
 
+
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())
     cf.environment()

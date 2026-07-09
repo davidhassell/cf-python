@@ -72,7 +72,7 @@ details.
 
 import logging
 
-from cfdm import is_log_level_info
+from cfdm import is_log_level_debug, is_log_level_info
 
 logger = logging.getLogger(__name__)
 
@@ -101,15 +101,15 @@ def _get_ellipsoid_parameters(cr):
     kwargs = {}
     if cr is None:
         p = {}
-    else:        
+    else:
         p = cr.datum.parameters()
-        
+
         inverse_flattening = p.get("inverse_flattening")
         semi_major_axis = p.get("semi_major_axis")
         semi_minor_axis = p.get("semi_minor_axis")
-        earth_radius= p.get("earth_radius")
-        reference_ellipsoid_name=p.get("reference_ellipsoid_name")
-        
+        earth_radius = p.get("earth_radius")
+        reference_ellipsoid_name = p.get("reference_ellipsoid_name")
+
         if inverse_flattening == 0:
             # Sphere
             if semi_major_axis is not None:
@@ -131,7 +131,7 @@ def _get_ellipsoid_parameters(cr):
 
                 if inverse_flattening is not None:
                     kwargs["rf"] = inverse_flattening
-                    
+
         if reference_ellipsoid_name is not None:
             kwargs["ellps"] = reference_ellipsoid_name
 
@@ -177,6 +177,20 @@ def _create_pyproj_CRS(kwargs, cr):
     # Remove `None` values
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
+    kwargs_wkt = {}
+    crs_wkt = cr.datum.get_parameter('crs_wkt', None)
+    if crs_wkt is not None:
+        kwargs_wkt = pyproj.CRS.from_wkt(crs_wkt).to_dict()
+        
+    crs_wkt = cr.coordinate_conversion.get_parameter('crs_wkt', None)
+    if crs_wkt is not None:
+        kwargs_wkt |= pyproj.CRS.from_wkt(crs_wkt).to_dict()
+        
+    if kwargs_wkt:
+        TODO
+        kwargs =  kwargs_wkt | kwargs
+        if "ellps" in 
+        
     try:
         proj = pyproj.CRS(**kwargs)
     except Exception as error:
@@ -187,9 +201,10 @@ def _create_pyproj_CRS(kwargs, cr):
 
         return
 
-    if is_log_level_info(logger):
-        print(f"pyproj.CRS arguments: {kwargs}")
-        
+    if is_log_level_debug(logger):
+        proj_string = " ".join([f"+{k}={v}" for k, v in kwargs.items()])
+        logger.debug(f"PROJ string: {proj_string}")
+
     return proj
 
 
@@ -224,9 +239,9 @@ def albers_equal_area(cr):
         "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
-    lat_2 = None
     standard_parallel = p["standard_parallel"]
     try:
         lat_1 = standard_parallel[0]
@@ -234,7 +249,7 @@ def albers_equal_area(cr):
         lat_1 = standard_parallel
     else:
         try:
-             kwargs["lat_2"]= standard_parallel[1]
+            kwargs["lat_2"] = standard_parallel[1]
         except Exception:
             pass
 
@@ -268,6 +283,7 @@ def azimuthal_equidistant(cr):
         "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -295,10 +311,10 @@ def geostationary(cr):
     kwargs = {
         "proj": "geos",
         "lon_0": p["longitude_of_projection_origin"],
-        "lat_0": p["latitude_of_projection_origin"],
         "h": p["perspective_point_height"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     sweep_angle_axis = p.get("sweep_angle_axis")
@@ -318,6 +334,9 @@ def geostationary(cr):
                 ok = False
         case _:
             ok = False
+
+    if p.get("latitude_of_projection_origin", 0) != 0:
+        ok = False
 
     if not ok:
         if is_log_level_info(logger):
@@ -359,6 +378,7 @@ def lambert_azimuthal_equal_area(cr):
         "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -368,22 +388,6 @@ def lambert_conformal_conic(cr):
 
     https://proj.org/en/stable/operations/projections/lcc.html
 
-    :Example:
-    
-    char crs ;
-        crs:proj4_params = "+proj=lcc +lat_1=30.00 +lat_2=60.00 +lat_0=47.82 +lon_0=74.64 +x_0=-25000. +y_0=-25000. +ellps=sphere +a=6371229. +b=6371229. +units=m +no_defs" ;
-        crs:grid_mapping_name = "lambert_conformal_conic" ;
-        crs:standard_parallel = 30., 60. ;
-        crs:longitude_of_central_meridian = 74.64 ;
-        crs:latitude_of_projection_origin = 47.82 ;
-        crs:semi_major_axis = 6371229. ;
-        crs:inverse_flattening = 0. ;
-        crs:false_easting = -25000. ;
-        crs:false_northing = -25000. ;
-
-    (y, x) = (-2450000, -3750000)
-    (lat, lon) = (18.958610534668, 40.6170616149902)
-    
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -404,9 +408,9 @@ def lambert_conformal_conic(cr):
         "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
-    lat_2 = None
     standard_parallel = p["standard_parallel"]
     try:
         lat_1 = standard_parallel[0]
@@ -414,12 +418,12 @@ def lambert_conformal_conic(cr):
         lat_1 = standard_parallel
     else:
         try:
-             kwargs["lat_2"] = standard_parallel[1]
+            kwargs["lat_2"] = standard_parallel[1]
         except Exception:
             pass
 
     kwargs["lat_1"] = lat_1
-    print(kwargs)
+
     return _create_pyproj_CRS(kwargs, cr)
 
 
@@ -447,6 +451,7 @@ def lambert_cylindrical_equal_area(cr):
         "lon_0": p["longitude_of_central_meridian"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     standard_parallel = p.get("standard_parallel")
@@ -460,7 +465,7 @@ def lambert_cylindrical_equal_area(cr):
 
 def latitude_longitude(cr):
     """create a latitude_longitude CRS.
-    
+
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -508,6 +513,7 @@ def mercator(cr):
         "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     standard_parallel = p.get("standard_parallel")
@@ -542,10 +548,11 @@ def oblique_mercator(cr):
         "proj": "omerc",
         "alpha": p["azimuth_of_central_line"],
         "lat_0": p["latitude_of_projection_origin"],
-        "lon_0": p["longitude_of_projection_origin"],
+        "lonc": p["longitude_of_projection_origin"],
         "k_0": p["scale_factor_at_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -575,6 +582,7 @@ def orthographic(cr):
         "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -602,6 +610,7 @@ def polar_stereographic(cr):
         "proj": "stere",
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     longitude_of_projection_origin = p.get("longitude_of_projection_origin")
@@ -664,6 +673,7 @@ def rotated_latitude_longitude(cr):
         "o_proj": "longlat",
         "o_lat_p": p["grid_north_pole_latitude"],
         "o_lon_p": p.get("north_pole_grid_longitude", 0),
+        "units": "m",
     }
 
     grid_north_pole_longitude = p["grid_north_pole_longitude"]
@@ -706,6 +716,7 @@ def sinusoidal(cr):
         "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -737,6 +748,7 @@ def stereographic(cr):
         "k_0": p["scale_factor_at_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -763,11 +775,12 @@ def transverse_mercator(cr):
 
     kwargs = {
         "proj": "tmerc",
-        "k_0": p["scale_factor_at_central_meridian"],
         "lon_0": p["longitude_of_central_meridian"],
         "lat_0": p["latitude_of_projection_origin"],
+        "k_0": p["scale_factor_at_central_meridian"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -799,6 +812,7 @@ def vertical_perspective(cr):
         "h": p["perspective_point_height"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
+        "units": "m",
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -866,5 +880,5 @@ def create_projection_CRS(cr, grid_mapping_name):
             logger.info(
                 f"{cr!r} has missing coordinate conversion property: {error}"
             )  # pragma: no cover
-    
+
     return proj
