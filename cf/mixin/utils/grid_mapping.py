@@ -90,7 +90,7 @@ def _get_ellipsoid_parameters(cr):
 
         cr: `CoordinateReference` or `None`
             The coordinate reference construct, or `None`, in which
-            case the CF defualt ellpsoid is assumed.
+            case the CF default ellpsoid is assumed.
 
     :Returns:
 
@@ -101,24 +101,42 @@ def _get_ellipsoid_parameters(cr):
     kwargs = {}
     if cr is None:
         p = {}
-    else:
-        p = cr.coordinate_conversion.parameters()
-        if "reference_ellipsoid_name" in p:
-            kwargs["ellps"] = p["reference_ellipsoid_name"]
+    else:        
+        p = cr.datum.parameters()
+        
+        inverse_flattening = p.get("inverse_flattening")
+        semi_major_axis = p.get("semi_major_axis")
+        semi_minor_axis = p.get("semi_minor_axis")
+        earth_radius= p.get("earth_radius")
+        reference_ellipsoid_name=p.get("reference_ellipsoid_name")
+        
+        if inverse_flattening == 0:
+            # Sphere
+            if semi_major_axis is not None:
+                kwargs["R"] = semi_major_axis
+            elif earth_radius is not None:
+                kwargs["R"] = earth_radius
+            elif reference_ellipsoid_name is None:
+                reference_ellipsoid_name = "sphere"
+        else:
+            # Ellipsoid
+            if earth_radius is not None:
+                kwargs["R"] = earth_radius
+            else:
+                if semi_major_axis is not None:
+                    kwargs["a"] = semi_major_axis
 
-        if "semi_major_axis" in p:
-            kwargs["a"] = p["semi_major_axis"]
+                if semi_minor_axis is not None:
+                    kwargs["b"] = semi_minor_axis
 
-        if "semi_minor_axis" in p:
-            kwargs["b"] = p["semi_minor_axis"]
-
-        if "inverse_flattening" in p:
-            kwargs["rf"] = p["inverse_flattening"]
+                if inverse_flattening is not None:
+                    kwargs["rf"] = inverse_flattening
+                    
+        if reference_ellipsoid_name is not None:
+            kwargs["ellps"] = reference_ellipsoid_name
 
     if not kwargs:
         kwargs = {"ellps": "sphere"}
-
-    kwargs["R"] = p.get("earth_radius")
 
     prime_meridian_name = p.get("prime_meridian_name")
     if prime_meridian_name is not None:
@@ -169,6 +187,9 @@ def _create_pyproj_CRS(kwargs, cr):
 
         return
 
+    if is_log_level_info(logger):
+        print(f"pyproj.CRS arguments: {kwargs}")
+        
     return proj
 
 
@@ -199,26 +220,25 @@ def albers_equal_area(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "aea",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_central_meridian"),
+        "lon_0": p["longitude_of_central_meridian"],
+        "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
 
     lat_2 = None
-    standard_parallel = p.get("standard_parallel")
+    standard_parallel = p["standard_parallel"]
     try:
         lat_1 = standard_parallel[0]
     except Exception:
         lat_1 = standard_parallel
     else:
         try:
-            lat_2 = standard_parallel[1]
+             kwargs["lat_2"]= standard_parallel[1]
         except Exception:
             pass
 
     kwargs["lat_1"] = lat_1
-    kwargs["lat_2"] = lat_2
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -244,8 +264,8 @@ def azimuthal_equidistant(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "aeqd",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
+        "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -274,9 +294,9 @@ def geostationary(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "geos",
-        "h": p.get("perspective_point_height"),
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
+        "lat_0": p["latitude_of_projection_origin"],
+        "h": p["perspective_point_height"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -335,8 +355,8 @@ def lambert_azimuthal_equal_area(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "laea",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lat_0": p["latitude_of_projection_origin"],
+        "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -348,6 +368,22 @@ def lambert_conformal_conic(cr):
 
     https://proj.org/en/stable/operations/projections/lcc.html
 
+    :Example:
+    
+    char crs ;
+        crs:proj4_params = "+proj=lcc +lat_1=30.00 +lat_2=60.00 +lat_0=47.82 +lon_0=74.64 +x_0=-25000. +y_0=-25000. +ellps=sphere +a=6371229. +b=6371229. +units=m +no_defs" ;
+        crs:grid_mapping_name = "lambert_conformal_conic" ;
+        crs:standard_parallel = 30., 60. ;
+        crs:longitude_of_central_meridian = 74.64 ;
+        crs:latitude_of_projection_origin = 47.82 ;
+        crs:semi_major_axis = 6371229. ;
+        crs:inverse_flattening = 0. ;
+        crs:false_easting = -25000. ;
+        crs:false_northing = -25000. ;
+
+    (y, x) = (-2450000, -3750000)
+    (lat, lon) = (18.958610534668, 40.6170616149902)
+    
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -364,27 +400,26 @@ def lambert_conformal_conic(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "lcc",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_central_meridian"],
+        "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
 
     lat_2 = None
-    standard_parallel = p.get("standard_parallel")
+    standard_parallel = p["standard_parallel"]
     try:
         lat_1 = standard_parallel[0]
     except Exception:
         lat_1 = standard_parallel
     else:
         try:
-            lat_2 = standard_parallel[1]
+             kwargs["lat_2"] = standard_parallel[1]
         except Exception:
             pass
 
     kwargs["lat_1"] = lat_1
-    kwargs["lat_2"] = lat_2
-
+    print(kwargs)
     return _create_pyproj_CRS(kwargs, cr)
 
 
@@ -409,7 +444,7 @@ def lambert_cylindrical_equal_area(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "cea",
-        "lon_0": p.get("longitude_of_central_meridian"),
+        "lon_0": p["longitude_of_central_meridian"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -418,14 +453,14 @@ def lambert_cylindrical_equal_area(cr):
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     else:
-        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+        kwargs["k_0"] = p["scale_factor_at_projection_origin"]
 
     return _create_pyproj_CRS(kwargs, cr)
 
 
 def latitude_longitude(cr):
     """create a latitude_longitude CRS.
-
+    
     .. versionadded:: NEXTVERSION
 
     :Parameters:
@@ -434,6 +469,10 @@ def latitude_longitude(cr):
             The latitude_longitude coordinate reference construct from
             which to create the CRS, or `None` if there isn't one (in
             which case a spherical CRS is created).
+
+            .. note:: Only the datum parameters are used, so the
+                      coordinate reference construct does not not need
+                      to be a latitude_longitude grid mapping.
 
     :Returns:
 
@@ -466,7 +505,7 @@ def mercator(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "merc",
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -475,7 +514,7 @@ def mercator(cr):
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     else:
-        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+        kwargs["k_0"] = p["scale_factor_at_projection_origin"]
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -501,10 +540,10 @@ def oblique_mercator(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "omerc",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
-        "alpha": p.get("azimuth_of_central_line"),
-        "k_0": p.get("scale_factor_at_projection_origin"),
+        "alpha": p["azimuth_of_central_line"],
+        "lat_0": p["latitude_of_projection_origin"],
+        "lon_0": p["longitude_of_projection_origin"],
+        "k_0": p["scale_factor_at_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -532,8 +571,8 @@ def orthographic(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "ortho",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
+        "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -569,15 +608,15 @@ def polar_stereographic(cr):
     if longitude_of_projection_origin is not None:
         kwargs["lon_0"] = longitude_of_projection_origin
     else:
-        kwargs["lon_0"] = p.get("straight_vertical_longitude_from_pole")
+        kwargs["lon_0"] = p["straight_vertical_longitude_from_pole"]
 
     standard_parallel = p.get("standard_parallel")
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     else:
-        kwargs["k_0"] = p.get("scale_factor_at_projection_origin")
+        kwargs["k_0"] = p["scale_factor_at_projection_origin"]
 
-    latitude_of_projection_origin = p.get("latitude_of_projection_origin")
+    latitude_of_projection_origin = p["latitude_of_projection_origin"]
     try:
         ok = (
             latitude_of_projection_origin == -90
@@ -623,11 +662,11 @@ def rotated_latitude_longitude(cr):
     kwargs = {
         "proj": "ob_tran",
         "o_proj": "longlat",
+        "o_lat_p": p["grid_north_pole_latitude"],
         "o_lon_p": p.get("north_pole_grid_longitude", 0),
-        "o_lat_p": p.get("grid_north_pole_latitude"),
     }
 
-    grid_north_pole_longitude = p.get("grid_north_pole_longitude")
+    grid_north_pole_longitude = p["grid_north_pole_longitude"]
     try:
         kwargs["lon_0"] = float(grid_north_pole_longitude) + 180
     except Exception:
@@ -664,7 +703,7 @@ def sinusoidal(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "sinu",
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -693,9 +732,9 @@ def stereographic(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "stere",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
-        "k_0": p.get("scale_factor_at_projection_origin"),
+        "lon_0": p["longitude_of_projection_origin"],
+        "lat_0": p["latitude_of_projection_origin"],
+        "k_0": p["scale_factor_at_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -724,9 +763,9 @@ def transverse_mercator(cr):
 
     kwargs = {
         "proj": "tmerc",
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_central_meridian"),
-        "k_0": p.get("scale_factor_at_central_meridian"),
+        "k_0": p["scale_factor_at_central_meridian"],
+        "lon_0": p["longitude_of_central_meridian"],
+        "lat_0": p["latitude_of_projection_origin"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -755,9 +794,9 @@ def vertical_perspective(cr):
     p = cr.coordinate_conversion.parameters()
     kwargs = {
         "proj": "nsper",
-        "h": p.get("perspective_point_height"),
-        "lat_0": p.get("latitude_of_projection_origin"),
-        "lon_0": p.get("longitude_of_projection_origin"),
+        "lat_0": p["latitude_of_projection_origin"],
+        "lon_0": p["longitude_of_projection_origin"],
+        "h": p["perspective_point_height"],
         "x_0": p.get("false_easting", 0),
         "y_0": p.get("false_northing", 0),
     }
@@ -786,40 +825,46 @@ def create_projection_CRS(cr, grid_mapping_name):
             The projection CRS, or `None` if it coulcn't be created.
 
     """
-    match grid_mapping_name:
-        case "albers_equal_area":
-            proj = albers_equal_area(cr)
-        case "azimuthal_equidistant":
-            proj = azimuthal_equidistant(cr)
-        case "geostationary":
-            proj = geostationary(cr)
-        case "lambert_azimuthal_equal_area":
-            proj = lambert_azimuthal_equal_area(cr)
-        case "lambert_conformal_conic":
-            proj = lambert_conformal_conic(cr)
-        case "lambert_cylindrical_equal_area":
-            proj = lambert_cylindrical_equal_area(cr)
-        case "latitude_longitude":
-            proj = latitude_longitude(cr)
-        case "mercator":
-            proj = mercator(cr)
-        case "oblique_mercator":
-            proj = oblique_mercator(cr)
-        case "orthographic":
-            proj = orthographic(cr)
-        case "polar_stereographic":
-            proj = polar_stereographic(cr)
-        case "rotated_latitude_longitude":
-            proj = rotated_latitude_longitude(cr)
-        case "sinusoidal":
-            proj = sinusoidal(cr)
-        case "stereographic":
-            proj = stereographic(cr)
-        case "transverse_mercator":
-            proj = transverse_mercator(cr)
-        case "vertical_perspective":
-            proj = vertical_perspective(cr)
-        case _:
-            proj = None
+    proj = None
+    try:
+        match grid_mapping_name:
+            case "albers_equal_area":
+                proj = albers_equal_area(cr)
+            case "azimuthal_equidistant":
+                proj = azimuthal_equidistant(cr)
+            case "geostationary":
+                proj = geostationary(cr)
+            case "lambert_azimuthal_equal_area":
+                proj = lambert_azimuthal_equal_area(cr)
+            case "lambert_conformal_conic":
+                proj = lambert_conformal_conic(cr)
+            case "lambert_cylindrical_equal_area":
+                proj = lambert_cylindrical_equal_area(cr)
+            case "latitude_longitude":
+                proj = latitude_longitude(cr)
+            case "mercator":
+                proj = mercator(cr)
+            case "oblique_mercator":
+                proj = oblique_mercator(cr)
+            case "orthographic":
+                proj = orthographic(cr)
+            case "polar_stereographic":
+                proj = polar_stereographic(cr)
+            case "rotated_latitude_longitude":
+                proj = rotated_latitude_longitude(cr)
+            case "sinusoidal":
+                proj = sinusoidal(cr)
+            case "stereographic":
+                proj = stereographic(cr)
+            case "transverse_mercator":
+                proj = transverse_mercator(cr)
+            case "vertical_perspective":
+                proj = vertical_perspective(cr)
 
+    except KeyError as error:
+        if is_log_level_info(logger):
+            logger.info(
+                f"{cr!r} has missing coordinate conversion property: {error}"
+            )  # pragma: no cover
+    
     return proj
