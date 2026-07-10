@@ -77,7 +77,7 @@ from cfdm import is_log_level_debug, is_log_level_info
 logger = logging.getLogger(__name__)
 
 
-def _get_ellipsoid_parameters(cr):
+def _get_ellipsoid_parameters(cr, crs_wkt):
     """Get ellipsoid parmaeters from a coordinate reference construct.
 
     https://proj.org/en/stable/usage/ellipsoids.html
@@ -91,6 +91,10 @@ def _get_ellipsoid_parameters(cr):
         cr: `CoordinateReference` or `None`
             The coordinate reference construct, or `None`, in which
             case the CF default ellpsoid is assumed.
+
+        crs_wkt: `bool`
+            Whether or not WKT has been provided via the crs_wkt
+            parameter.
 
     :Returns:
 
@@ -135,7 +139,7 @@ def _get_ellipsoid_parameters(cr):
         if reference_ellipsoid_name is not None:
             kwargs["ellps"] = reference_ellipsoid_name
 
-    if not kwargs:
+    if not kwargs and not crs_wkt:
         kwargs = {"ellps": "sphere"}
 
     prime_meridian_name = p.get("prime_meridian_name")
@@ -170,26 +174,24 @@ def _create_pyproj_CRS(kwargs, cr):
     """
     import pyproj
 
-    # Create the `pyproj.CRS` keywword arguments, which include
-    # parameters for describing the ellipsoid
-    kwargs = _get_ellipsoid_parameters(cr) | kwargs
-
-    # Remove `None` values
-    kwargs = {k: v for k, v in kwargs.items() if v is not None}
-
     kwargs_wkt = {}
-    crs_wkt = cr.datum.get_parameter('crs_wkt', None)
-    if crs_wkt is not None:
-        kwargs_wkt = pyproj.CRS.from_wkt(crs_wkt).to_dict()
-        
     crs_wkt = cr.coordinate_conversion.get_parameter('crs_wkt', None)
     if crs_wkt is not None:
         kwargs_wkt |= pyproj.CRS.from_wkt(crs_wkt).to_dict()
         
+    crs_wkt = cr.datum.get_parameter('crs_wkt', None)
+    if crs_wkt is not None:
+        kwargs_wkt |= pyproj.CRS.from_wkt(crs_wkt).to_dict()
+            
+    # Create the `pyproj.CRS` keywword arguments, which include
+    # parameters for describing the ellipsoid
+    kwargs = _get_ellipsoid_parameters(cr, kwargs_wkt) | kwargs
+
+    # Remove `None` values
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
     if kwargs_wkt:
-        TODO
         kwargs =  kwargs_wkt | kwargs
-        if "ellps" in 
         
     try:
         proj = pyproj.CRS(**kwargs)

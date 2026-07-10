@@ -278,6 +278,10 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
     def test_lambert_cylindrical_equal_area(self):
         """Test lambert_cylindrical_equal_area."""
         # Get the easting and northing for Paris
@@ -309,6 +313,10 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
     def test_mercator(self):
         """Test mercator."""
         # Get the easting and northing for Paris
@@ -337,6 +345,10 @@ class LatLon2dTest(unittest.TestCase):
                 "standard_parallel": lat_ts,
             },
         )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -377,6 +389,10 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
     def test_orthographic(self):
         """Test orthographic."""
         # Get the easting and northing for Paris
@@ -405,6 +421,10 @@ class LatLon2dTest(unittest.TestCase):
                 "latitude_of_projection_origin": lat_0,
             },
         )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -439,6 +459,10 @@ class LatLon2dTest(unittest.TestCase):
                 "standard_parallel": lat_ts,
             },
         )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
