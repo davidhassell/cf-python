@@ -6,6 +6,7 @@ import pyproj
 
 import cf
 
+ellps="WGS84"
 units = "km"
 
 f0 = cf.example_field(0)[0, 0]
@@ -21,13 +22,14 @@ y.standard_name = "projection_y_coordinate"
 y.override_units(units, inplace=True)
 
 cr = cf.CoordinateReference()
-cr.datum.set_parameters({"reference_ellipsoid_name": "WGS84"})
+cr.datum.set_parameters({"reference_ellipsoid_name": ellps})
 cr.set_coordinates((key_x, key_y))
 f0.set_construct(cr)
 
 paris_lon = 2.2945  # La Tour Eiffel, WGS84
 paris_lat = 48.8584  # La Tour Eiffel, WGS84
 
+longlat = pyproj.CRS.from_string("+proj=longlat +ellps=WGS84")
 
 def check_paris(g, atol=1e13, verbose=False):
     if verbose:
@@ -53,20 +55,27 @@ def set_easting_northing(f, easting, northing):
     y[...] = northing
 
 
-def set_coordinate_reference(f, parameters):
+def set_coordinate_conversion(f, parameters):
     cr = f.coordinate_reference()
+
+    cr.coordinate_conversion.clear_parameters()
     cr.coordinate_conversion.set_parameters(parameters)
 
 
+def field_paris(proj):
+    """Create a field for Paris with a projection grid."""
+    t = pyproj.Transformer.from_crs(longlat, proj, always_xy=1)
+    easting, northing = t.transform(paris_lon, paris_lat)
+    
+    f = f0.copy()
+    set_easting_northing(f, easting, northing)
+    return f    
+        
 class LatLon2dTest(unittest.TestCase):
     """Test the creation of 2-d lat/lon coordinatesx."""
 
-    paris_lon = 2.2945  # La Tour Eiffel, WGS84
-    paris_lat = 48.8584  # La Tour Eiffel, WGS84
-    longlat = pyproj.CRS.from_string("+proj=longlat +ellps=WGS84")
-
-    def test_rotated_latitude_longitude_0(self):
-        """Test rotated_latitude_longitude."""
+    def test_field_2d_latlon(self):
+        """Test lat/on bounds."""
         f = cf.read("rotated_pole.pp")[0]
 
         cr = f.coordinate_reference()
@@ -120,15 +129,12 @@ class LatLon2dTest(unittest.TestCase):
             lon_0=lon_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "albers_equal_area",
@@ -138,6 +144,16 @@ class LatLon2dTest(unittest.TestCase):
             },
         )
 
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "albers_equal_area",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -152,21 +168,27 @@ class LatLon2dTest(unittest.TestCase):
             lon_0=lon_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "azimuthal_equidistant",
                 "longitude_of_projection_origin": lon_0,
                 "latitude_of_projection_origin": lat_0,
+            },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "azimuthal_equidistant",
+                "crs_wkt": proj.to_wkt(),
             },
         )
         g = f.create_latlon_coordinates()
@@ -185,16 +207,12 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             sweep=sweep,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "geostationary",
@@ -206,6 +224,12 @@ class LatLon2dTest(unittest.TestCase):
         )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g, atol=1e-12))
+
+        set_coordinate_conversion(
+            f, {"grid_mapping_name": "geostationary", "crs_wkt": proj.to_wkt()}
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
 
     def test_lambert_azimuthal_equal_area(self):
         """Test lambert_azimuthal_equal_area."""
@@ -220,16 +244,12 @@ class LatLon2dTest(unittest.TestCase):
             lat_0=lat_0,
             x_0=x_0,
             y_0=y_0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "lambert_azimuthal_equal_area",
@@ -241,6 +261,16 @@ class LatLon2dTest(unittest.TestCase):
         )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g, atol=1e-8))
+
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "lambert_azimuthal_equal_area",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
 
     def test_lambert_conformal_conic(self):
         """Test lambert_conformal_conic."""
@@ -255,18 +285,13 @@ class LatLon2dTest(unittest.TestCase):
             lat_0=lat_0,
             lat_1=lat_1,
             lat_2=lat_2,
-            ellps="WGS84",
+            ellps=ellps,
             x_0=0,
             y_0=0,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
-
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "lambert_conformal_conic",
@@ -278,7 +303,13 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "lambert_conformal_conic",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -293,16 +324,12 @@ class LatLon2dTest(unittest.TestCase):
             lat_ts=lat_ts,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "lambert_cylindrical_equal_area",
@@ -313,7 +340,13 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "lambert_cylindrical_equal_area",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -328,16 +361,12 @@ class LatLon2dTest(unittest.TestCase):
             lat_ts=lat_ts,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "mercator",
@@ -348,7 +377,9 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f, {"grid_mapping_name": "mercator", "crs_wkt": proj.to_wkt()}
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -367,16 +398,12 @@ class LatLon2dTest(unittest.TestCase):
             k_0=k_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "oblique_mercator",
@@ -389,7 +416,13 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "oblique_mercator",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -404,16 +437,12 @@ class LatLon2dTest(unittest.TestCase):
             lat_0=lat_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "orthographic",
@@ -424,7 +453,9 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f, {"grid_mapping_name": "orthographic", "crs_wkt": proj.to_wkt()}
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -441,16 +472,12 @@ class LatLon2dTest(unittest.TestCase):
             lat_ts=lat_ts,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "polar_stereographic",
@@ -462,7 +489,13 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-        set_coordinate_reference(f, {"crs_wkt": proj.to_wkt()})
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "polar_stereographic",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
@@ -478,22 +511,28 @@ class LatLon2dTest(unittest.TestCase):
             o_lon_p=o_lon_p,
             o_lat_p=o_lat_p,
             lon_0=lon_0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "rotated_latitude_longitude",
                 "grid_north_pole_latitude": o_lat_p,
                 "grid_north_pole_longitude": lon_0,
                 "north_pole_grid_longitude": o_lon_p,
+            },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "rotated_latitude_longitude",
+                "crs_wkt": proj.to_wkt(),
             },
         )
         g = f.create_latlon_coordinates()
@@ -508,21 +547,23 @@ class LatLon2dTest(unittest.TestCase):
             lon_0=lon_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "sinusoidal",
                 "longitude_of_projection_origin": lon_0,
             },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_conversion(
+            f, {"grid_mapping_name": "sinusoidal", "crs_wkt": proj.to_wkt()}
         )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
@@ -540,16 +581,12 @@ class LatLon2dTest(unittest.TestCase):
             k_0=k_0,
             x_0=0,
             y_0=0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "stereographic",
@@ -561,14 +598,20 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        set_coordinate_conversion(
+            f, {"grid_mapping_name": "stereographic", "crs_wkt": proj.to_wkt()}
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
     def test_transverse_mercator(self):
         """Test transverse_mercator."""
         # Get the easting and northing for Paris
-        lat_0=0
-        lon_0=3
-        k_0=0.9996
-        x_0=500000
-        y_0=0
+        lat_0 = 0
+        lon_0 = 3
+        k_0 = 0.9996012717
+        x_0 = 500000
+        y_0 = 0
         proj = pyproj.CRS(
             proj="tmerc",
             lon_0=lon_0,
@@ -576,16 +619,12 @@ class LatLon2dTest(unittest.TestCase):
             k_0=k_0,
             x_0=x_0,
             y_0=y_0,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "transverse_mercator",
@@ -599,33 +638,49 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "transverse_mercator",
+                "crs_wkt": proj.to_wkt(),
+            },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
     def test_vertical_perspective(self):
         """Test vertical_perspective."""
         # Get the easting and northing for Paris
-        h=3000000
-        lat_0=48.8584
-        lon_0=2.2945
+        h = 3000000
+        lat_0 = 48.8584
+        lon_0 = 2.2945
         proj = pyproj.CRS(
             proj="nsper",
             lon_0=lon_0,
             lat_0=lat_0,
             h=h,
-            ellps="WGS84",
+            ellps=ellps,
             units=units,
         )
-        t = pyproj.Transformer.from_crs(self.longlat, proj, always_xy=1)
-        easting, northing = t.transform(paris_lon, paris_lat)
 
-        f = f0.copy()
-        set_easting_northing(f, easting, northing)
-
-        set_coordinate_reference(
+        f = field_paris(proj)
+        set_coordinate_conversion(
             f,
             {
                 "grid_mapping_name": "vertical_perspective",
                 "longitude_of_projection_origin": lon_0,
                 "latitude_of_projection_origin": lat_0,
                 "perspective_point_height": h,
+            },
+        )
+        g = f.create_latlon_coordinates()
+        self.assertTrue(check_paris(g))
+
+        set_coordinate_conversion(
+            f,
+            {
+                "grid_mapping_name": "vertical_perspective",
+                "crs_wkt": proj.to_wkt(),
             },
         )
         g = f.create_latlon_coordinates()

@@ -150,9 +150,19 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     # Create the transform function from source to destination
     # coordinates
     # ----------------------------------------------------------------
-    transformer = pyproj.Transformer.from_crs(
-        proj_src, proj_latlon, always_xy=True
-    )
+    try:
+        transformer = pyproj.Transformer.from_crs(
+            proj_src, proj_latlon, always_xy=True
+        )
+    except Exception as error:
+        # Invalid latitude_longitude coordinate reference
+        if is_log_level_info(logger):
+            logger.info(
+                f"Can't create 2-d lat/lon coordinates for {cr!r}: "
+                f"Error during pyproj.Transformer.from_crs: {error}"
+            )  # pragma: no cover
+
+        return (None, None)
 
     # ----------------------------------------------------------------
     # Create 2-d lat/lon coordinate from 1-d grid coordinate centres
@@ -179,7 +189,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
         if is_log_level_info(logger):
             logger.info(
                 f"Can't create 2-d lat/lon coordinates for {cr!r}: "
-                f"Error during pyproj transformation: {error}"
+                f"Error during pyproj coordinate transformation: {error}"
             )  # pragma: no cover
 
         return (None, None)
@@ -341,96 +351,3 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
         "axis_x": f.get_data_axes(key_x)[0],
         "axis_y": f.get_data_axes(key_y)[0],
     }
-
-
-# def _create_projection_CRS(cr, grid_mapping_name):
-#    """Create a projection CRS.
-#
-#    .. versionadded:: NEXTVERSION
-#
-#    :Parameters:
-#
-#        cr: `CoordinateReference` or `None`
-#            The coordinate reference construct that defines the
-#            projection, or `None` if the there isn't one and the
-#            projetion is latitude_longitude.
-#
-#        grid_mapping_name: `str`
-#            The ``grid_mapping_name`` parameter of *cr*. Mut be
-#            ``'latitude_longitude'`` if *cr* is `None`.
-#
-#    :Returns:
-#
-#        `pyproj.CRS` or `None`
-#            The projection CRS, or `None` if it coulcn't be created.
-#
-#    """
-#    match grid_mapping_name:
-#        case "albers_equal_area":
-#            from .grid_mapping import  albers_equal_area
-#
-#            proj = albers_equal_area(cr)
-#        case "azimuthal_equidistant":
-#            from .grid_mapping import azimuthal_equidistant
-#
-#            proj = azimuthal_equidistant(cr)
-#        case "geostationary":
-#            from .grid_mapping import geostationary
-#
-#            proj = geostationary(cr)
-#        case "lambert_azimuthal_equal_area":
-#            from .grid_mapping import lambert_azimuthal_equal_area
-#
-#            proj = lambert_azimuthal_equal_area(cr)
-#        case "lambert_conformal_conic":
-#            from .grid_mapping import ambert_conformal_conic
-#
-#            proj = lambert_conformal_conic(cr)
-#        case "lambert_cylindrical_equal_area":
-#            from .grid_mapping import  lambert_cylindrical_equal_area
-#
-#            proj = lambert_cylindrical_equal_area(cr)
-#        case "latitude_longitude":
-#            from .grid_mapping import latitude_longitude
-#
-#            proj = latitude_longitude(cr)
-#        case "mercator":
-#            from .grid_mapping import mercator
-#
-#            proj = mercator(cr)
-#        case "oblique_mercator":
-#            from .grid_mapping import oblique_mercator
-#
-#            proj = oblique_mercator(cr)
-#        case "orthographic":
-#            from .grid_mapping import orthographic
-#
-#            proj = orthographic(cr)
-#        case "polar_stereographic":
-#            from .grid_mapping import polar_stereographic
-#
-#            proj = polar_stereographic(cr)
-#        case "rotated_latitude_longitude":
-#            from .grid_mapping import rotated_latitude_longitude
-#
-#            proj = rotated_latitude_longitude(cr)
-#        case "sinusoidal":
-#            from .grid_mapping import sinusoidal
-#
-#            proj = sinusoidal(cr)
-#        case "stereographic":
-#            from .grid_mapping import stereographic
-#
-#            proj = stereographic(cr)
-#        case "transverse_mercator":
-#            from .grid_mapping import transverse_mercator
-#
-#            proj = transverse_mercator(cr)
-#        case "vertical_perspective":
-#            from .grid_mapping import vertical_perspective
-#
-#            proj = vertical_perspective(cr)
-#        case _:
-#            proj = None
-#
-#    return proj

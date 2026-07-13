@@ -2618,6 +2618,7 @@ class FieldDomain:
         cr_latlon = coordinate_references.pop(
             "grid_mapping_name:latitude_longitude", None
         )
+
         if not coordinate_references:
             if is_log_level_info(logger):
                 logger.info(
