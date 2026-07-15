@@ -1,9 +1,7 @@
 import logging
-from functools import partial
 from re import Pattern
 
 import cfdm
-from cfdm.read_write.exceptions import DatasetTypeError
 
 from ..aggregate import aggregate as cf_aggregate
 from ..cfimplementation import implementation
@@ -12,7 +10,6 @@ from ..domainlist import DomainList
 from ..fieldlist import FieldList
 from ..functions import _DEPRECATION_ERROR_FUNCTION_KWARGS
 from ..query import Query
-from .um import UMRead
 
 logger = logging.getLogger(__name__)
 
@@ -175,24 +172,6 @@ class read(cfdm.read):
         {{read um: `dict` or `None`, optional}}
 
             .. versionadded:: 1.5
-
-        legacy_um_backend: `bool`, optional
-            If True then read the datasets with the legacy UM backend
-            that is embedded within the cf library, which was the only
-            backend available prior to version NEXTVERSION. From
-            version NEXTVERSION onwards, the `umfive` UM backend
-            provided by `xnetcdf` is used when *legacy_um_backend* is
-            False (the default).
-
-            .. note:: The *legacy_um_backend* parameter will be
-                      removed at a future version, at which time only
-                      the `umfive` UM backend (provided via `xnetcdf`)
-                      will be available. If there are questions about
-                      the parsing of UM datasets, please raise an
-                      issue at
-                      https://github.com/NCAS-CMS/umfive/issues.
-
-            .. versionadded:: NEXTVERSION
 
         aggregate: `bool` or `dict`, optional
             If True (the default) or a dictionary (possibly empty)
@@ -637,87 +616,3 @@ class read(cfdm.read):
 
         self.aggregate = aggregate
         self.aggregate_options = aggregate_options
-
-    def _read(self, dataset):
-        """Read a given dataset into field or domain constructs.
-
-        The constructs are stored in the `dataset_contents` attribute.
-
-        Called by `__new__`.
-
-        .. versionadded:: 3.18.0
-
-        :Parameters:
-
-            dataset: `str`
-                The pathname of the dataset to be read.
-
-        :Returns:
-
-            `None`
-
-        """
-        dataset_type = self.dataset_type
-
-        kwargs = self.kwargs
-        legacy_um_backend = bool(kwargs.get("legacy_um_backend"))
-
-        # ------------------------------------------------------------
-        # Try to read as a netCDF dataset
-        # ------------------------------------------------------------
-        if not legacy_um_backend:
-            super()._read(dataset)
-        else:
-            # ------------------------------------------------------------
-            # Read as a PP/UM dataset using the legacy UM backend
-            # ------------------------------------------------------------
-            logger.warning(
-                "The 'legacy_um_backend' parameter will be removed "
-                "at a future version, at which time only the `umfive` "
-                "UM backend (provided via `xnetcdf`) will be available. "
-                "If there are questions about the parsing of UM datasets, "
-                "please raise an issue at "
-                "https://github.com/NCAS-CMS/umfive/issues"
-            )
-
-            if dataset_type is None or dataset_type.intersection(
-                self.UM_dataset_types
-            ):
-                if not hasattr(self, "um_read"):
-                    # Initialise the UM read function
-                    kwargs = self.kwargs
-                    um_kwargs = {
-                        key: kwargs[key]
-                        for key in (
-                            "height_at_top_of_model",
-                            "squeeze",
-                            "unsqueeze",
-                            "domain",
-                            "dataset_type",
-                            "unpack",
-                            "verbose",
-                            "filesystem",
-                            "storage_options",
-                        )
-                    }
-                    um_kwargs["set_standard_name"] = False
-                    um_kwargs["select"] = self.select
-                    um = self.um
-                    um_kwargs["um_version"] = um.get("version")
-                    um_kwargs["fmt"] = um.get("fmt")
-                    um_kwargs["word_size"] = um.get("word_size")
-                    um_kwargs["endian"] = um.get("endian")
-
-                    self.um_read = partial(
-                        UMRead(self.implementation).read, **um_kwargs
-                    )
-
-                try:
-                    # Try to read the dataset
-                    self.dataset_contents = self.um_read(dataset)
-                except DatasetTypeError as error:
-                    if dataset_type is None:
-                        self.dataset_format_errors.append(error)
-                else:
-                    # Successfully read the dataset
-                    self.unique_dataset_categories.add("UM")

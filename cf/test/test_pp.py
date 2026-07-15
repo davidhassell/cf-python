@@ -141,8 +141,8 @@ class ppTest(unittest.TestCase):
     def test_PP_file_object(self):
         # Can't yet read PP/UM from file-like objects
         with open(self.ppfile, "rb") as fh:
-            f = cf.read(fh)
-                
+            cf.read(fh)
+
             # Check that the file has been rewound
             self.assertEqual(fh.tell(), 0)
 
