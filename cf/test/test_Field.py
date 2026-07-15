@@ -3285,8 +3285,8 @@ class FieldTest(unittest.TestCase):
             self.f0.healpix_to_ugrid()
 
     @unittest.skipUnless(healpix_available, "Requires 'healpix' package.")
-    def test_Field_create_latlon_coordinates(self):
-        """Test Field.create_latlon_coordinates."""
+    def test_Field_create_latlon_coordinates_healpix(self):
+        """Test Field.create_latlon_coordinates with HEALPix."""
         # ------------------------------------------------------------
         # HEALPix field
         # ------------------------------------------------------------
@@ -3321,7 +3321,7 @@ class FieldTest(unittest.TestCase):
             np.allclose(longitude[32:48:4, 2], longitude[32:48:4, 0])
         )
 
-        g = f.create_latlon_coordinates(pole_longitude=3.14)
+        g = f.create_latlon_coordinates(longitude_at_pole=3.14)
         longitude = g.auxiliary_coordinate("X").bounds.array
         # North pole
         self.assertTrue(np.allclose(longitude[3:16:4, 0], 3.14))

@@ -2,13 +2,13 @@
 
 :Glossary:
 
-Defintions of `pyproj.CRS` parameters that map to CF grid mapping
+Definitions of `pyproj.CRS` parameters that map to CF grid mapping
 parameters. See https://proj.org/en/stable/operations/projections for
 details.
 
 * a: Semi-major axis of the ellipsoid.
 
-* alpha: Azimuth of centerline clockwise from north at the center
+* alpha: Azimuth of centerline clockwise from north at the centre
          point of the line. If gamma is not given then alpha
          determines the value of gamma.
 
@@ -99,12 +99,12 @@ def _ellipsoid_parameters(cr):
 
         cr: `CoordinateReference`
             The coordinate reference construct, or `None`, in which
-            case the CF default ellpsoid is assumed.
+            case the CF default ellipsoid is assumed.
 
     :Returns:
 
         `dict`
-            The `pyproj.CRS` ellpsoid parameters.
+            The `pyproj.CRS` ellipsoid parameters.
 
     """
     kwargs = {}
@@ -157,7 +157,7 @@ def _ellipsoid_parameters(cr):
 
 
 def _crs_wkt_parameters(cr):
-    """Get parameters from a crs_wkt cooridnate conversion parameter.
+    """Get `pyproj.CRS` parameters from a crs_wkt parameter.
 
     .. versionadded:: NEXTVERSION
 
@@ -175,12 +175,12 @@ def _crs_wkt_parameters(cr):
     """
 
     crs_wkt = cr.coordinate_conversion.get_parameter("crs_wkt", None)
-    if crs_wkt is not None:
-        import pyproj
+    if crs_wkt is None:
+        return {}
 
-        return pyproj.CRS.from_wkt(crs_wkt).to_dict()
+    import pyproj
 
-    return {}
+    return pyproj.CRS.from_wkt(crs_wkt).to_dict()
 
 
 def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
@@ -195,26 +195,15 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
             derived.
 
         kwargs: `dict`
-
             A dictionary of keyword arguments for initialising the the
             `pyproj.CRS` instance.
 
             The keyword arguments should not include a description of
             the ellipsoid, as this is automatically derived from *cr*.
 
-            If the *cr* contains a ``crs_wkt`` parameter, either in
-            its coordinate conversion or its datum component, then it
-            is converted to `pyproj.CRS` keyword arguments that are
-            automically included.
-
-            If ``coordinate_conversion_wkt`` and ``datum_wkt`` are
-            dictionaries of keyword arguments from ``crs_wkt``
-            parameters in coordinate conversion or datum components;
-            and ``ellipsoid`` is a dictionary of keyword arguments
-            returned by ``_get_ellipoid_parameters(cr)``, then the
-            final keyword arguments passed to `pyproj.CRS` arex
-            ``coordinate_conversion_wkt | datum_wkt | ellipsoid |
-            kwargs``
+            If the *cr* contains a ``crs_wkt`` parameter then it is
+            converted to `pyproj.CRS` keyword arguments that are
+            automatically included.
 
     :Returns:
 
@@ -226,13 +215,11 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
 
     # Remove `None` values
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+    # Specify the units of the 1-d coordinates
     kwargs["units"] = "m"
 
     kwargs = _crs_wkt_parameters(cr) | _ellipsoid_parameters(cr) | kwargs
-
-    #    # The explicit guardrail for spherical Transverse Mercator setups
-    #    if kwargs.get("proj") == "tmerc" and kwargs.get("ellps") == "sphere":
-    #        kwargs["alpha"] = 0
 
     try:
         proj = pyproj.CRS(**kwargs)
@@ -259,20 +246,49 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
     return proj
 
 
-# ====================================================================
-# Functions for creating `pyproj.CRS` instances for each CF grid
-# mapping type.
-# ====================================================================
+def _cc_parameter(p, parameter, default=None):
+    """Get a coordinate reference construct parameter.
 
+    If there is a ``crs_wkt`` parameter then *default* will be
+    returned if the *parameter* does not exist.
 
-def _cc_parameter(p, parameter, crs_wkt, default=None):
-    if crs_wkt:
+    If there is not a ``crs_wkt`` parameter and *default* is not
+    `None`, then *default* will be returned if the *parameter* does
+    not exist.
+
+    If there is not a ``crs_wkt`` parameter and *default* is `None`,
+    then a `KeyError` will be raised if the *parameter* does not
+    exist.
+
+    :Parameters:
+
+        p: `dict`
+            A dictionary of the coordinate reference construct
+            parameters.
+
+        parameter: `str`
+            The name of the parameter to get.
+
+        default: optional
+
+    :Returns:
+
+            The parameter value.
+
+    """
+    if "crs_wkt" in p:
         return p.get(parameter, default)
 
     if default is not None:
         return p.get(parameter, default)
 
     return p[parameter]
+
+
+# ====================================================================
+# Functions for creating `pyproj.CRS` instances for each CF grid
+# mapping type.
+# ====================================================================
 
 
 def albers_equal_area(cr):
@@ -294,17 +310,16 @@ def albers_equal_area(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "aea",
-        "lon_0": _cc_parameter(p, "longitude_of_central_meridian", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_central_meridian"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
-    standard_parallel = _cc_parameter(p, "standard_parallel", crs_wkt)
+    standard_parallel = _cc_parameter(p, "standard_parallel")
     if standard_parallel is not None:
         try:
             lat_1 = standard_parallel[0]
@@ -317,8 +332,6 @@ def albers_equal_area(cr):
                 pass
 
         kwargs["lat_1"] = lat_1
-    elif not crs_wkt:
-        return  # TODO LOG
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -342,14 +355,13 @@ def azimuthal_equidistant(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "aeqd",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -378,10 +390,10 @@ def geostationary(cr):
 
     kwargs = {
         "proj": "geos",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "h": _cc_parameter(p, "perspective_point_height", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "h": _cc_parameter(p, "perspective_point_height"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
     sweep_angle_axis = p.get("sweep_angle_axis")
@@ -446,14 +458,13 @@ def lambert_azimuthal_equal_area(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "laea",
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -477,17 +488,16 @@ def lambert_conformal_conic(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "lcc",
-        "lon_0": _cc_parameter(p, "longitude_of_central_meridian", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_central_meridian"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
-    standard_parallel = _cc_parameter(p, "standard_parallel", crs_wkt)
+    standard_parallel = _cc_parameter(p, "standard_parallel")
     if standard_parallel is not None:
         try:
             lat_1 = standard_parallel[0]
@@ -500,8 +510,6 @@ def lambert_conformal_conic(cr):
                 pass
 
         kwargs["lat_1"] = lat_1
-    elif not crs_wkt:
-        return  # TODO LOG
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -529,12 +537,12 @@ def lambert_cylindrical_equal_area(cr):
 
     kwargs = {
         "proj": "cea",
-        "lon_0": _cc_parameter(p, "longitude_of_central_meridian", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_central_meridian"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
-    standard_parallel = _cc_parameter(p, "standard_parallel", crs_wkt)
+    standard_parallel = _cc_parameter(p, "standard_parallel")
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     elif not crs_wkt:
@@ -593,12 +601,12 @@ def mercator(cr):
 
     kwargs = {
         "proj": "merc",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
-    standard_parallel = _cc_parameter(p, "standard_parallel", crs_wkt)
+    standard_parallel = _cc_parameter(p, "standard_parallel")
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     elif not crs_wkt:
@@ -626,16 +634,15 @@ def oblique_mercator(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "omerc",
-        "alpha": _cc_parameter(p, "azimuth_of_central_line", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "lonc": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "k_0": _cc_parameter(p, "scale_factor_at_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "alpha": _cc_parameter(p, "azimuth_of_central_line"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "lonc": _cc_parameter(p, "longitude_of_projection_origin"),
+        "k_0": _cc_parameter(p, "scale_factor_at_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -659,14 +666,13 @@ def orthographic(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "ortho",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -694,26 +700,26 @@ def polar_stereographic(cr):
 
     kwargs = {
         "proj": "stere",
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
     longitude_of_projection_origin = _cc_parameter(
-        p, "longitude_of_projection_origin", crs_wkt
+        p, "longitude_of_projection_origin"
     )
     if longitude_of_projection_origin is not None:
         kwargs["lon_0"] = longitude_of_projection_origin
     elif not crs_wkt:
         kwargs["lon_0"] = p["straight_vertical_longitude_from_pole"]
 
-    standard_parallel = _cc_parameter(p, "standard_parallel", crs_wkt)
+    standard_parallel = _cc_parameter(p, "standard_parallel")
     if standard_parallel is not None:
         kwargs["lat_ts"] = standard_parallel
     elif not crs_wkt:
         kwargs["k_0"] = p["scale_factor_at_projection_origin"]
 
     latitude_of_projection_origin = _cc_parameter(
-        p, "latitude_of_projection_origin", crs_wkt
+        p, "latitude_of_projection_origin"
     )
     if latitude_of_projection_origin is not None:
         try:
@@ -735,8 +741,6 @@ def polar_stereographic(cr):
             return
 
         kwargs["lat_0"] = latitude_of_projection_origin
-    elif not crs_wkt:
-        return  # TODO LOG
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -760,18 +764,15 @@ def rotated_latitude_longitude(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "ob_tran",
         "o_proj": "longlat",
-        "o_lat_p": _cc_parameter(p, "grid_north_pole_latitude", crs_wkt),
-        "o_lon_p": _cc_parameter(p, "north_pole_grid_longitude", crs_wkt, 0),
+        "o_lat_p": _cc_parameter(p, "grid_north_pole_latitude"),
+        "o_lon_p": _cc_parameter(p, "north_pole_grid_longitude", 0),
     }
 
-    grid_north_pole_longitude = _cc_parameter(
-        p, "grid_north_pole_longitude", crs_wkt
-    )
+    grid_north_pole_longitude = _cc_parameter(p, "grid_north_pole_longitude")
     if grid_north_pole_longitude is not None:
         try:
             kwargs["lon_0"] = float(grid_north_pole_longitude) + 180
@@ -784,8 +785,6 @@ def rotated_latitude_longitude(cr):
                 )  # pragma: no cover
 
             return
-    elif not crs_wkt:
-        return  # LOG
 
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -809,13 +808,12 @@ def sinusoidal(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "sinu",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -840,15 +838,14 @@ def stereographic(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "stere",
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "k_0": _cc_parameter(p, "scale_factor_at_projection_origin", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "k_0": _cc_parameter(p, "scale_factor_at_projection_origin"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -872,15 +869,14 @@ def transverse_mercator(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "tmerc",
-        "lon_0": _cc_parameter(p, "longitude_of_central_meridian", crs_wkt),
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "k_0": _cc_parameter(p, "scale_factor_at_central_meridian", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lon_0": _cc_parameter(p, "longitude_of_central_meridian"),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "k_0": _cc_parameter(p, "scale_factor_at_central_meridian"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
 
     return _create_pyproj_CRS(kwargs, cr)
@@ -905,15 +901,14 @@ def vertical_perspective(cr):
 
     """
     p = cr.coordinate_conversion.parameters()
-    crs_wkt = "crs_wkt" in p
 
     kwargs = {
         "proj": "nsper",
-        "lat_0": _cc_parameter(p, "latitude_of_projection_origin", crs_wkt),
-        "lon_0": _cc_parameter(p, "longitude_of_projection_origin", crs_wkt),
-        "h": _cc_parameter(p, "perspective_point_height", crs_wkt),
-        "x_0": _cc_parameter(p, "false_easting", crs_wkt, 0),
-        "y_0": _cc_parameter(p, "false_northing", crs_wkt, 0),
+        "lat_0": _cc_parameter(p, "latitude_of_projection_origin"),
+        "lon_0": _cc_parameter(p, "longitude_of_projection_origin"),
+        "h": _cc_parameter(p, "perspective_point_height"),
+        "x_0": _cc_parameter(p, "false_easting", 0),
+        "y_0": _cc_parameter(p, "false_northing", 0),
     }
     return _create_pyproj_CRS(kwargs, cr)
 
@@ -925,19 +920,17 @@ def create_projection_CRS(cr, grid_mapping_name):
 
     :Parameters:
 
-        cr: `CoordinateReference` or `None`
+        cr: `CoordinateReference`
             The coordinate reference construct that defines the
-            projection, or `None` if the there isn't one and the
-            projection is latitude_longitude.
+            coordinate system.
 
         grid_mapping_name: `str`
-            The ``grid_mapping_name`` parameter of *cr*. Mut be
-            ``'latitude_longitude'`` if *cr* is `None`.
+            The grid mapping name.
 
     :Returns:
 
         `pyproj.CRS` or `None`
-            The projection CRS, or `None` if it coulcn't be created.
+            The projection CRS, or `None` if it couldn't be created.
 
     """
     proj = None
@@ -977,6 +970,8 @@ def create_projection_CRS(cr, grid_mapping_name):
                 proj = vertical_perspective(cr)
 
     except KeyError as error:
+        # Trap a KeyError arising from a missing mandatory coordinate
+        # reference parameter
         if is_log_level_info(logger):
             logger.info(
                 f"{cr!r} has missing coordinate conversion property: {error}"

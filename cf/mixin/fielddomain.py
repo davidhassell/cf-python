@@ -2362,7 +2362,7 @@ class FieldDomain:
         # that the north (south) polar vertex comes out as a single
         # node in the domain topology.
         f.create_latlon_coordinates(
-            two_d=False, pole_longitude=0, cache=cache, inplace=True
+            two_d=False, longitude_at_pole=0, cache=cache, inplace=True
         )
 
         # Get the lat/lon coordinates
@@ -2456,11 +2456,12 @@ class FieldDomain:
         self,
         one_d=True,
         two_d=True,
-        pole_longitude=None,
+        longitude_at_pole=None,
         overwrite=False,
         cache=True,
         inplace=False,
         verbose=None,
+        pole_longitude=None,
     ):
         """Create latitude and longitude coordinates.
 
@@ -2470,10 +2471,22 @@ class FieldDomain:
         new coordinates are only created if the {{class}} doesn't
         already include any latitude or longitude coordinates.
 
+        .. note:: Latitude and longitude coordinates can only be
+                  created if each relevant coordinate reference
+                  construct has a ``grid_mapping_name`` parameter set
+                  to a valid CF grid mapping name, and this is also
+                  the case when there is a ``crs_wkt`` parameter. See
+                  CF 5.6.1: Use of the CRS Well-known Text Format
+                  (https://doi.org/10.5281/zenodo.14274886).
+
         When it is not possible to create latitude and longitude
         coordinates, the reason why will be reported if the log level
         is at ``2``/``'INFO'`` or higher (as set by `cf.log_level` or
         the *verbose* parameter).
+
+        If the log level is at ``3``/``'DEBUG'``/``-1`` then a
+        description of the `pyproj.CRS` instances used to create 2-d
+        latitude and longitude coordinates will also be shown.
 
         .. versionadded:: 3.20.0
 
@@ -2491,16 +2504,16 @@ class FieldDomain:
                 latitude and longitude coordinates. If False then 2-d
                 coordinates will not be created.
 
-            pole_longitude: `None` or number
-                Define the longitudes of coordinates or coordinate
-                bounds that lie exactly on the north or south pole. If
-                `None` (the default) then the longitudes of such
-                points are determined by whichever algorithm was used
-                to create the coordinates, which could result in
-                different points on a pole having different
-                longitudes. If set to a number, then the longitudes of
-                all points on the north or south pole will be given
-                that value.
+            longitude_at_pole: `None` or number
+                Define the treatment of longitudes of coordinates or
+                coordinate bounds that lie exactly on the north or
+                south pole. If `None` (the default) then the
+                longitudes of such points are determined by whichever
+                algorithm was used to create the coordinates, which
+                could result in different points on a pole having
+                different longitudes. If set to a number, then the
+                longitudes of all points on the north or south pole
+                will be given that value.
 
             overwrite: `bool`, optional
                 If True then remove any existing latitude and
@@ -2526,6 +2539,9 @@ class FieldDomain:
             {{inplace: `bool`, optional}}
 
             {{verbose: `int` or `str` or `None`, optional}}
+
+            pole_longitude: Deprecated at version NEXTVERSION
+                Use *longitude_at_pole* instead.
 
         :Returns:
 
@@ -2560,6 +2576,16 @@ class FieldDomain:
         Coord references: grid_mapping_name:healpix
 
         """
+        if pole_longitude is not None:
+            _DEPRECATION_ERROR_KWARGS(
+                self,
+                "create_latlon_coordinates",
+                {"pole_longitude": pole_longitude},
+                message="Use 'longitude_at_pole' instead.",
+                version="NEXTVERSION",
+                removed_at="4.0.0",
+            )  # pragma: no cover
+
         f = _inplace_enabled_define_and_cleanup(self)
 
         # ------------------------------------------------------------
@@ -2666,7 +2692,7 @@ class FieldDomain:
                     )
 
                     lat_key, lon_key = _healpix_create_latlon_coordinates(
-                        f, pole_longitude, cache
+                        f, longitude_at_pole, cache
                     )
                     coords_created = lat_key is not None
 
@@ -2677,7 +2703,11 @@ class FieldDomain:
             from .utils import create_2d_latlon_coordinates
 
             lat_key, lon_key = create_2d_latlon_coordinates(
-                f, cr, cr_latlon, cache=cache
+                f,
+                cr,
+                cr_latlon,
+                longitude_at_pole=88,  # longitude_at_pole,
+                cache=cache,
             )
             coords_created = lat_key is not None
 

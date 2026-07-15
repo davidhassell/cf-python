@@ -9,37 +9,27 @@ from cf import Units
 
 from .grid_mapping import create_projection_CRS
 
-# from .grid_mapping import (
-#    albers_equal_area,
-#    azimuthal_equidistant,
-#    geostationary,
-#    lambert_azimuthal_equal_area,
-#    lambert_conformal_conic,
-#    lambert_cylindrical_equal_area,
-#    latitude_longitude,
-#    mercator,
-#    oblique_mercator,
-#    orthographic,
-#    polar_stereographic,
-#    rotated_latitude_longitude,
-#    sinusoidal,
-#    stereographic,
-#    transverse_mercator,
-#    vertical_perspective,
-# )
-
 logger = logging.getLogger(__name__)
 
 
-def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
+def create_2d_latlon_coordinates(
+    f, cr, cr_latlon, longitude_at_pole=None, cache=True
+):
     """Create 2-d latitude and longitude coordinates and bounds.
+
+    Creates the 2-d latitude and longitude coordinate constructs that
+    are implied by the coordinate reference constructs.
 
     When it is not possible to create latitude and longitude
     coordinates, the reason why will be reported if the log level is
     at ``2``/``'INFO'`` or higher.
 
-    See CF Appendix F: Grid Mappings.
-    https://doi.org/10.5281/zenodo.14274886
+    If the log level is at ``3``/``'DEBUG'``/``-1`` then a description
+    of the `pyproj.CRS` instances used to create 2-d latitude and
+    longitude coordinates will also be shown.
+
+    See CF Appendix F: Grid Mappings
+    (https://doi.org/10.5281/zenodo.14274886).
 
     .. versionadded:: NEXTVERSION
 
@@ -56,7 +46,18 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
         cr_latlon: `CoordinateReference` or `None`
             The coordinate reference construct for the
             latitude_longitude grid mapping, or `None` is there isn't
-            one.
+            one, in which case a spherical latitude_longitude grid
+            mapping is assumed.
+
+        longitude_at_pole: `None` or number
+            Define the treatment of longitudes of coordinates or
+            coordinate bounds that lie exactly on the north or south
+            pole. If `None` (the default) then the longitudes of such
+            points are determined by whichever algorithm was used to
+            create the coordinates, which could result in different
+            points on a pole having different longitudes. If set to a
+            number, then the longitudes of all points on the north or
+            south pole will be given that value.
 
         cache: `bool`, optional
             If True (the default) then cache in memory the first and
@@ -196,6 +197,10 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
     else:
         del x_mesh, y_mesh
 
+    if longitude_at_pole is not None:
+        # Set the longitude at the poles
+        lon = np.where((lat == -90) | (lat == 90), longitude_at_pole, lon)
+
     lat = f._Data(lat, "degrees_north")
     lon = f._Data(lon, "degrees_east")
 
@@ -245,6 +250,14 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon=None, cache=True):
                 return (None, None)
         else:
             del x_mesh, y_mesh
+
+        if longitude_at_pole is not None:
+            # Set the longitude at the poles
+            lon_bounds = np.where(
+                (lat_bounds == -90) | (lat_bounds == 90),
+                longitude_at_pole,
+                lon_bounds,
+            )
 
         lat_bounds = f._Bounds(data=f._Data(lat_bounds))
         lon_bounds = f._Bounds(data=f._Data(lon_bounds))

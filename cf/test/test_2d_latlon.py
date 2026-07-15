@@ -6,7 +6,7 @@ import pyproj
 
 import cf
 
-ellps="WGS84"
+ellps = "WGS84"
 units = "km"
 
 f0 = cf.example_field(0)[0, 0]
@@ -30,6 +30,7 @@ paris_lon = 2.2945  # La Tour Eiffel, WGS84
 paris_lat = 48.8584  # La Tour Eiffel, WGS84
 
 longlat = pyproj.CRS.from_string("+proj=longlat +ellps=WGS84")
+
 
 def check_paris(g, atol=1e13, verbose=False):
     if verbose:
@@ -66,15 +67,16 @@ def field_paris(proj):
     """Create a field for Paris with a projection grid."""
     t = pyproj.Transformer.from_crs(longlat, proj, always_xy=1)
     easting, northing = t.transform(paris_lon, paris_lat)
-    
+
     f = f0.copy()
     set_easting_northing(f, easting, northing)
-    return f    
-        
+    return f
+
+
 class LatLon2dTest(unittest.TestCase):
     """Test the creation of 2-d lat/lon coordinatesx."""
 
-    def test_field_2d_latlon(self):
+    def test_Field_2d_create_latlon_coordinates_bounds(self):
         """Test lat/on bounds."""
         f = cf.read("rotated_pole.pp")[0]
 
@@ -114,7 +116,7 @@ class LatLon2dTest(unittest.TestCase):
             )
         )
 
-    def test_albers_equal_area(self):
+    def test_Field_2d_create_latlon_coordinates_albers_equal_area(self):
         """Test albers_equal_area."""
         # Get the easting and northing for Paris
         lat_1 = 43
@@ -157,7 +159,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_azimuthal_equidistant(self):
+    def test_Field_2d_create_latlon_coordinates_azimuthal_equidistant(self):
         """Test azimuthal_equidistant."""
         # Get the easting and northing for Paris
         lat_0 = 48.8584
@@ -194,7 +196,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_geostationary(self):
+    def test_Field_2d_create_latlon_coordinates_geostationary(self):
         """Test geostationary."""
         # Get the easting and northing for Paris
         h = 35785831
@@ -231,7 +233,9 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_lambert_azimuthal_equal_area(self):
+    def test_Field_2d_create_latlon_coordinates_lambert_azimuthal_equal_area(
+        self,
+    ):
         """Test lambert_azimuthal_equal_area."""
         # Get the easting and northing for Paris
         lat_0 = 52
@@ -272,7 +276,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_lambert_conformal_conic(self):
+    def test_Field_2d_create_latlon_coordinates_lambert_conformal_conic(self):
         """Test lambert_conformal_conic."""
         # Get the easting and northing for Paris
         lat_1 = 33
@@ -313,7 +317,9 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_lambert_cylindrical_equal_area(self):
+    def test_Field_2d_create_latlon_coordinates_lambert_cylindrical_equal_area(
+        self,
+    ):
         """Test lambert_cylindrical_equal_area."""
         # Get the easting and northing for Paris
         lon_0 = 0
@@ -350,7 +356,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_mercator(self):
+    def test_Field_2d_create_latlon_coordinates_mercator(self):
         """Test mercator."""
         # Get the easting and northing for Paris
         lon_0 = 0
@@ -383,7 +389,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_oblique_mercator(self):
+    def test_Field_2d_create_latlon_coordinates_oblique_mercator(self):
         """Test oblique_mercator."""
         # Get the easting and northing for Paris
         lat_0 = 45
@@ -426,7 +432,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_orthographic(self):
+    def test_Field_2d_create_latlon_coordinates_orthographic(self):
         """Test orthographic."""
         # Get the easting and northing for Paris
         lat_0 = 48.8584
@@ -459,7 +465,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_polar_stereographic(self):
+    def test_Field_2d_create_latlon_coordinates_polar_stereographic(self):
         """Test polar_stereographic."""
         # Get the easting and northing for Paris
         lat_ts = 90
@@ -499,7 +505,9 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_rotated_latitude_longitude(self):
+    def test_Field_2d_create_latlon_coordinates_rotated_latitude_longitude(
+        self,
+    ):
         """Test rotated_latitude_longitude."""
         # Get the easting and northing for Paris
         lon_0 = 190
@@ -538,7 +546,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_sinusoidal(self):
+    def test_Field_2d_create_latlon_coordinates_sinusoidal(self):
         """Test sinusoidal."""
         # Get the easting and northing for Paris
         lon_0 = 0
@@ -568,7 +576,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_stereographic(self):
+    def test_Field_2d_create_latlon_coordinates_stereographic(self):
         """Test stereographic."""
         # Get the easting and northing for Paris
         lat_0 = 90
@@ -604,7 +612,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_transverse_mercator(self):
+    def test_Field_2d_create_latlon_coordinates_transverse_mercator(self):
         """Test transverse_mercator."""
         # Get the easting and northing for Paris
         lat_0 = 0
@@ -648,7 +656,7 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
-    def test_vertical_perspective(self):
+    def test_Field_2d_create_latlon_coordinates_vertical_perspective(self):
         """Test vertical_perspective."""
         # Get the easting and northing for Paris
         h = 3000000

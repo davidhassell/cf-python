@@ -1,5 +1,4 @@
 import atexit
-import os
 import platform
 import warnings
 from collections.abc import Iterable
@@ -19,7 +18,7 @@ import cfdm
 import numpy as np
 
 from . import __file__, __version__
-from .constants import OperandBoundsCombination, _stash2standard_name
+from .constants import OperandBoundsCombination
 from .docstring import _docstring_substitution_definitions
 
 
@@ -2542,14 +2541,17 @@ def load_stash2standard_name(
     try:
         import umfive
     except Exception:
-        return
+        raise ImportError(
+            "Must install 'umfive' to load a STASH to standard name "
+            "conversion table."
+        )
 
     umfive.load_stash_table(
         table=table, delimiter=delimiter, merge=merge, reset=reset
     )
 
 
-def stash2standard_name(reset=False):
+def stash2standard_name():
     """Return a copy of the loaded STASH to standard name conversion
     table.
 
@@ -2561,9 +2563,12 @@ def stash2standard_name(reset=False):
     try:
         import umfive
     except Exception:
-        return {}
+        raise ImportError(
+            "Must install 'umfive' to get the STASH to standard name "
+            "conversion table."
+        )
 
-    return umfive.stash_table(reset=reset)
+    return umfive.stash_table()
 
 
 def flat(x):
