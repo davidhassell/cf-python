@@ -3,8 +3,11 @@
 :Glossary:
 
 Definitions of `pyproj.CRS` parameters that map to CF grid mapping
-parameters. See https://proj.org/en/stable/operations/projections for
-details.
+parameters.
+
+For further details see
+https://proj.org/en/stable/operations/projections and
+https://github.com/cf-convention/cf-conventions/wiki/Mapping-from-CF-Grid-Mapping-Attributes-to-CRS-WKT-Elements
 
 * a: Semi-major axis of the ellipsoid.
 
@@ -249,16 +252,21 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
 def _cc_parameter(p, parameter, default=None):
     """Get a coordinate reference construct parameter.
 
-    If there is a ``crs_wkt`` parameter then *default* will be
-    returned if the *parameter* does not exist.
+    If there is a ``crs_wkt`` parameter then:
 
-    If there is not a ``crs_wkt`` parameter and *default* is not
-    `None`, then *default* will be returned if the *parameter* does
-    not exist.
+    - `None` will be returned if the *parameter* does not exist.
 
-    If there is not a ``crs_wkt`` parameter and *default* is `None`,
-    then a `KeyError` will be raised if the *parameter* does not
-    exist.
+    If there is not a ``crs_wkt`` parameter then:
+
+    - if *default* is not `None`, then *default* will be returned if
+      the *parameter* does not exist.
+
+    - if *default* is `None`, then a `KeyError` will be raised if the
+      *parameter* does not exist.
+
+    This behaviour allows a ``crs_wkt`` parameter to provide a value
+    for a missing CF grid mapping parameter (see `_create_pyproj_CRS`
+    for details.
 
     :Parameters:
 
@@ -277,7 +285,7 @@ def _cc_parameter(p, parameter, default=None):
 
     """
     if "crs_wkt" in p:
-        return p.get(parameter, default)
+        return p.get(parameter)
 
     if default is not None:
         return p.get(parameter, default)

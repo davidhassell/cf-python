@@ -2358,9 +2358,9 @@ class FieldDomain:
 
         # If 1-d lat/lon coordinates do not exist, then derive them
         # from the HEALPix indices. Setting the pole_longitude to
-        # something other than None - it doesn't matter what - ensures
-        # that the north (south) polar vertex comes out as a single
-        # node in the domain topology.
+        # something other than `None` - it doesn't matter what -
+        # ensures that the north (south) polar vertex comes out as a
+        # single node in the domain topology.
         f.create_latlon_coordinates(
             two_d=False, longitude_at_pole=0, cache=cache, inplace=True
         )
@@ -2484,9 +2484,9 @@ class FieldDomain:
         is at ``2``/``'INFO'`` or higher (as set by `cf.log_level` or
         the *verbose* parameter).
 
-        If the log level is at ``3``/``'DEBUG'``/``-1`` then a
-        description of the `pyproj.CRS` instances used to create 2-d
-        latitude and longitude coordinates will also be shown.
+        If the log level is at ``3``/``'DEBUG'``/``-1`` then
+        information on how the latitude and longitude coordinates were
+        created is also reported.
 
         .. versionadded:: 3.20.0
 
@@ -2694,11 +2694,12 @@ class FieldDomain:
                     lat_key, lon_key = _healpix_create_latlon_coordinates(
                         f, longitude_at_pole, cache
                     )
+
                     coords_created = lat_key is not None
 
         if two_d and not coords_created:
             # --------------------------------------------------------
-            # 2-d lat/lon coordinates
+            # 2-d lat/lon coordinates from 1-d projection coordinates
             # --------------------------------------------------------
             from .utils import create_2d_latlon_coordinates
 
@@ -2706,7 +2707,7 @@ class FieldDomain:
                 f,
                 cr,
                 cr_latlon,
-                longitude_at_pole=88,  # longitude_at_pole,
+                longitude_at_pole=longitude_at_pole,
                 cache=cache,
             )
             coords_created = lat_key is not None
