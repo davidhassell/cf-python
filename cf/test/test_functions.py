@@ -311,6 +311,7 @@ class functionTest(unittest.TestCase):
             "HDF5 library",
             "netcdf library",
             "netCDF4",
+            "xnetcdf",
             "h5netcdf",
             "h5py",
             "pyfive",
@@ -329,6 +330,7 @@ class functionTest(unittest.TestCase):
             "cartopy",
             "cfplot",
             "cf",
+            "xarray",
         ]
 
         # Ensure all expected components are present

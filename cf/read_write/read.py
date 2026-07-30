@@ -505,33 +505,32 @@ class read(cfdm.read):
             UM = False  # True if there is at least one UM field
             non_UM = False  # True if there is at least one non-UM field
             for f in self.constructs:
+                try:
+                    if f.get_property("um_identity", "").startswith("UM_"):
+                        UM = True
+                    else:
+                        non_UM = True
+                except Exception:
+                    non_UM = True
+
                 if UM and non_UM:
                     break
-
-                um_identity = f.get_property("um_identity", None)
-                if um_identity is None:
-                    non_UM = True
-                    continue
-
-                try:
-                    if not um_identity.startswith("UM_"):
-                        non_UM = True
-                        continue
-                except AttributeError:
-                    non_UM = True
-                    continue
-
-                UM = True
 
             if UM and non_UM:
                 self.aggregate = False
                 logger.warning(
-                    "Not aggregating fields from a mixture of UM and "
-                    "non-UM sources (a field from a UM source has "
-                    "a string-valued um_identity property that starts "
-                    "with 'UM_'). Aggregation may still be possible with "
-                    "cf.aggregate."
+                    "Won't aggregate fields from a mixture of UM and "
+                    "non-UM sources (a field from a UM source is defined as "
+                    "having a string-valued um_identity property that starts "
+                    "with 'UM_')."
+                    "\n"
+                    "Aggregation may still be possible with cf.aggregate."
                 )
+                # This is because the aggregation of UM fields
+                # requires
+                # `aggregate_options["field_identity"]="um_identity"`
+                # in order to overcome the many-to-one relationship between
+                # STASH codes and standard names.
 
         if self.aggregate:
             aggregate_options = self.aggregate_options
