@@ -1,8 +1,6 @@
 import fnmatch
 import os
 import re
-import subprocess
-from distutils.command.build import build
 
 from setuptools import find_packages, setup
 
@@ -48,64 +46,9 @@ def _get_version():
 version = _get_version()
 packages = ["cf"]
 etc_files = [f for f in find_package_data_files("cf/etc")]
-umread_files = [f for f in find_package_data_files("cf/umread_lib/c-lib")]
 test_files = [f for f in find_test_files()]
 
-package_data = etc_files + umread_files + test_files
-
-
-class build_umread(build):
-    """Adpated from https://github.com/Turbo87/py-
-    xcsoar/blob/master/setup.py."""
-
-    def run(self):
-        # Run original build code
-        build.run(self)
-
-        # Build umread
-        print("Running build_umread")
-
-        build_dir = os.path.join(
-            os.path.abspath(self.build_lib), "cf/umread_lib/c-lib"
-        )
-
-        cmd = ["make", "-C", build_dir]
-
-        def compile():
-            print("*" * 80)
-            print("Running:", " ".join(cmd), "\n")
-
-            try:
-                rc = subprocess.call(cmd)
-            except Exception as error:
-                print(error)
-                rc = 40
-
-            print("\n", "-" * 80)
-            if not rc:
-                print("SUCCESSFULLY built UM read C library")
-            else:
-                print("WARNING: Failed to build the UM read C library.")
-                print(
-                    "         Attempting to read UKMO PP and UM format files "
-                    "will result in failure."
-                )
-                print(
-                    "         This will not affect any other cf functionality."
-                )
-                print(
-                    "         In particular, netCDF file processing is "
-                    "unaffected."
-                )
-
-            print("-" * 80)
-            print("\n", "*" * 80)
-            print()
-            print("cf build successful")
-            print()
-
-        self.execute(compile, [], "compiling umread")
-
+package_data = etc_files + test_files
 
 long_description = """
 CF Python
@@ -324,6 +267,4 @@ setup(
     #     'udunits2==2.2.25',
     # ],
     #
-    # https://docs.python.org/2/distutils/apiref.html:
-    cmdclass={"build": build_umread},
 )

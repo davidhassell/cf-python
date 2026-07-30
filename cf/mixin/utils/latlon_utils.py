@@ -12,9 +12,7 @@ from .grid_mapping import create_projection_CRS
 logger = logging.getLogger(__name__)
 
 
-def create_2d_latlon_coordinates(
-    f, cr, cr_latlon, longitude_at_pole=None, cache=True
-):
+def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
     """Create 2-d latitude and longitude coordinates and bounds.
 
     Creates the 2-d latitude and longitude coordinate constructs that
@@ -55,19 +53,9 @@ def create_2d_latlon_coordinates(
             pole. If `None` (the default) then the longitudes of such
             points are determined by whichever algorithm was used to
             create the coordinates, which could result in different
-            points on a pole having different longitudes. If set to a
-            number, then the longitudes of all points on the north or
-            south pole will be given that value.
-
-        cache: `bool`, optional
-            If True (the default) then cache in memory the first and
-            last of any newly-created coordinates and bounds. This may
-            slightly slow down the coordinate creation process, but
-            may greatly speed up, and reduce the memory requirement
-            of, a future inspection of the coordinates and
-            bounds. Even when *cache* is True, new cached coordinate
-            values can only be created if the existing 1-d coordinates
-            themselves have cached first and last values.
+            grid points on a pole having different longitudes. If set
+            to a number, then the longitudes of all grid points on the
+            north or south pole will be given that value.
 
     :Returns:
 
@@ -115,7 +103,7 @@ def create_2d_latlon_coordinates(
         return (None, None)
 
     # ----------------------------------------------------------------
-    # Create the source prjection CRS
+    # Create the source projection CRS
     # ----------------------------------------------------------------
     proj_src = create_projection_CRS(cr, grid_mapping_name)
     if proj_src is None:
@@ -131,9 +119,9 @@ def create_2d_latlon_coordinates(
     # Create the destination latitude_longitude CRS
     # ----------------------------------------------------------------
     if cr_latlon is None:
-        # When specific latitude_longitude coordinate refernce has not
-        # been provided, then get the shape of the ellipsoid from the
-        # projection coordinate reference.
+        # When a specific latitude_longitude coordinate reference has
+        # not been provided, get the shape of the ellipsoid from the
+        # source projection coordinate reference.
         cr_latlon = cr
 
     proj_latlon = create_projection_CRS(cr_latlon, "latitude_longitude")
@@ -142,14 +130,15 @@ def create_2d_latlon_coordinates(
         if is_log_level_info(logger):
             logger.info(
                 f"Can't create 2-d lat/lon coordinates for {cr!r}: "
-                "Unable to create a latitude_longitude pyproj.CRS object"
+                "Unable to create a latitude_longitude pyproj.CRS object "
+                f"from {cr_latlon!r}"
             )  # pragma: no cover
 
         return (None, None)
 
     # ----------------------------------------------------------------
-    # Create the transform function from source to destination
-    # coordinates
+    # Create the transform function that converts source coordinates
+    # to destination coordinates
     # ----------------------------------------------------------------
     try:
         transformer = pyproj.Transformer.from_crs(
@@ -166,11 +155,13 @@ def create_2d_latlon_coordinates(
         return (None, None)
 
     # ----------------------------------------------------------------
-    # Create 2-d lat/lon coordinate from 1-d grid coordinate centres
+    # Create 2-d lat/lon coordinates from 1-d grid coordinate centres
     # ----------------------------------------------------------------
     x = one_d["x"]
     y = one_d["y"]
 
+    # The transform function requires that the projection coordinates
+    # have units of metres
     metres = Units("m")
     if x.Units.equivalent(metres):
         x = x.to_units(metres)
@@ -178,7 +169,7 @@ def create_2d_latlon_coordinates(
     if y.Units.equivalent(metres):
         y = y.to_units(metres)
 
-    # Create x and y meshes of cell centres
+    # Create meshes of x and y cell centres
     x_mesh, y_mesh = np.meshgrid(x.array, y.array)
 
     try:
@@ -186,7 +177,6 @@ def create_2d_latlon_coordinates(
             x_mesh, y_mesh, errcheck=True, radians=False
         )
     except Exception as error:
-        # Invalid latitude_longitude coordinate reference
         if is_log_level_info(logger):
             logger.info(
                 f"Can't create 2-d lat/lon coordinates for {cr!r}: "
@@ -194,8 +184,8 @@ def create_2d_latlon_coordinates(
             )  # pragma: no cover
 
         return (None, None)
-    else:
-        del x_mesh, y_mesh
+
+    del x_mesh, y_mesh
 
     if longitude_at_pole is not None:
         # Set the longitude at the poles
@@ -216,7 +206,7 @@ def create_2d_latlon_coordinates(
         xb = xb.array
         yb = yb.array
 
-        # Create x and y meshes of vertices.
+        # Create meshes of and y vertices.
         shape = (y.size, x.size)
         xb = np.broadcast_to(xb[np.newaxis, :, :], shape + (2,))
         yb = np.broadcast_to(yb[:, np.newaxis, :], shape + (2,))
@@ -240,7 +230,6 @@ def create_2d_latlon_coordinates(
         try:
             lon_bounds, lat_bounds = transformer.transform(x_mesh, y_mesh)
         except Exception as error:
-            # Invalid latitude_longitude coordinate reference
             if is_log_level_info(logger):
                 logger.info(
                     f"Can't create 2-d lat/lon coordinate bounds for {cr!r}: "
@@ -248,8 +237,8 @@ def create_2d_latlon_coordinates(
                 )  # pragma: no cover
 
                 return (None, None)
-        else:
-            del x_mesh, y_mesh
+
+        del x_mesh, y_mesh
 
         if longitude_at_pole is not None:
             # Set the longitude at the poles
@@ -308,10 +297,10 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
             The 1-d coordinates and axes in the following dictionary
             keys:
 
-            * ``'x'``: The X coordinate construct
-            * ``'y'``: The Y coordinate construct
-            * ``'axis_x'``: The X domain axis construct key
-            * ``'axis_y'``: The Y domain axis construct key
+            * ``'x'``: The X coordinate construct.
+            * ``'y'``: The Y coordinate construct.
+            * ``'axis_x'``: The X domain axis construct key.
+            * ``'axis_y'``: The Y domain axis construct key.
 
             If both 1-d dimension coordinates could not be found then
             `None` is returned.

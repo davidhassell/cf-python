@@ -2510,10 +2510,10 @@ class FieldDomain:
                 south pole. If `None` (the default) then the
                 longitudes of such points are determined by whichever
                 algorithm was used to create the coordinates, which
-                could result in different points on a pole having
+                could result in different grid points on a pole having
                 different longitudes. If set to a number, then the
-                longitudes of all points on the north or south pole
-                will be given that value.
+                longitudes of all grid points on the north or south
+                pole will be given that value.
 
             overwrite: `bool`, optional
                 If True then remove any existing latitude and
@@ -2697,6 +2697,8 @@ class FieldDomain:
 
                     coords_created = lat_key is not None
 
+                # Paving the way for reduced_gaussian ...
+
         if two_d and not coords_created:
             # --------------------------------------------------------
             # 2-d lat/lon coordinates from 1-d projection coordinates
@@ -2708,7 +2710,6 @@ class FieldDomain:
                 cr,
                 cr_latlon,
                 longitude_at_pole=longitude_at_pole,
-                cache=cache,
             )
             coords_created = lat_key is not None
 

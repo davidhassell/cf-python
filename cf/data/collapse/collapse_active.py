@@ -163,14 +163,8 @@ def active_chunk_function(method, *args, **kwargs):
             return
 
     axis = kwargs.get("axis")
-    if axis is not None:
-        if isinstance(axis, Integral):
-            axis = (axis,)
-
-        if len(axis) < x.ndim:
-            # Active storage is not (yet) allowed for reductions over
-            # a subset of the axes
-            return
+    if isinstance(axis, Integral):
+        axis = (axis,)
 
     # ----------------------------------------------------------------
     # Still here? Set up an Active instance that will carry out the
@@ -198,9 +192,12 @@ def active_chunk_function(method, *args, **kwargs):
         address = x.get_address()
         dataset = x.get_filename()
     else:
-        if dataset.backend_api not in "pyfive":
+        # For datasets that follow the pyfive API (e.g. `pyfive`,
+        # `umfive`), we can pass the dataset variable directly to
+        # `Active`.
+        if dataset.backend_api not in ("pyfive",):
             return
-        x
+
         dataset = dataset.backend_accessor
 
     active_kwargs = {

@@ -250,23 +250,23 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
 
 
 def _cc_parameter(p, parameter, default=None):
-    """Get a coordinate reference construct parameter.
+    """Get a parameter from a coordinate reference construct.
 
     If there is a ``crs_wkt`` parameter then:
 
-    - `None` will be returned if the *parameter* does not exist.
+    * `None` will be returned if the *parameter* does not exist.
 
     If there is not a ``crs_wkt`` parameter then:
 
-    - if *default* is not `None`, then *default* will be returned if
+    * If *default* is not `None`, then *default* will be returned if
       the *parameter* does not exist.
 
-    - if *default* is `None`, then a `KeyError` will be raised if the
+    * If *default* is `None`, then a `KeyError` will be raised if the
       *parameter* does not exist.
 
     This behaviour allows a ``crs_wkt`` parameter to provide a value
-    for a missing CF grid mapping parameter (see `_create_pyproj_CRS`
-    for details.
+    for a missing CF grid mapping parameter (which happens later on in
+    `_create_pyproj_CRS`).
 
     :Parameters:
 
@@ -859,7 +859,7 @@ def stereographic(cr):
 
 
 def transverse_mercator(cr):
-    """Create a tranverse_mercator CRS.
+    """Create a transverse_mercator CRS.
 
     https://proj.org/en/stable/operations/projections/tmerc.html
 
@@ -976,7 +976,6 @@ def create_projection_CRS(cr, grid_mapping_name):
                 proj = transverse_mercator(cr)
             case "vertical_perspective":
                 proj = vertical_perspective(cr)
-
     except KeyError as error:
         # Trap a KeyError arising from a missing mandatory coordinate
         # reference parameter

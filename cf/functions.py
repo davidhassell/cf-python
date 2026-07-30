@@ -2505,11 +2505,7 @@ def load_stash2standard_name(
 
         table: `str` or `None`, optional
             Use the conversion table at this file location. By default
-            the table will be looked for at
-            ``os.path.join(os.path.dirname(cf.__file__),'etc/STASH_to_CF.txt')``
-
-            Setting *table* to `None` will reset the table, removing
-            any modifications that have previously been made.
+            the default table of the `umfive` library will be loaded.
 
         delimiter: `str`, optional
             The delimiter of the table columns. By default, ``!`` is
@@ -2522,7 +2518,9 @@ def load_stash2standard_name(
             into the existing table, overwriting any entries which
             already exist.
 
-
+        reset: `bool`, optional
+            If True then clear all entries and re-load the default
+            table.
 
     :Returns:
 
