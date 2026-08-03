@@ -331,6 +331,7 @@ class functionTest(unittest.TestCase):
             "cfplot",
             "cf",
             "xarray",
+            "umfive",
         ]
 
         # Ensure all expected components are present
