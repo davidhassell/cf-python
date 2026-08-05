@@ -125,6 +125,42 @@ class FieldDomain:
                 ref.del_coordinate(identity, None)
                 ref.set_coordinate(key)
 
+    #def _conform_uncertainties(self, key, uncertainty=None):
+    #    """Where possible replace the content of uncertainty construct
+    #    uncertainty ancillaries uncertainty ancillary construct keys.
+    #
+    #    .. versionadded:: NEXTVERSION
+    #
+    #    :Parameters:
+    #
+    #        key: `str`
+    #            Uncertainty construct key.
+    #
+    #        uncertainty: `Uncertainty`, optional
+    #            TODOU
+    #    
+    #    :Returns:
+    #
+    #        `None`
+    #
+    #    **Examples**
+    #
+    #    >>> f._conform_uncertainties('TODOUauxiliarycoordinate1')
+    #    >>> f._conform_uncertainties('auxiliarycoordinate1', uncertinty=u)
+    #
+    #    """
+    #    identity = self.constructs[key].identity(strict=True)
+    #
+    #    if coordref is None:
+    #        uncertainties = self.uncertainties(todict=True).values()
+    #    else:
+    #        uncertainties = (uncertainty,)
+    #
+    #    for u in uncertainties:
+    #        if identity in u.probability_distribution.parameters.valuesoordinates():
+    #            ref.del_coordinate(identity, None)
+    #            ref.set_coordinate(key)
+
     @_manage_log_level_via_verbosity
     def _equivalent_coordinate_references(
         self,
@@ -1170,6 +1206,7 @@ class FieldDomain:
             axes: (sequence of) `str or `int`, optional
 
             allow_scalar: `bool`, optional
+                TODOU
 
         :Returns:
 
@@ -3654,7 +3691,7 @@ class FieldDomain:
                     if data_axes.get(dim) == tuple(axes):
                         self.del_construct(dim, default=None)
 
-        elif construct_type in ("domain_ancillary", "field_ancillary"):
+        elif construct_type in ("domain_ancillary", "field_ancillary", "uncertainty", "uncertainty_ancillary"):
             if set_axes:
                 axes = self._set_construct_parse_axes(
                     construct, axes, allow_scalar=True

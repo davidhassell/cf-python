@@ -3363,16 +3363,16 @@ def update_non_coordinates(src, dst, src_grid, dst_grid, regrid_operator):
             src.del_coordinate_reference(ref_key)
 
     # ----------------------------------------------------------------
-    # Delete source grid cell measure and field ancillary constructs
-    # that span any of the regridding axes.
+    # Delete source grid cell measure, field ancillary, uncertainty
+    # and uncertainty ancillary constructs that span any of the
+    # regridding axes.
     # ----------------------------------------------------------------
     for key in src.constructs(
-        filter_by_type=("cell_measure", "field_ancillary"),
+            filter_by_type=("cell_measure", "field_ancillary",  "uncertainty", "uncertainty_ancillary"),
         filter_by_axis=src_axis_keys,
         axis_mode="or",
         todict=True,
     ):
-        #        if set(data_axes[key]).intersection(src_axis_keys):
         src.del_construct(key)
 
     # ----------------------------------------------------------------
