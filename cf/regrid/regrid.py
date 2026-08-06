@@ -3368,7 +3368,12 @@ def update_non_coordinates(src, dst, src_grid, dst_grid, regrid_operator):
     # regridding axes.
     # ----------------------------------------------------------------
     for key in src.constructs(
-            filter_by_type=("cell_measure", "field_ancillary",  "uncertainty", "uncertainty_ancillary"),
+        filter_by_type=(
+            "cell_measure",
+            "field_ancillary",
+            "uncertainty",
+            "uncertainty_ancillary",
+        ),
         filter_by_axis=src_axis_keys,
         axis_mode="or",
         todict=True,

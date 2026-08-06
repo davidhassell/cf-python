@@ -125,7 +125,7 @@ class FieldDomain:
                 ref.del_coordinate(identity, None)
                 ref.set_coordinate(key)
 
-    #def _conform_uncertainties(self, key, uncertainty=None):
+    # def _conform_uncertainties(self, key, uncertainty=None):
     #    """Where possible replace the content of uncertainty construct
     #    uncertainty ancillaries uncertainty ancillary construct keys.
     #
@@ -138,7 +138,7 @@ class FieldDomain:
     #
     #        uncertainty: `Uncertainty`, optional
     #            TODOU
-    #    
+    #
     #    :Returns:
     #
     #        `None`
@@ -3691,7 +3691,12 @@ class FieldDomain:
                     if data_axes.get(dim) == tuple(axes):
                         self.del_construct(dim, default=None)
 
-        elif construct_type in ("domain_ancillary", "field_ancillary", "uncertainty", "uncertainty_ancillary"):
+        elif construct_type in (
+            "domain_ancillary",
+            "field_ancillary",
+            "uncertainty",
+            "uncertainty_ancillary",
+        ):
             if set_axes:
                 axes = self._set_construct_parse_axes(
                     construct, axes, allow_scalar=True
