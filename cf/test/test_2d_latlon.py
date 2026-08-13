@@ -33,6 +33,7 @@ longlat = pyproj.CRS.from_string("+proj=longlat +ellps=WGS84")
 
 
 def check_paris(g, atol=1e13, verbose=False):
+    """Check if field `g` has Paris coordinates."""
     if verbose:
         print(
             [
@@ -41,6 +42,7 @@ def check_paris(g, atol=1e13, verbose=False):
             ],
             [paris_lon, paris_lat],
         )
+
     ok = np.allclose(g.auxiliary_coordinate("X"), paris_lon, rtol=0, atol=atol)
     ok = ok & np.allclose(
         g.auxiliary_coordinate("Y"), paris_lat, rtol=0, atol=atol
@@ -48,15 +50,8 @@ def check_paris(g, atol=1e13, verbose=False):
     return ok
 
 
-def set_easting_northing(f, easting, northing):
-    x = f.dimension_coordinate("X")
-    x[...] = easting
-
-    y = f.dimension_coordinate("Y")
-    y[...] = northing
-
-
 def set_coordinate_conversion(f, parameters):
+    """Replace the coordinate reference of field `f` with new parameters."""
     cr = f.coordinate_reference()
 
     cr.coordinate_conversion.clear_parameters()
@@ -64,57 +59,22 @@ def set_coordinate_conversion(f, parameters):
 
 
 def field_paris(proj):
-    """Create a field for Paris with a projection grid."""
+    """Return a field for Paris with projection grid `proj`."""
     t = pyproj.Transformer.from_crs(longlat, proj, always_xy=1)
-    easting, northing = t.transform(paris_lon, paris_lat)
+    x_coords, y_coords = t.transform(paris_lon, paris_lat)
 
     f = f0.copy()
-    set_easting_northing(f, easting, northing)
+    x = f.dimension_coordinate("X")
+    x[...] = x_coords
+
+    y = f.dimension_coordinate("Y")
+    y[...] = y_coords
+
     return f
 
 
 class LatLon2dTest(unittest.TestCase):
-    """Test the creation of 2-d lat/lon coordinatesx."""
-
-    def test_Field_2d_create_latlon_coordinates_bounds(self):
-        """Test lat/on bounds."""
-        f = cf.read("rotated_pole.pp")[0]
-
-        cr = f.coordinate_reference()
-        self.assertEqual(
-            cr.coordinate_conversion.parameters(),
-            {
-                "grid_mapping_name": "rotated_latitude_longitude",
-                "grid_north_pole_latitude": 38,
-                "grid_north_pole_longitude": 190,
-            },
-        )
-
-        self.assertFalse(f.auxiliary_coordinates())
-
-        self.assertIsNone(f.create_latlon_coordinates(inplace=True))
-
-        # Compare the 2-d lat/lon corodinates against
-        # known-to-be-correct values
-        lat = f.auxiliary_coordinate("latitude")
-        self.assertEqual(lat.shape, (110, 106))
-        self.assertTrue(np.allclose(lat[0, 0].array, 67.1246604))
-        self.assertTrue(
-            np.allclose(
-                lat[0, 0].bounds.array,
-                [67.13411912, 66.82618815, 67.11220769, 67.42286415],
-            )
-        )
-
-        lon = f.auxiliary_coordinate("longitude")
-        self.assertEqual(lon.shape, (110, 106))
-        self.assertTrue(np.allclose(lon[0, 0].array, -45.98136153))
-        self.assertTrue(
-            np.allclose(
-                lon[0, 0].bounds.array,
-                [-46.7492162, -45.94548426, -45.21355527, -46.01992883],
-            )
-        )
+    """Test the creation of 2-d lat/lon coordinates."""
 
     def test_Field_2d_create_latlon_coordinates_albers_equal_area(self):
         """Test albers_equal_area."""
@@ -509,7 +469,7 @@ class LatLon2dTest(unittest.TestCase):
         self,
     ):
         """Test rotated_latitude_longitude."""
-        # Get the easting and northing for Paris
+        # Get the rotated longitude and latitude Paris
         lon_0 = 190
         o_lat_p = 38
         o_lon_p = 0
@@ -640,7 +600,7 @@ class LatLon2dTest(unittest.TestCase):
                 "latitude_of_projection_origin": lat_0,
                 "scale_factor_at_central_meridian": k_0,
                 "false_easting": x_0,
-                "false_northin": y_0,
+                "false_northing": y_0,
             },
         )
         g = f.create_latlon_coordinates()
@@ -693,6 +653,46 @@ class LatLon2dTest(unittest.TestCase):
         )
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
+
+    def test_Field_2d_create_latlon_coordinates_bounds(self):
+        """Test lat/lon bounds."""
+        f = cf.read("rotated_pole.pp")[0]
+
+        cr = f.coordinate_reference()
+        self.assertEqual(
+            cr.coordinate_conversion.parameters(),
+            {
+                "grid_mapping_name": "rotated_latitude_longitude",
+                "grid_north_pole_latitude": 38,
+                "grid_north_pole_longitude": 190,
+            },
+        )
+
+        self.assertFalse(f.auxiliary_coordinates())
+
+        self.assertIsNone(f.create_latlon_coordinates(inplace=True))
+
+        # Compare the 2-d lat/lon coordinates against
+        # known-to-be-correct values
+        lat = f.auxiliary_coordinate("latitude")
+        self.assertEqual(lat.shape, (110, 106))
+        self.assertTrue(np.allclose(lat[0, 0].array, 67.1246604))
+        self.assertTrue(
+            np.allclose(
+                lat[0, 0].bounds.array,
+                [67.13411912, 66.82618815, 67.11220769, 67.42286415],
+            )
+        )
+
+        lon = f.auxiliary_coordinate("longitude")
+        self.assertEqual(lon.shape, (110, 106))
+        self.assertTrue(np.allclose(lon[0, 0].array, -45.98136153))
+        self.assertTrue(
+            np.allclose(
+                lon[0, 0].bounds.array,
+                [-46.7492162, -45.94548426, -45.21355527, -46.01992883],
+            )
+        )
 
 
 if __name__ == "__main__":

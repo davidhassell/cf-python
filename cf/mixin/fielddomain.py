@@ -482,7 +482,7 @@ class FieldDomain:
                         arg0, arg1 = value.value
                         if arg0 > arg1:
                             # Query has swapped operands (i.e. arg0 >
-                            # arg1) => Create a new equivalant Query
+                            # arg1) => Create a new equivalent Query
                             # that has arg0 < arg1, for a new
                             # arg1. E.g. for a period of 360,
                             # cf.wi(355, 5) is transformed to
@@ -560,7 +560,7 @@ class FieldDomain:
                                     raise ValueError(
                                         "Error: Can't specify multiple "
                                         "conditions for a single axis when "
-                                        f"one of those condtions ({value!r}) "
+                                        f"one of those conditions ({value!r}) "
                                         "is effectively a cyclic slice: "
                                         f"{index}. Consider applying the "
                                         "conditions separately."
@@ -705,7 +705,7 @@ class FieldDomain:
                     for value, construct in zip(points, transposed_constructs)
                 ]
 
-                # Find loctions that are True in all of the
+                # Find locations that are True in all of the
                 # constructs' matches
                 item_match = item_matches.pop()
                 for m in item_matches:
@@ -2428,7 +2428,7 @@ class FieldDomain:
         del _
 
         # We are guaranteed unique node values when
-        # nodes=y_indices*y_indice.size+x_indices
+        # nodes=y_indices*y_indices.size+x_indices
         nodes = y_indices
         del y_indices
         nodes *= nodes.size
@@ -2802,7 +2802,7 @@ class FieldDomain:
             # Note: We have to do a "dry run" on the 'autocyclic' call
             #       in the if test in order to prevent corrupting
             #       self._cyclic in the case that an axis tested by
-            #       autocyclic is already marked as cylcic, but
+            #       autocyclic is already marked as cyclic, but
             #       nonetheless autocyclic returns False (sounds
             #       niche, but this really happens!).
             if len(cyclic) < len(
