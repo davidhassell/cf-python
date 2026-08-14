@@ -4,21 +4,28 @@ Version NEXTVERSION
 **2026-08-??**
 * New keywords to `cf.read`: ``backend``, ``backend_options``,
   ``cfa_filesystem``, ``cfa_backend``, ``cfa_backend_options``
-  (https://github.com/NCAS-CMS/cf-python/issues/???)
+  (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Deprecated keyword to `cfdm.read`: ``netcdf_backend``
-  (https://github.com/NCAS-CMS/cfdm/issues/417)
+  (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Dataset reads are now entirely managed by `xnetcdf` (via
-  `cfdm.read`) (https://github.com/NCAS-CMS/cf-python/issues/???)
-*  Read with `cfdm.read` anything that can be read by `xarray`
-  (https://github.com/NCAS-CMS/cfdm/issues/417)
+  `cfdm.read`) (https://github.com/NCAS-CMS/cf-python/issues/961)
+* Read with `cf.read` anything that can be read by `xarray`
+  (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Convert `xarray.Dataset` and `xarray.DataTree` to `cf.Field` via
-  `cf.read` (https://github.com/NCAS-CMS/cfdm/issues/417)
+  `cf.read` (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Convert `pyfive.File`, `zarr.Group`, `h5py.File`, `umfile.File`, and
   `xnetcdf.Dataset` to `cf.Field` via `cf.read`
-  (https://github.com/NCAS-CMS/cf-python/issues/???)
+  (https://github.com/NCAS-CMS/cf-python/issues/961)
+* Extend `cf.Field.create_latlon_coordinates` to allow the creation of
+  2-d latitudes/longitudes from plane projection and rotated pole
+  coordinates (https://github.com/NCAS-CMS/cf-python/issues/962)
+* Automatically create consolidated HDF5 metadata with `cf.write`.
+  New keywords to `cf.write`: ``hdf5_consolidated_metadata`` and
+  ``hdf5_expansion_factor``
+  (https://github.com/NCAS-CMS/cfdm/issues/413)
 * In `cf.write`, set sensible dataset chunksizes by default for 1-d
   data, controlled by the new ``one_d_chunks`` keyword
-  (https://github.com/NCAS-CMS/cf-python/issues/???)
+  (https://github.com/NCAS-CMS/cfdm/issues/414)
 * New methods to convert to `xarray`: `cf.Field.to_xarray`,
   `cf.FieldList.to_xarray`, `cf.Domain.to_xarray`, and
   `cf.DomainList.to_xarray`
