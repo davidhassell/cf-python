@@ -145,7 +145,7 @@ class FieldTest(unittest.TestCase):
 
                 u = f.uncompress()
                 self.assertFalse(bool(u.data.get_compression_type()), message)
-                self.assertTrue(f.equals(u, verbose=2), message)
+                self.assertTrue(f.equals(u), message)
 
                 for method1 in methods:
                     message += ", method1=" + method1
@@ -160,16 +160,16 @@ class FieldTest(unittest.TestCase):
                         bool(c.data.get_compression_type()), message
                     )
 
-                    self.assertTrue(u.equals(c, verbose=2), message)
-                    self.assertTrue(f.equals(c, verbose=2), message)
+                    self.assertTrue(u.equals(c), message)
+                    self.assertTrue(f.equals(c), message)
 
                     c = f.compress(method1)
                     self.assertTrue(
                         bool(c.data.get_compression_type()), message
                     )
 
-                    self.assertTrue(u.equals(c, verbose=2), message)
-                    self.assertTrue(f.equals(c, verbose=2), message)
+                    self.assertTrue(u.equals(c), message)
+                    self.assertTrue(f.equals(c), message)
 
                     cf.write(c, tmpfile)
                     c = cf.read(tmpfile)[0]
@@ -177,7 +177,7 @@ class FieldTest(unittest.TestCase):
                     self.assertTrue(
                         bool(c.data.get_compression_type()), message
                     )
-                    self.assertTrue(f.equals(c, verbose=2), message)
+                    self.assertTrue(f.equals(c), message)
 
     def test_Field_apply_masking(self):
         f = self.f0.copy()
@@ -194,7 +194,7 @@ class FieldTest(unittest.TestCase):
         d = f.data.copy()
         g = f.copy()
         self.assertIsNone(f.apply_masking(inplace=True))
-        self.assertTrue(f.equals(g, verbose=1))
+        self.assertTrue(f.equals(g))
 
         x = 0.11
         y = 0.1
@@ -205,31 +205,31 @@ class FieldTest(unittest.TestCase):
 
         g = f.apply_masking()
         e = d.apply_masking(fill_values=[x])
-        self.assertTrue(e.equals(g.data, verbose=1))
+        self.assertTrue(e.equals(g.data))
         self.assertEqual(g.data.array.count(), g.data.size - 1)
 
         f.set_property("valid_range", [y, z])
         d = f.data.copy()
         g = f.apply_masking()
         e = d.apply_masking(fill_values=[x], valid_range=[y, z])
-        self.assertTrue(e.equals(g.data, verbose=1))
+        self.assertTrue(e.equals(g.data))
 
         f.del_property("valid_range")
         f.set_property("valid_min", y)
         g = f.apply_masking()
         e = d.apply_masking(fill_values=[x], valid_min=y)
-        self.assertTrue(e.equals(g.data, verbose=1))
+        self.assertTrue(e.equals(g.data))
 
         f.del_property("valid_min")
         f.set_property("valid_max", z)
         g = f.apply_masking()
         e = d.apply_masking(fill_values=[x], valid_max=z)
-        self.assertTrue(e.equals(g.data, verbose=1))
+        self.assertTrue(e.equals(g.data))
 
         f.set_property("valid_min", y)
         g = f.apply_masking()
         e = d.apply_masking(fill_values=[x], valid_min=y, valid_max=z)
-        self.assertTrue(e.equals(g.data, verbose=1))
+        self.assertTrue(e.equals(g.data))
 
     def test_Field_flatten(self):
         f = self.f.copy()
@@ -242,16 +242,16 @@ class FieldTest(unittest.TestCase):
 
         g = f.flatten()
         h = f.flatten(list(range(f.ndim)))
-        self.assertTrue(h.equals(g, verbose=2))
+        self.assertTrue(h.equals(g))
 
         g = f.flatten("time")
-        self.assertTrue(g.equals(f, verbose=2))
+        self.assertTrue(g.equals(f))
 
         for i in (0, 1, 2):
             g = f.flatten(i)
-            self.assertTrue(g.equals(f, verbose=2))
+            self.assertTrue(g.equals(f))
             g = f.flatten([i, "time"])
-            self.assertTrue(g.equals(f, verbose=2))
+            self.assertTrue(g.equals(f))
 
         for axes in axes_combinations(f):
             g = f.flatten(axes)
@@ -271,7 +271,7 @@ class FieldTest(unittest.TestCase):
             self.assertEqual(g.ndim, f.ndim - len(axes) + 1)
             self.assertEqual(g.size, f.size)
 
-        self.assertTrue(f.equals(f.flatten([]), verbose=2))
+        self.assertTrue(f.equals(f.flatten([])))
         self.assertIsNone(f.flatten(inplace=True))
 
     def test_Field_bin(self):
@@ -344,14 +344,14 @@ class FieldTest(unittest.TestCase):
 
         w = f.weights(None)
         self.assertIsInstance(w, cf.Field)
-        self.assertTrue(w.data.equals(cf.Data(1.0, "1"), verbose=2))
+        self.assertTrue(w.data.equals(cf.Data(1.0, "1")))
 
         w = f.weights(data=True)
         self.assertIsInstance(w, cf.Data)
 
         w = f.weights(None, data=True)
         self.assertIsInstance(w, cf.Data)
-        self.assertTrue(w.equals(cf.Data(1.0, "1"), verbose=2))
+        self.assertTrue(w.equals(cf.Data(1.0, "1")))
 
         w = f.weights(components=True)
         self.assertIsInstance(w, dict)
@@ -369,7 +369,7 @@ class FieldTest(unittest.TestCase):
 
         w = f.weights()
         x = f.weights(w)
-        self.assertTrue(x.equals(w, verbose=2))
+        self.assertTrue(x.equals(w))
 
         for components in (False, True):
             for m in (False, True):
@@ -460,7 +460,7 @@ class FieldTest(unittest.TestCase):
                     a = f.collapse(method, axes=axes, weights=weights).data
                     b = getattr(f.data, method)(axes=axes)
                     self.assertTrue(
-                        a.equals(b, rtol=1e-05, atol=1e-08, verbose=2),
+                        a.equals(b, rtol=1e-05, atol=1e-08),
                     )
 
             for method in (
@@ -480,7 +480,7 @@ class FieldTest(unittest.TestCase):
                     a = f.collapse(method, axes=axes, weights=weights).data
                     b = getattr(f.data, method)(axes=axes, weights=d_weights)
                     self.assertTrue(
-                        a.equals(b, rtol=1e-05, atol=1e-08, verbose=2),
+                        a.equals(b, rtol=1e-05, atol=1e-08),
                     )
 
             for method in ("integral",):
@@ -491,7 +491,7 @@ class FieldTest(unittest.TestCase):
                 ).data
                 b = getattr(f.data, method)(axes=axes, weights=d_weights)
                 self.assertTrue(
-                    a.equals(b, rtol=1e-05, atol=1e-08, verbose=2),
+                    a.equals(b, rtol=1e-05, atol=1e-08),
                 )
 
         for axes in axes_combinations(f):
@@ -510,7 +510,7 @@ class FieldTest(unittest.TestCase):
                         axes=axes, ddof=1, weights=d_weights
                     )
                     self.assertTrue(
-                        a.equals(b, rtol=1e-05, atol=1e-08, verbose=2),
+                        a.equals(b, rtol=1e-05, atol=1e-08),
                     )
 
             for method in ("mean_of_upper_decile",):
@@ -523,7 +523,7 @@ class FieldTest(unittest.TestCase):
                     a = f.collapse(method, axes=axes, weights=weights).data
                     b = getattr(f.data, method)(axes=axes, weights=d_weights)
                     self.assertTrue(
-                        a.equals(b, rtol=1e-05, atol=1e-08, verbose=2),
+                        a.equals(b, rtol=1e-05, atol=1e-08),
                     )
 
         # Test the remove_vertical_crs keyword
@@ -577,23 +577,23 @@ class FieldTest(unittest.TestCase):
         f = self.f
 
         g = f.copy()
-        self.assertTrue(f.equals(g, verbose=2))
+        self.assertTrue(f.equals(g))
         g[0, 0, 0] += 0.001
 
         self.assertFalse(f.equals(g))
-        self.assertTrue(f.equals(g, atol=0.1, verbose=2))
+        self.assertTrue(f.equals(g, atol=0.1))
         self.assertFalse(f.equals(g))
         self.assertEqual(cf.atol(), cf.ATOL())
         atol = cf.atol(0.1)
-        self.assertTrue(f.equals(g, verbose=2))
+        self.assertTrue(f.equals(g))
         cf.atol(atol)
         self.assertFalse(f.equals(g))
 
-        self.assertTrue(f.equals(g, rtol=10, verbose=2))
+        self.assertTrue(f.equals(g, rtol=10))
         self.assertFalse(f.equals(g))
         self.assertEqual(cf.rtol(), cf.RTOL())
         rtol = cf.rtol(10)
-        self.assertTrue(f.equals(g, verbose=2))
+        self.assertTrue(f.equals(g))
         cf.rtol(rtol)
         self.assertFalse(f.equals(g))
 
@@ -730,15 +730,15 @@ class FieldTest(unittest.TestCase):
         f = self.f.copy()
 
         g = f * 0
-        self.assertTrue((f + g).equals(f, verbose=2))
-        self.assertTrue((g + f).equals(f, verbose=2))
+        self.assertTrue((f + g).equals(f))
+        self.assertTrue((g + f).equals(f))
 
         g.transpose(inplace=True)
-        self.assertTrue((f + g).equals(f, verbose=2))
+        self.assertTrue((f + g).equals(f))
 
         for g in (f, f.copy(), f * 0):
-            self.assertTrue((f + g).equals(g + f, verbose=2))
-            self.assertTrue((g + f).equals(f + g, verbose=2))
+            self.assertTrue((f + g).equals(g + f))
+            self.assertTrue((g + f).equals(f + g))
 
         g = f.subspace(grid_longitude=[0]) * 0
 
@@ -752,8 +752,8 @@ class FieldTest(unittest.TestCase):
         for key in a.cell_measures(filter_by_axis=(axis,), axis_mode="or"):
             a.del_construct(key)
 
-        self.assertTrue(a.equals(b, verbose=2))
-        self.assertTrue(b.equals(a, verbose=2))
+        self.assertTrue(a.equals(b))
+        self.assertTrue(b.equals(a))
 
         with self.assertRaises(TypeError):
             f + ("a string",)
@@ -792,7 +792,7 @@ class FieldTest(unittest.TestCase):
         g = f.copy()
         h = g.cumsum(1)
         self.assertIsNone(g.cumsum(1, inplace=True))
-        self.assertTrue(g.equals(h, verbose=2))
+        self.assertTrue(g.equals(h))
 
         # Check that a new cell method that has been added
         cell_methods = h.cell_methods(todict=True)
@@ -838,23 +838,23 @@ class FieldTest(unittest.TestCase):
         g = f.subspace(**kwargs)
 
         h = f.flip()
-        self.assertTrue(h.equals(g, verbose=1))
+        self.assertTrue(h.equals(g))
 
         h = f.flip(f.get_data_axes())
-        self.assertTrue(h.equals(g, verbose=1))
+        self.assertTrue(h.equals(g))
 
         h = f.flip(list(range(f.ndim)))
-        self.assertTrue(h.equals(g, verbose=1))
+        self.assertTrue(h.equals(g))
 
         h = f.flip(["X", "Z", "Y"])
-        self.assertTrue(h.equals(g, verbose=1))
+        self.assertTrue(h.equals(g))
 
         h = f.flip((re.compile("^atmos"), "grid_latitude", "grid_longitude"))
-        self.assertTrue(h.equals(g, verbose=1))
+        self.assertTrue(h.equals(g))
 
         g = f.subspace(grid_longitude=slice(None, None, -1))
         self.assertIsNone(f.flip("X", inplace=True))
-        self.assertTrue(f.equals(g, verbose=1))
+        self.assertTrue(f.equals(g))
 
     def test_Field_anchor(self):
         f = self.f.copy()
@@ -1127,8 +1127,8 @@ class FieldTest(unittest.TestCase):
     def test_Field_equals(self):
         f = self.f.copy()
         g = f.copy()
-        self.assertTrue(f.equals(f, verbose=2))
-        self.assertTrue(f.equals(g, verbose=2))
+        self.assertTrue(f.equals(f))
+        self.assertTrue(f.equals(g))
         g.set_property("foo", "bar")
         self.assertFalse(f.equals(g))
         g = f.copy()
@@ -1137,12 +1137,12 @@ class FieldTest(unittest.TestCase):
         # Symmetry
         f = cf.example_field(2)
         g = f.copy()
-        self.assertTrue(f.equals(g, verbose=2))
-        self.assertTrue(g.equals(f, verbose=2))
+        self.assertTrue(f.equals(g))
+        self.assertTrue(g.equals(f))
 
         g.del_construct("dimensioncoordinate0")
-        self.assertFalse(f.equals(g, verbose=2))
-        self.assertFalse(g.equals(f, verbose=2))
+        self.assertFalse(f.equals(g))
+        self.assertFalse(g.equals(f))
 
     def test_Field_insert_dimension(self):
         f = self.f.copy()
@@ -2269,9 +2269,7 @@ class FieldTest(unittest.TestCase):
 
         for identity in ("auxiliarycoordinate1", "latitude"):
             key, c = f.construct_item(identity)
-            self.assertTrue(
-                f.auxiliary_coordinate(identity).equals(c, verbose=2)
-            )
+            self.assertTrue(f.auxiliary_coordinate(identity).equals(c))
             self.assertEqual(f.auxiliary_coordinate(identity, key=True), key)
 
         with self.assertRaises(ValueError):
@@ -2303,9 +2301,7 @@ class FieldTest(unittest.TestCase):
             key = f.construct_key(identity)
             c = f.construct(identity)
 
-            self.assertTrue(
-                f.coordinate_reference(identity).equals(c, verbose=2)
-            )
+            self.assertTrue(f.coordinate_reference(identity).equals(c))
             self.assertEqual(f.coordinate_reference(identity, key=True), key)
 
         key = f.construct_key(
@@ -2336,9 +2332,7 @@ class FieldTest(unittest.TestCase):
             key = f.construct_key(identity)
             c = f.construct(identity)
 
-            self.assertTrue(
-                f.get_coordinate_reference(identity).equals(c, verbose=2)
-            )
+            self.assertTrue(f.get_coordinate_reference(identity).equals(c))
             self.assertEqual(
                 f.get_coordinate_reference(identity, key=True), key
             )
@@ -2360,7 +2354,7 @@ class FieldTest(unittest.TestCase):
         cr = f.del_coordinate_reference(
             "standard_name:atmosphere_hybrid_height_coordinate"
         )
-        self.assertTrue(cr.equals(c, verbose=2))
+        self.assertTrue(cr.equals(c))
         self.assertEqual(len(f.coordinate_references()), 1)
         self.assertEqual(len(f.domain_ancillaries()), 0)
 
@@ -2414,9 +2408,7 @@ class FieldTest(unittest.TestCase):
             else:
                 key, c = f.construct(identity, item=True)
 
-            self.assertTrue(
-                f.dimension_coordinate(identity).equals(c, verbose=2)
-            )
+            self.assertTrue(f.dimension_coordinate(identity).equals(c))
             self.assertEqual(f.dimension_coordinate(identity, key=True), key)
 
             k, v = f.dimension_coordinate(identity, item=True)
@@ -2439,10 +2431,10 @@ class FieldTest(unittest.TestCase):
         for identity in ("measure:area", "cellmeasure0"):
             key, c = f.construct_item(identity)
 
-            self.assertTrue(f.cell_measure(identity).equals(c, verbose=2))
+            self.assertTrue(f.cell_measure(identity).equals(c))
             self.assertEqual(f.cell_measure(identity, key=True), key)
 
-            self.assertTrue(f.cell_measure(identity).equals(c, verbose=2))
+            self.assertTrue(f.cell_measure(identity).equals(c))
             self.assertEqual(f.cell_measure(identity, key=True), key)
 
         self.assertEqual(len(f.cell_measures()), 1)
@@ -2460,7 +2452,7 @@ class FieldTest(unittest.TestCase):
 
         for identity in ("method:mean", "cellmethod0"):
             key, c = f.construct_item(identity)
-            self.assertTrue(f.cell_method(identity).equals(c, verbose=2))
+            self.assertTrue(f.cell_method(identity).equals(c))
             self.assertEqual(f.cell_method(identity, key=True), key)
 
     def test_Field_domain_ancillary(self):
@@ -2468,7 +2460,7 @@ class FieldTest(unittest.TestCase):
 
         for identity in ("surface_altitude", "domainancillary0"):
             key, c = f.construct_item(identity)
-            self.assertTrue(f.domain_ancillary(identity).equals(c, verbose=2))
+            self.assertTrue(f.domain_ancillary(identity).equals(c))
             self.assertEqual(f.domain_ancillary(identity, key=True), key)
 
         with self.assertRaises(ValueError):
@@ -2479,7 +2471,7 @@ class FieldTest(unittest.TestCase):
 
         for identity in ("ancillary0", "fieldancillary0"):
             key, c = f.construct_item(identity)
-            self.assertTrue(f.field_ancillary(identity).equals(c, verbose=2))
+            self.assertTrue(f.field_ancillary(identity).equals(c))
             self.assertEqual(f.field_ancillary(identity, key=True), key)
 
         with self.assertRaises(ValueError):
@@ -2492,7 +2484,7 @@ class FieldTest(unittest.TestCase):
         # Null transpose
         g = f.transpose([0, 1, 2])
 
-        self.assertTrue(f0.equals(g, verbose=2))
+        self.assertTrue(f0.equals(g))
         self.assertIsNone(f.transpose([0, 1, 2], inplace=True))
         self.assertTrue(f0.equals(f))
 
@@ -2510,7 +2502,7 @@ class FieldTest(unittest.TestCase):
             inplace=True,
         )
 
-        self.assertTrue(h.equals(h0, verbose=2))
+        self.assertTrue(h.equals(h0))
         self.assertTrue((h.array == f.array).all())
 
         with self.assertRaises(Exception):
@@ -2538,9 +2530,9 @@ class FieldTest(unittest.TestCase):
         g = f.where(landfrac >= 54, cf.masked)
         self.assertTrue(g.data.count() == 9 * 6, g.data.count())
 
-        self.assertTrue(f.equals(f.where(None), verbose=2))
+        self.assertTrue(f.equals(f.where(None)))
         self.assertIsNone(f.where(None, inplace=True))
-        self.assertTrue(f.equals(f0, verbose=2))
+        self.assertTrue(f.equals(f0))
 
         g = f.where(cf.wi(25, 31), -99, 11, construct="grid_longitude")
         g = f.where(cf.wi(25, 31), f * 9, f * -7, construct="grid_longitude")

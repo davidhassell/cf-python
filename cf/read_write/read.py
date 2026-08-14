@@ -223,11 +223,11 @@ class read(cfdm.read):
 
         {{read backend: `None` or (sequence of) `str`, optional}}
 
-            .. versionadded:: (cfdm) NEXTVERSION
+            .. versionadded:: NEXTVERSION
 
         {{read backend_options: `None` or `dict`, optional}}
 
-            .. versionadded:: (cfdm) NEXTVERSION
+            .. versionadded:: NEXTVERSION
 
         {{read storage_options: `dict` or `None`, optional}}
 
@@ -257,6 +257,18 @@ class read(cfdm.read):
 
             .. versionadded:: 3.17.0
 
+        {{read cfa_filesystem: `None` or filesystem, optional}}
+
+            .. versionadded:: NEXTVERSION
+
+        {{read cfa_backend: `None` or (sequence of) `str`, optional}}
+
+            .. versionadded:: NEXTVERSION
+
+        {{cfa_backend_options: `None` or `dict`, optional}}
+
+            .. versionadded:: NEXTVERSION
+
         {{read to_memory: (sequence of) `str`, optional}}
 
             .. versionadded:: 3.17.0
@@ -268,6 +280,10 @@ class read(cfdm.read):
         {{read filesystem: optional}}
 
             .. versionadded:: 3.20.0
+
+        {{read _noncompliance_report: `bool`, optional}}
+
+            ..versionadded:: NEXTVERSION
 
         umversion: deprecated at version 3.0.0
             Use the *um* parameter instead.
@@ -307,6 +323,7 @@ class read(cfdm.read):
         `FieldList` or `DomainList`
             The field or domain constructs found in the input
             dataset(s). The list may be empty.
+
     **Examples**
 
     >>> x = cf.read('file.nc')

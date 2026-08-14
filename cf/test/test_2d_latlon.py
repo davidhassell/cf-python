@@ -7,19 +7,19 @@ import pyproj
 import cf
 
 ellps = "WGS84"
-units = "km"
+km = "km"
 
 f0 = cf.example_field(0)[0, 0]
 
 key_x, x = f0.dimension_coordinate("X", item=True)
 x.del_bounds()
 x.standard_name = "projection_x_coordinate"
-x.override_units(units, inplace=True)
+x.override_units(km, inplace=True)
 
 key_y, y = f0.dimension_coordinate("Y", item=True)
 y.del_bounds()
 y.standard_name = "projection_y_coordinate"
-y.override_units(units, inplace=True)
+y.override_units(km, inplace=True)
 
 cr = cf.CoordinateReference()
 cr.datum.set_parameters({"reference_ellipsoid_name": ellps})
@@ -70,6 +70,13 @@ def field_paris(proj):
     y = f.dimension_coordinate("Y")
     y[...] = y_coords
 
+    rotated_latitude_longitude = proj.to_dict().get("proj") == "ob_tran"
+    if rotated_latitude_longitude:
+        x.standard_name = "grid_longitude"
+        y.standard_name = "grid_latitude"
+        x.override_units("degrees", inplace=True)
+        y.override_units("degrees", inplace=True)
+
     return f
 
 
@@ -78,7 +85,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_albers_equal_area(self):
         """Test albers_equal_area."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_1 = 43
         lat_2 = 62
         lat_0 = 30
@@ -92,7 +102,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -109,6 +119,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -121,7 +133,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_azimuthal_equidistant(self):
         """Test azimuthal_equidistant."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 48.8584
         lon_0 = 2.2945
         proj = pyproj.CRS(
@@ -131,7 +146,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -146,6 +161,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -158,7 +175,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_geostationary(self):
         """Test geostationary."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         h = 35785831
         lon_0 = 0
         sweep = "y"
@@ -170,7 +190,7 @@ class LatLon2dTest(unittest.TestCase):
             y_0=0,
             sweep=sweep,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -187,6 +207,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g, atol=1e-12))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f, {"grid_mapping_name": "geostationary", "crs_wkt": proj.to_wkt()}
         )
@@ -197,7 +219,10 @@ class LatLon2dTest(unittest.TestCase):
         self,
     ):
         """Test lambert_azimuthal_equal_area."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 52
         lon_0 = 10
         x_0 = 4321000
@@ -209,7 +234,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=x_0,
             y_0=y_0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -226,6 +251,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g, atol=1e-8))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -238,7 +265,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_lambert_conformal_conic(self):
         """Test lambert_conformal_conic."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_1 = 33
         lat_2 = 45
         lat_0 = 39
@@ -252,7 +282,7 @@ class LatLon2dTest(unittest.TestCase):
             ellps=ellps,
             x_0=0,
             y_0=0,
-            units=units,
+            units=km,
         )
         f = field_paris(proj)
         set_coordinate_conversion(
@@ -267,6 +297,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -281,7 +313,10 @@ class LatLon2dTest(unittest.TestCase):
         self,
     ):
         """Test lambert_cylindrical_equal_area."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lon_0 = 0
         lat_ts = 30
         proj = pyproj.CRS(
@@ -291,7 +326,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -306,6 +341,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -318,7 +355,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_mercator(self):
         """Test mercator."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lon_0 = 0
         lat_ts = 0
         proj = pyproj.CRS(
@@ -328,7 +368,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -343,6 +383,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f, {"grid_mapping_name": "mercator", "crs_wkt": proj.to_wkt()}
         )
@@ -351,7 +393,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_oblique_mercator(self):
         """Test oblique_mercator."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 45
         lonc = 10
         alpha = 45
@@ -365,7 +410,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -382,6 +427,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -394,7 +441,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_orthographic(self):
         """Test orthographic."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 48.8584
         lon_0 = 2.2945
         proj = pyproj.CRS(
@@ -404,7 +454,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -419,6 +469,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f, {"grid_mapping_name": "orthographic", "crs_wkt": proj.to_wkt()}
         )
@@ -427,7 +479,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_polar_stereographic(self):
         """Test polar_stereographic."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_ts = 90
         lat_0 = 90
         lon_0 = 0
@@ -439,7 +494,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -455,6 +510,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -469,7 +526,10 @@ class LatLon2dTest(unittest.TestCase):
         self,
     ):
         """Test rotated_latitude_longitude."""
-        # Get the rotated longitude and latitude Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lon_0 = 190
         o_lat_p = 38
         o_lon_p = 0
@@ -480,7 +540,7 @@ class LatLon2dTest(unittest.TestCase):
             o_lat_p=o_lat_p,
             lon_0=lon_0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -496,6 +556,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -508,7 +570,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_sinusoidal(self):
         """Test sinusoidal."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lon_0 = 0
         proj = pyproj.CRS(
             proj="sinu",
@@ -516,7 +581,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -530,6 +595,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f, {"grid_mapping_name": "sinusoidal", "crs_wkt": proj.to_wkt()}
         )
@@ -538,7 +605,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_stereographic(self):
         """Test stereographic."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 90
         lon_0 = 0
         k_0 = 0.994
@@ -550,7 +620,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=0,
             y_0=0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -566,6 +636,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f, {"grid_mapping_name": "stereographic", "crs_wkt": proj.to_wkt()}
         )
@@ -574,7 +646,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_transverse_mercator(self):
         """Test transverse_mercator."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         lat_0 = 0
         lon_0 = 3
         k_0 = 0.9996012717
@@ -588,7 +663,7 @@ class LatLon2dTest(unittest.TestCase):
             x_0=x_0,
             y_0=y_0,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -606,6 +681,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -618,7 +695,10 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_vertical_perspective(self):
         """Test vertical_perspective."""
-        # Get the easting and northing for Paris
+        # Get the correct projected coordinates for Paris, convert
+        # these projected coordinates to lat/lon using
+        # `cf.Field.create_latlon_coordinates`, and check that we end
+        # up in Paris.
         h = 3000000
         lat_0 = 48.8584
         lon_0 = 2.2945
@@ -628,7 +708,7 @@ class LatLon2dTest(unittest.TestCase):
             lat_0=lat_0,
             h=h,
             ellps=ellps,
-            units=units,
+            units=km,
         )
 
         f = field_paris(proj)
@@ -644,6 +724,8 @@ class LatLon2dTest(unittest.TestCase):
         g = f.create_latlon_coordinates()
         self.assertTrue(check_paris(g))
 
+        # Do the same, but with a WKT-defined coordinate reference
+        # construct.
         set_coordinate_conversion(
             f,
             {
@@ -656,6 +738,7 @@ class LatLon2dTest(unittest.TestCase):
 
     def test_Field_2d_create_latlon_coordinates_bounds(self):
         """Test lat/lon bounds."""
+        # Check that lat/lon coordinate bounds are correctly created.
         f = cf.read("rotated_pole.pp")[0]
 
         cr = f.coordinate_reference()
@@ -677,6 +760,8 @@ class LatLon2dTest(unittest.TestCase):
         lat = f.auxiliary_coordinate("latitude")
         self.assertEqual(lat.shape, (110, 106))
         self.assertTrue(np.allclose(lat[0, 0].array, 67.1246604))
+
+        self.assertEqual(lat.bounds.units, lat.units)
         self.assertTrue(
             np.allclose(
                 lat[0, 0].bounds.array,
@@ -687,6 +772,8 @@ class LatLon2dTest(unittest.TestCase):
         lon = f.auxiliary_coordinate("longitude")
         self.assertEqual(lon.shape, (110, 106))
         self.assertTrue(np.allclose(lon[0, 0].array, -45.98136153))
+
+        self.assertEqual(lon.bounds.units, lon.units)
         self.assertTrue(
             np.allclose(
                 lon[0, 0].bounds.array,

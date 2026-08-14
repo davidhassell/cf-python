@@ -2,10 +2,23 @@ Version NEXTVERSION
 --------------
 
 **2026-08-??**
-
+* New keywords to `cf.read`: ``backend``, ``backend_options``,
+  ``cfa_filesystem``, ``cfa_backend``, ``cfa_backend_options``
+  (https://github.com/NCAS-CMS/cf-python/issues/???)
+* Deprecated keyword to `cfdm.read`: ``netcdf_backend``
+  (https://github.com/NCAS-CMS/cfdm/issues/417)
+* Dataset reads are now entirely managed by `xnetcdf` (via
+  `cfdm.read`) (https://github.com/NCAS-CMS/cf-python/issues/???)
+*  Read with `cfdm.read` anything that can be read by `xarray`
+  (https://github.com/NCAS-CMS/cfdm/issues/417)
+* Convert `xarray.Dataset` and `xarray.DataTree` to `cf.Field` via
+  `cf.read` (https://github.com/NCAS-CMS/cfdm/issues/417)
+* Convert `pyfive.File`, `zarr.Group`, `h5py.File`, `umfile.File`, and
+  `xnetcdf.Dataset` to `cf.Field` via `cf.read`
+  (https://github.com/NCAS-CMS/cf-python/issues/???)
 * In `cf.write`, set sensible dataset chunksizes by default for 1-d
   data, controlled by the new ``one_d_chunks`` keyword
-  (https://github.com/NCAS-CMS/cfdm/issues/414)
+  (https://github.com/NCAS-CMS/cf-python/issues/???)
 * New methods to convert to `xarray`: `cf.Field.to_xarray`,
   `cf.FieldList.to_xarray`, `cf.Domain.to_xarray`, and
   `cf.DomainList.to_xarray`

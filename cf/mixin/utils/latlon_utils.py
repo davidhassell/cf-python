@@ -92,7 +92,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
     # ----------------------------------------------------------------
     # Get the source 1-d grid coordinates and axes
     # ----------------------------------------------------------------
-    one_d = _get_1d_coordinates(f, cr, grid_mapping_name)
+    one_d = _get_1d_coordinates(f, cr)
     if one_d is None:
         if is_log_level_info(logger):
             logger.info(
@@ -236,7 +236,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
                     f"Error during pyproj transformation: {error}"
                 )  # pragma: no cover
 
-                return (None, None)
+            return (None, None)
 
         del x_mesh, y_mesh
 
@@ -273,7 +273,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
     return (lat_key, lon_key)
 
 
-def _get_1d_coordinates(f, cr, grid_mapping_name):
+def _get_1d_coordinates(f, cr):
     """Get 1-d dimension coordinates and axes.
 
     .. versionadded:: NEXTVERSION
@@ -288,28 +288,39 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
             The coordinate reference construct that defines or implies
             the 1-d dimension coordinates.
 
-        grid_mapping_name: `str`
-            The grid_mapping_name parameter of *cr*.
-
     :Returns:
 
         `dict` or `None`
             The 1-d coordinates and axes in the following dictionary
             keys:
 
-            * ``'x'``: The X coordinate construct.
-            * ``'y'``: The Y coordinate construct.
+            * ``'x'``: The X dimension coordinate construct.
+            * ``'y'``: The Y dimension coordinate construct.
             * ``'axis_x'``: The X domain axis construct key.
             * ``'axis_y'``: The Y domain axis construct key.
 
             If both 1-d dimension coordinates could not be found then
             `None` is returned.
 
+    **Examples:**
+
+    >>> _get_1d_coordinates(f, cr)
+    {'x': <CF DimensionCoordinate: projection_x_coordinate(10) km>,
+     'y': <CF DimensionCoordinate: projection_y_coordinate(12) km>,
+     'axis_x': 'domainaxis1',
+     'axis_y': 'domainaxis0'}
+
+    >>> _get_1d_coordinates(f, cr)
+    {'x': <CF DimensionCoordinate: grid_longitude(106) degrees>,
+     'y': <CF DimensionCoordinate: grid_latitude(111) degrees>,
+     'axis_x': 'domainaxis1',
+     'axis_y': 'domainaxis0'}
+
     """
     x = None
     y = None
 
-    # Look for 1-d coordinates named by the coordinate reference
+    # Look for dimension coordinates named by the coordinate reference
     for key in cr.coordinates():
         dc = f.dimension_coordinate(f"key%{key}", default=None)
         if dc is None:
@@ -324,6 +335,9 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
 
     if x is None and y is None:
         # Look for 1-d coordinates by identity
+        grid_mapping_name = cr.coordinate_conversion.get_parameter(
+            "grid_mapping_name", None
+        )
         match grid_mapping_name:
             case "rotated_latitude_longitude":
                 identity_x = "grid_longitude"
@@ -340,11 +354,11 @@ def _get_1d_coordinates(f, cr, grid_mapping_name):
         )
 
     if x is None or y is None:
-        # Can't find all 1-d dimension coordinates
+        # Can't find both 1-d dimension coordinates
         return
 
-    # Make sure the 1-d coordinates are referenced from the coordinate
-    # reference
+    # Make sure that the 1-d coordinates are referenced from the
+    # coordinate reference
     cr.set_coordinates((key_x, key_y))
 
     return {

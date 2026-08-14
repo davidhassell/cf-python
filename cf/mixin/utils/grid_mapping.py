@@ -186,16 +186,12 @@ def _crs_wkt_parameters(cr):
     return pyproj.CRS.from_wkt(crs_wkt).to_dict()
 
 
-def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
+def _create_pyproj_CRS(kwargs, cr, ellipsoid_only=False):
     """Create a `pyproj.CRS` instance.
 
     .. versionadded:: NEXTVERSION
 
     :Parameters:
-
-        cr: `CoordinateReference`
-            The coordinate reference construct from which *kwargs* was
-            derived.
 
         kwargs: `dict`
             A dictionary of keyword arguments for initialising the the
@@ -207,6 +203,14 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
             If the *cr* contains a ``crs_wkt`` parameter then it is
             converted to `pyproj.CRS` keyword arguments that are
             automatically included.
+
+        cr: `CoordinateReference`
+            The coordinate reference construct from which *kwargs* was
+            derived.
+
+        ellipsoid_only: `bool`, optional
+            Return the CRS defined only by the ellipsoid and prime
+            meridian.
 
     :Returns:
 
@@ -235,7 +239,7 @@ def _create_pyproj_CRS(kwargs, cr, latitude_longitude=False):
         return
 
     if (
-        latitude_longitude
+        ellipsoid_only
         and cr.coordinate_conversion.get_parameter("grid_mapping_name", None)
         != "latitude_longitude"
     ):
@@ -258,8 +262,8 @@ def _cc_parameter(p, parameter, default=None):
 
     If there is not a ``crs_wkt`` parameter then:
 
-    * If *default* is not `None`, then *default* will be returned if
-      the *parameter* does not exist.
+    * If *default* is not `None`, then that *default* will be returned
+      if the *parameter* does not exist.
 
     * If *default* is `None`, then a `KeyError` will be raised if the
       *parameter* does not exist.
@@ -268,6 +272,8 @@ def _cc_parameter(p, parameter, default=None):
     for a missing CF grid mapping parameter (which happens later on in
     `_create_pyproj_CRS`).
 
+    .. versionadded:: NEXTVERSION
+
     :Parameters:
 
         p: `dict`
@@ -275,9 +281,10 @@ def _cc_parameter(p, parameter, default=None):
             parameters.
 
         parameter: `str`
-            The name of the parameter to get.
+            The name of the parameter.
 
         default: optional
+            What to do if the parmaeter doesn not exist (see above).
 
     :Returns:
 
@@ -294,13 +301,13 @@ def _cc_parameter(p, parameter, default=None):
 
 
 # ====================================================================
-# Functions for creating `pyproj.CRS` instances for each CF grid
+# Functions for creating a `pyproj.CRS` instance for each CF grid
 # mapping type.
 # ====================================================================
 
 
 def albers_equal_area(cr):
-    """Create an azimuthal_equidistant CRS.
+    """Create an albers_equal_area CRS.
 
     https://proj.org/en/stable/operations/projections/aea.html
 
@@ -309,7 +316,7 @@ def albers_equal_area(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -354,7 +361,7 @@ def azimuthal_equidistant(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -385,7 +392,7 @@ def geostationary(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -457,7 +464,7 @@ def lambert_azimuthal_equal_area(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -487,7 +494,7 @@ def lambert_conformal_conic(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -532,7 +539,7 @@ def lambert_cylindrical_equal_area(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -560,19 +567,19 @@ def lambert_cylindrical_equal_area(cr):
 
 
 def latitude_longitude(cr):
-    """create a latitude_longitude CRS.
+    """Create a latitude_longitude CRS.
 
     .. versionadded:: NEXTVERSION
 
     :Parameters:
 
         cr: `CoordinateReference`
-            The latitude_longitude coordinate reference construct from
-            which to create the CRS, or `None` if there isn't one (in
-            which case a spherical CRS is created).
+            The coordinate reference construct from which to create
+            the CRS, or `None` if there isn't one (in which case a
+            spherical CRS is created).
 
-            .. note:: Only the datum parameters are used, so the
-                      coordinate reference construct does not not need
+            .. note:: Only the datum parameters of *cr* are used, so
+                      the coordinate reference construct does not need
                       to be a latitude_longitude grid mapping.
 
     :Returns:
@@ -583,7 +590,7 @@ def latitude_longitude(cr):
     """
     kwargs = {"proj": "longlat"}
 
-    return _create_pyproj_CRS(kwargs, cr, latitude_longitude=True)
+    return _create_pyproj_CRS(kwargs, cr, ellipsoid_only=True)
 
 
 def mercator(cr):
@@ -596,7 +603,7 @@ def mercator(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -633,7 +640,7 @@ def oblique_mercator(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -665,7 +672,7 @@ def orthographic(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -695,7 +702,7 @@ def polar_stereographic(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -763,7 +770,7 @@ def rotated_latitude_longitude(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -807,7 +814,7 @@ def sinusoidal(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -837,7 +844,7 @@ def stereographic(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -868,7 +875,7 @@ def transverse_mercator(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
@@ -900,7 +907,7 @@ def vertical_perspective(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct.
+            The coordinate reference construct from the CRS is deived.
 
     :Returns:
 
