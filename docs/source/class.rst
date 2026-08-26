@@ -89,8 +89,10 @@ Data classes
    :nosignatures:
    :toctree: class/
 
-   cf.AggregatedArray
    cf.Data
+   cf.AggregatedArray
+   cf.XnetcdfArray
+   cf.FullArray
    cf.H5netcdfArray
    cf.NetCDF4Array
    cf.FullArray
