@@ -35,11 +35,9 @@ https://github.com/cf-convention/cf-conventions/wiki/Mapping-from-CF-Grid-Mappin
 
 * lat_2: Second standard parallel.
 
-* lat_ts: Defines the latitude where scale is not distorted. It is
-          only taken into account for Polar Stereographic formulations
-          (lat_0 = +/- 90 ), and then defaults to the lat_0 value. If
-          set to a value different from +/- 90, it takes precedence
-          over k_0 if both options are used together.
+* lat_ts: Latitude of true scale. Defines the latitude where scale
+          is not distorted. Takes precedence over +k_0 if both
+          options are used together.
 
 * lon_0: Central meridian/longitude of natural origin, longitude of
          origin or longitude of false origin (naming and meaning
