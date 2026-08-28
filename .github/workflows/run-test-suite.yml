@@ -100,13 +100,6 @@ jobs:
         cd ${{ github.workspace }}/main
         pip install --no-deps -e .
 
-    # Make UMRead library
-    - name: Make UMRead
-      shell: bash -l {0}
-      run: |
-        cd ${{ github.workspace }}/main/cf/umread_lib/c-lib
-        make
-
     # Install the coverage library
     # We do so with conda which was setup in a previous step.
     - name: Install coverage
