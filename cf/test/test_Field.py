@@ -3298,7 +3298,7 @@ class FieldTest(unittest.TestCase):
                 g.auxiliary_coordinate(c).equals(f.auxiliary_coordinate(c))
             )
 
-        # pole_longitude. Note that bounds index 0 is the
+        # longitude_at_pole. Note that bounds index 0 is the
         # northern-most vertex, and bounds index 2 is the
         # southern-most vertex.
         f = self.f12
