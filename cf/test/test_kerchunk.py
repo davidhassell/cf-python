@@ -66,7 +66,7 @@ class read_writeTest(unittest.TestCase):
         self.assertEqual(k.get_original_filenames(), set())
 
     def test_read_dict(self):
-        """Test cfdm.read with an Kerchunk dictionary."""
+        """Test cf.read with a Kerchunk dictionary."""
         with open(kerchunk_file, "r") as fh:
             d = json.load(fh)
 
