@@ -194,7 +194,7 @@ def _create_pyproj_CRS(kwargs, cr, ellipsoid_only=False):
     :Parameters:
 
         kwargs: `dict`
-            A dictionary of keyword arguments for initialising the the
+            A dictionary of keyword arguments for initialising the
             `pyproj.CRS` instance.
 
             The keyword arguments should not include a description of
@@ -284,7 +284,7 @@ def _cc_parameter(p, parameter, default=None):
             The name of the parameter.
 
         default: optional
-            What to do if the parmaeter doesn not exist (see above).
+            What to do if the parameter doesn't not exist (see above).
 
     :Returns:
 
@@ -316,7 +316,8 @@ def albers_equal_area(cr):
     :Parameters:
 
         cr: `CoordinateReference`
-            The coordinate reference construct from the CRS is deived.
+            The coordinate reference construct from which the CRS is
+            derived.
 
     :Returns:
 
@@ -761,7 +762,7 @@ def polar_stereographic(cr):
 
 
 def rotated_latitude_longitude(cr):
-    """Create a rotated_latitude_longitude CRS`.
+    """Create a rotated_latitude_longitude CRS.
 
     https://proj.org/en/stable/operations/projections/ob_tran.html
 

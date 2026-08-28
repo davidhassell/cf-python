@@ -43,7 +43,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
 
         cr_latlon: `CoordinateReference` or `None`
             The coordinate reference construct for the
-            latitude_longitude grid mapping, or `None` is there isn't
+            latitude_longitude grid mapping, or `None` if there isn't
             one, in which case a spherical latitude_longitude grid
             mapping is assumed.
 
@@ -206,7 +206,7 @@ def create_2d_latlon_coordinates(f, cr, cr_latlon, longitude_at_pole=None):
         xb = xb.array
         yb = yb.array
 
-        # Create meshes of and y vertices.
+        # Create meshes of x and y vertices.
         shape = (y.size, x.size)
         xb = np.broadcast_to(xb[np.newaxis, :, :], shape + (2,))
         yb = np.broadcast_to(yb[:, np.newaxis, :], shape + (2,))

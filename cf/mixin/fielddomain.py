@@ -3935,7 +3935,7 @@ class FieldDomain:
         {{class_lower}}s may be written to the same `xarray` dataset
         with `{{package}}.write` (e.g. ``ds = {{package}}.write([f,
         g], fmt='XARRAY')``). Also, `{{package}}.write` allows a
-        mixture a mixture of fields and domains to be written to the
+        mixture of fields and domains to be written to the
         same `xarray` dataset.
 
         An `xarray` dataset can be converted to one or more fields

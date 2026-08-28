@@ -559,7 +559,7 @@ class read(cfdm.read):
                 # We can't trust the the standard_name to provide the
                 # identity for UM fields (multiple STASH codes can
                 # have the same standard name), so instead we have to
-                # the um_identity propery (which encapsulates the
+                # the um_identity property (which encapsulates the
                 # submodel, stash/field code and UM version).
                 aggregate_options["field_identity"] = "um_identity"
 
