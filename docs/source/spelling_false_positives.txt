@@ -5,6 +5,7 @@ accessors
 actify
 addattr
 aggregatable
+AggregatedArray
 al
 allclose
 amongst
@@ -84,6 +85,7 @@ cfdm
 CF
 cfa
 CFA
+CFImplementation
 cfp
 cftime
 changelog
@@ -103,6 +105,7 @@ conda
 config
 conformant
 connectivities
+ConstructList
 contigious
 contiguousness
 contruct
@@ -160,6 +163,7 @@ domainancillary
 DomainAncillary
 domainaxis
 DomainAxis
+DomainList
 DomainTopology
 donotchecknonaggregatingaxes
 Drach
@@ -256,7 +260,9 @@ initio
 inplace
 instantiation
 int
+InteriorRing
 internode
+InterpolationParameter
 ints
 ior
 ipow
@@ -298,6 +304,7 @@ Kristian
 kwargs
 laplacian
 lat
+latlon
 lbproc
 lbtim
 le
@@ -355,6 +362,7 @@ Niña
 Niño
 Nino
 Nmax
+NodeCountProperties
 nondimensional
 nonzero
 normalized
@@ -375,6 +383,8 @@ outerproduct
 parallelisation
 parallelise
 parallelised
+PartNodeCount
+PartNodeCountProperties
 pathjoin
 Pathname
 pdim
@@ -393,6 +403,7 @@ priori
 programmatically
 pseudolevels
 py
+PyfiveArray
 pyplot
 Quantization
 quantization
@@ -446,6 +457,7 @@ runtime
 rxor
 scikit
 scipy
+ScipyNetcdfFileArray
 sd
 Sebastián
 sep
@@ -496,6 +508,7 @@ tempdir
 TEMPDIR
 th
 Thibault
+TiePointIndex
 TimeDuration
 timeseries
 timeSeries
@@ -556,6 +569,7 @@ vorticity
 wi
 wo
 xarray
+XnetcdfArray
 xor
 xy
 Zarr
