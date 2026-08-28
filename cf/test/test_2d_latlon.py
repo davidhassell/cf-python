@@ -70,7 +70,7 @@ def field_paris(proj):
     y = f.dimension_coordinate("Y")
     y[...] = y_coords
 
-    rotated_latitude_longitude = proj.to_dict().get("proj") == "ob_tran"
+    rotated_latitude_longitude = "+proj=ob_tran" in proj.srs
     if rotated_latitude_longitude:
         x.standard_name = "grid_longitude"
         y.standard_name = "grid_latitude"
