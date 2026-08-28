@@ -9,7 +9,6 @@ needed.
 
 import re
 import sys
-
 from pathlib import Path
 
 if len(sys.argv) > 1:
@@ -18,6 +17,7 @@ else:
     SOURCE_DIR = Path("source/class")
 
 OUT_DIR = SOURCE_DIR.parent
+
 
 def generate_stub_files(rst_path: Path):
     content = rst_path.read_text(encoding="utf-8")
@@ -54,7 +54,7 @@ def generate_stub_files(rst_path: Path):
                 out_dir = OUT_DIR / "method"
             else:
                 out_dir = OUT_DIR / "attribute"
-                
+
             out_dir.mkdir(parents=True, exist_ok=True)
 
             out_file = out_dir / f"{entry}.rst"
