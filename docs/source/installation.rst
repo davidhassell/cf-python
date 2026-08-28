@@ -312,6 +312,13 @@ environments for which these features are not required.
   regridding, some changes to the refinement level, and some
   collapses.
 
+.. rubric:: Grid mapping manipulations
+
+* `pyproj <https://pypi.org/project/pyproj>`_, version 3.7.2 or
+  newer. This package is required to create 2-d latitude and longitude
+  coordinates from grid mappings.
+
+
 ----
 
 .. _Tests:
