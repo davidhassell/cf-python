@@ -8,8 +8,9 @@ Version NEXTVERSION
   (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Deprecated keyword to `cfdm.read`: ``netcdf_backend``
   (https://github.com/NCAS-CMS/cf-python/issues/961)
-* Dataset reads are now entirely managed by `xnetcdf` (via
-  `cfdm.read`) (https://github.com/NCAS-CMS/cf-python/issues/961)
+* Dataset reads are now entirely managed by `xnetcdf` and its backend
+  libraries (via `cfdm.read`)
+  (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Read with `cf.read` anything that can be read by `xarray`
   (https://github.com/NCAS-CMS/cf-python/issues/961)
 * Convert `xarray.Dataset` and `xarray.DataTree` to `cf.Field` via
