@@ -281,6 +281,14 @@ environments for which these features are not required.
 
 .. rubric:: Regridding
 
+.. rubric:: umfive
+
+* `umfive <https://pypi.org/project/umfive>`_, version 0.3.0 or newer.
+
+  For reading Met Office PP and fields file datasets.
+
+.. rubric:: Regridding
+
 * `esmpy <https://earthsystemmodeling.org/esmpy/>`_, version 8.7.0 or
   newer. This can be installed via conda with
 

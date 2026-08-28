@@ -35,6 +35,7 @@ Version NEXTVERSION
 * New output format for `cf.write` that creates an `xarray` dataset in
   memory: ``'XARRAY'``
   (https://github.com/NCAS-CMS/cf-python/issues/933)
+* New optional dependency: ``umfive>=0.3.0``
 * New optional dependency: ``xarray>=2026.7.0``
 
 ----
