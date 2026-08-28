@@ -203,6 +203,10 @@ extras_require = {
     "xarray": [
         "xarray>=2026.7.0",
     ],
+    "coordinates": [
+        "healpix>=2025.1",
+        "pyproj>=3.7.2",
+    ]
 }
 
 setup(
