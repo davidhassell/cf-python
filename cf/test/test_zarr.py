@@ -282,6 +282,9 @@ class read_writeTest(unittest.TestCase):
         self.assertTrue(z.equals(n))
         self.assertTrue(z.equals(f))
 
+        # Check 'closest_ancestor'
+        cf.read(grouped_file, group_dimension_search="closest_ancestor")
+
     def test_zarr_groups_geometry(self):
         """Test Zarr groups containing cell geometries."""
         f = cf.example_field(6)
