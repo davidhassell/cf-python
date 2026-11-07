@@ -3328,25 +3328,23 @@ def locate(lat, lon, f=None):
     """
 
     def _locate(lat, lon, f):
+        # HEALPix
         healpix = f.coordinate(
             "healpix_index", filter_by_naxes=(1,), default=None
         )
-        if healpix:
-            # HEALPix
+        if healpix is not None:
             from .healpix_utils import _healpix_locate
 
             return _healpix_locate(lat, lon, f)
 
-        raise NotImplementedError(
-            f"Can't find cell locations for {f!r}: Can only find locations "
-            "for HEALPix cells"
-        )
+        # UGRID
+        ugrid = f.domain_topology(filter_by_cell=('face',), default=None)
+        if ugrid is not None:
+            from .ugrid_utils import _ugrid_locate
 
-        ugrid = f.domain_topologies(todict=True)
-        if ugrid:
-            # UGRID - not coded up, yet.
-            pass
-
+            return _ugrid_locate(lat, lon, f)
+            
+        # Geometry
         geometry = any(
             aux.get_geometry(False)
             for aux in f.auxiliary_coordinates(
@@ -3359,7 +3357,7 @@ def locate(lat, lon, f=None):
 
         raise NotImplementedError(
             f"Can't find cell locations for {f!r}: Can only find locations "
-            "for HEALPix cells"
+            "for UGRID and HEALPix cells"
         )
 
     if np.abs(lat).max() > 90:
@@ -3368,6 +3366,16 @@ def locate(lat, lon, f=None):
             f"the range [-90, 90]. Got: {lat}"
         )
 
+    # Make sure that lat and lon have the same number of elements
+    lat = np.atleast_1d(lat).ravel()
+    lon = np.atleast_1d(lon).ravel()
+    if lat.size == 1 and lon.size > 1:
+        lat = np.full_like(lon, lat, dtype=lat.dtype)
+    elif lon.size == 1 and lat.size > 1:
+        lon = np.full_like(lat, lon, dtype=lon.dtype)
+    elif lat.size != lon.size:
+        raise ValueError("TODO")
+        
     if f is None:
         return partial(_locate, lat, lon)
 
