@@ -517,7 +517,7 @@ def _healpix_change_indexing_scheme(
         healpix_index.data._set_cached_elements(new_cache)
 
 
-def _healpix_locate(lat, lon, f):
+def _healpix_locate(lat, lon, f, unique=True):
     """Locate HEALPix cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -552,6 +552,11 @@ def _healpix_locate(lat, lon, f):
         f: `Field` or `Domain`
             The Field or Domain containing the HEALPix grid.
 
+        unique: `bool`, optional
+            TODO
+
+            .. versionadded:: NEXTVERSION
+
     :Returns:
 
         `numpy.ndarray`
@@ -570,6 +575,9 @@ def _healpix_locate(lat, lon, f):
             f"{e}. Must install healpix (https://pypi.org/project/healpix) "
             "to allow the location of HEALPix cells"
         )
+
+    if not unique:
+        raise NotImplementedError("TODO")
 
     hp = f.healpix_info()
 

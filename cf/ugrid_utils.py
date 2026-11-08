@@ -1,8 +1,9 @@
 import numpy as np
 
-from .functions import atol as cf_atol
+from cf import atol as cf_atol
 
-def _ugrid_locate(lat, lon, f):
+
+def _ugrid_locate(lat, lon, f, unique=True):
     """Locate UGRID cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -17,7 +18,7 @@ def _ugrid_locate(lat, lon, f):
     locations then that cell's index appears only once in the output.
 
     If a latitude-longitude location lies outside of all cells then it
-    is ignored.    
+    is ignored. TODO
 
     .. versionadded:: NEXTVERSION
 
@@ -30,139 +31,156 @@ def _ugrid_locate(lat, lon, f):
             cell indices. Must be in the range [-90, 90], although
             this is not checked.
 
-        lon:  1-d `numpy.ndarray`
+        lon: 1-d `numpy.ndarray`
             The longitudes, in degrees east, for which to find the
             cell indices.
 
         f: `Field` or `Domain`
-            The Field or Domain containing the UGRID grid.
+            The field or domain containing the UGRID grid.
+
+        unique: `bool`, optional
+            Return sorted cell indices without duplicates TODO
 
     :Returns:
 
         `numpy.ndarray`
-            Indices for the discrete UGRUD axis that contain the
+            Indices for the discrete UGRID axis that contain the
             latitude-longitude locations.
 
     """
-    
-    face_node_connectivity = f.domain_topology(filter_by_cell=('face',))
+    # Get the face_node_connectivity array, and normalise it.
+    face_node_connectivity = f.domain_topology(filter_by_cell=("face",))
     face_node_connectivity = face_node_connectivity.normalise(
         start_index=0, remove_empty_columns=True
     )
 
-    nodes_lon, nodes_lat = f.node_coordinates()
-    
-    locator = UGRIDLocator(
-        nodes_lat.array, nodes_lon.array,  face_node_connectivity.array
+    nodes = f.node_coordinates()
+    if nodes[0].Y and nodes[1].X:
+        nodes_y, nodes_x = nodes
+    elif nodes[0].X and nodes[1].Y:
+        nodes_x, nodes_y = nodes
+    else:
+        raise ValueError(
+            "Can't locate latitudes and longitudes for a UGRID domain that "
+            f"does not have well-defined X and Y node coordinates: {f!r}"
+        )
+
+    # Does the field have a spherical polar coordinate system?
+    units = nodes_y.Units
+    spherical = (
+        units.islatitude
+        or nodes_y.get_property("standard_name", None) == "grid_latitude"
     )
-    index = locator.locate(lat, lon)
 
-    # Remove duplicates
-    index = np.unique(index)
+    if spherical:
+        y, x = lat, lon
+    else:
+        # Convert spherical 'lat' and 'lon' to 'y' and 'x' in the
+        # fields's Cartesian coordinate system
+        raise NotImplementedError(
+            "Can't yet locate latitudes and longitudes for a UGRID domain "
+            "with a Cartesian coordinate system"
+        )
 
-    # Remove non-indices
-    if index[0] == -1:
-        index = index[1:]
+    # Initialise a locator instance
+    locator = UGRIDLocator(
+        nodes_y.array,
+        nodes_x.array,
+        face_node_connectivity.array,
+        spherical,
+    )
 
+    # Find the indices for the locations
+    index = locator.locate(y, x, unique=unique)
     return index
-    
-        
+
 
 class UGRIDLocator:
-    r"""Point-in-mesh locator for UGRID unstructured meshes.
+    """Point-in-mesh locator for UGRID unstructured meshes.
 
-    Provides robust O(log N) spatial indexing and bulk point-in-mesh
-    location for arbitrary unstructured spherical meshes, supporting
+    Provides O(log N) spatial indexing and bulk point-in-mesh location
+    for arbitrary unstructured spherical meshes, supporting
     high-valence node junctions, concave faces, high-aspect-ratio
     elements, and scaled datasets exceeding 10e6 faces.
 
     Maps 2-d spherical coordinates to 3-d unit N-vectors to eliminate
     polar singularities and dateline discontinuities. Polygon face
     connectivity is decomposed into convex sub-triangles using a fully
-    vectorized fan-triangulation pass. Point location queries execute
+    vectorised fan-triangulation pass. Point location queries execute
     via a two-stage filter-and-verify algorithm:
 
     1. **Spatial Filtering (O(log N)):** Employs a SciPy 3-d `cKDTree`
        built on sub-triangle centroids to fetch candidate
        faces. Out-of-domain query points are rejected in O(1) time via
        a precomputed maximum cell radius bound.
-    
-    2. **Exact Verification (O(1)):** Evaluates a vectorized scalar
+
+    2. **Exact Verification (O(1)):** Evaluates a vectorised scalar
        triple product point-in-triangle test using `cf.atol` for exact
        edge and boundary resolution.
 
     :Notes:
-    
+
     - **N-Vector Geometry:** Spherical coordinates are represented as
-      3-d N-vectors $\\mathbf{v} = (\\cos\\phi\\cos\\lambda,
-      \\cos\\phi\\sin\\lambda, \\sin\\phi)$. Vector operations replace
-      spherical trigonometry, rendering geometric tests invariant to
-      coordinate branch cuts or poles.
-    
-    - **Vectorized fan triangulation:** Arbitrary ``n``-agons are
-      decomposed into ``n-2`` sub-triangles in a single vectorized
+      3-d N-vectors. Vector operations replace spherical trigonometry,
+      rendering geometric tests invariant to coordinate branch cuts or
+      poles.
+
+    - **Vectorised fan triangulation:** Arbitrary ``n``-agons are
+      decomposed into ``n-2`` sub-triangles in a single vectorised
       pass across all faces simultaneously.
-    
+
     - **Progressive search guarantee:** If a candidate search with
       initial `k_candidates` fails to locate an interior point in
-      complex boundary regions, search depth scales progressively ($k
-      \\to 4k \\to 16k \\dots$) bounded by `max_cell_radius`,
-      guaranteeing 100% location reliability without degrading
-      performance for standard points.
-    
+      complex boundary regions, the search depth scales progressively
+      (multiplying `k_candidates` by 4 each iteration, bounded by
+      `max_cell_radius`), guaranteeing 100% location reliability
+      without degrading performance for standard points.
+
     - **Tolerance integration:** Dynamically queries `cf.atol` to
       resolve shared face boundaries.
 
     :Attributes:
 
-    `nodes_3d`: Array of shape ``(n_nodes, 3)``. Cartesian 3D unit
-    N-vectors $(X, Y, Z)$ representing all unique mesh nodes on the
-    unit sphere.
-    
-    `tri_nodes`: Array of int Array of shape ``(n_sub_triangles,
-    3)``. Node indices defining all sub-triangles generated by
-    fan-triangulation of polygon faces.
-    
+    `k_candidates`: Initial candidate search depth, derived from
+    maximum node valence and 99th-percentile cell aspect ratios.
+
+    `max_cell_radius`: Maximum 3-d Euclidean distance from any
+    sub-triangle centroid to one its vertices across the entire
+    mesh. Defines the physical threshold for O(1) out-of-bounds
+    rejection.
+
+    `nodes_3d`: Array of shape ``(n_nodes, 3)``. Cartesian 3-d unit
+    N-vectors representing all unique mesh nodes on the unit sphere.
+
     `parent_face_ids`: Array of shape ``(n_sub_triangles,)``. Maps
     each sub-triangle back to its 0-based parent face index in the
     original `face_nodes` matrix.
-    
-    `max_cell_radius`: Maximum 3D Euclidean distance from any
-    sub-triangle centroid to its vertices across the entire
-    mesh. Defines the physical threshold for $O(1)$ out-of-bounds
-    rejection.
-
-    `k_candidates`: Auto-inferred initial candidate search depth
-    derived from maximum node valence and 99th-percentile cell aspect
-    ratios.
 
     `tree`: `scipy.spatial.cKDTree` 3-d KD-Tree spatial index
-    constructed over normalized sub-triangle centroids.
+    constructed over normalised sub-triangle centroids.
 
-    . versionadded:: NEXTVERSION
-    
+    `tri_nodes`: Array of int Array of shape ``(n_sub_triangles,
+    3)``. Node indices defining all sub-triangles generated by
+    fan-triangulation of polygon faces.
+
+    .. versionadded:: NEXTVERSION
+
     """
 
-    def __init__(
-        self,
-        nodes_lat,
-        nodes_lon,
-        face_nodes,
-    ):
+    def __init__(self, nodes_y, nodes_x, face_nodes, spherical=True):
         """**Initialisation**
 
         :Parameters:
-    
-            nodes_lat: 1-d `numpy.ndarray`
-                Array of latitude coordinates for all unique mesh
-                nodes, in degrees.
-    
-            nodes_lon: 1-d `numpy.ndarray`
-                Array of longitude coordinates for all unique mesh
-                nodes, in degrees.
-        
-            face_nodes : 2-d `numpy.ndarray`
 
+            nodes_y: 1-d `numpy.ndarray`
+                Array of longitude coordinates for all unique mesh
+                nodes, in degrees.TODO
+
+            nodes_x: 1-d `numpy.ndarray`
+                Array of latitude coordinates for all unique mesh
+                nodes, in degrees.TODO
+
+            face_nodes : 2-d `numpy.ndarray`
                 Integer connectivity matrix of shape ``(n_faces,
                 max_nodes_per_face)`` where each row contains the node
                 indices defining the perimeter of a mesh face. Padded
@@ -172,18 +190,22 @@ class UGRIDLocator:
         """
         from scipy.spatial import cKDTree
 
-        # 1. Convert node coordinates to 3D N-vectors (unit sphere)
-        lons = nodes_lon
-        lats = nodes_lat
+        self.spherical = bool(spherical)
 
-        r_lon, r_lat = np.radians(lons), np.radians(lats)
-        self.nodes_3d = np.column_stack(
-            [
-                np.cos(r_lat) * np.cos(r_lon),
-                np.cos(r_lat) * np.sin(r_lon),
-                np.sin(r_lat),
-            ]
-        )
+        if spherical:
+            # Convert spherical node coordinates to 3-d N-vectors
+            # (unit sphere)
+            r_lon, r_lat = np.radians(nodes_x), np.radians(nodes_y)
+            self.nodes_3d = np.column_stack(
+                [
+                    np.cos(r_lat) * np.cos(r_lon),
+                    np.cos(r_lat) * np.sin(r_lon),
+                    np.sin(r_lat),
+                ]
+            )
+        else:
+            # 2-d Cartesian node coordinates (eastings, northings)
+            self.nodes = np.column_stack([nodes_x, nodes_y])
 
         # Get the face_node_connectivity mask (True where a face has
         # fewer than the maximum number of nords per face)
@@ -204,15 +226,11 @@ class UGRIDLocator:
         parents_base = np.arange(n_faces, dtype=int)
 
         for k in range(1, max_nodes_per_face - 1):
-            v0 =  face_nodes[:, 0]
-            vk =  face_nodes[:, k]
+            v0 = face_nodes[:, 0]
+            vk = face_nodes[:, k]
             vk1 = face_nodes[:, k + 1]
 
-            valid_k = (
-                (  ~mask[:, 0])
-                & (~mask[:, k])
-                & (~mask[:, k + 1])
-            )
+            valid_k = (~mask[:, 0]) & (~mask[:, k]) & (~mask[:, k + 1])
 
             tri_k = np.column_stack([v0, vk, vk1])[valid_k]
             parents_k = parents_base[valid_k]
@@ -225,9 +243,11 @@ class UGRIDLocator:
 
         if len(self.tri_nodes) > 0:
             # Compute normalised 3-d centroids
-            tri_verts = self.nodes_3d[self.tri_nodes]  # (N_tri, 3, 3)
+            tri_verts = self.nodes_3d[self.tri_nodes]
             centroids = tri_verts.mean(axis=1)
-            centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
+            if self.spherical:
+                centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
+
             self.tree = cKDTree(centroids)
 
             # Precompute the maximum cell radius across the entire
@@ -235,9 +255,7 @@ class UGRIDLocator:
             #
             # d_v = distances from vertices to normalised sub-triangle
             #       centroid
-            d_v = np.linalg.norm(
-                tri_verts - centroids[:, None, :], axis=2
-            )  # (N_tri, 3)
+            d_v = np.linalg.norm(tri_verts - centroids[:, None, :], axis=2)
             self.max_cell_radius = float(d_v.max())
 
             # Infer an initial value for k_candidates = The number of
@@ -259,20 +277,18 @@ class UGRIDLocator:
             )
 
             inferred_k = int(np.ceil(2 * max_degree * aspect_multiplier))
-            self.k_candidates = max(
-                8, min(inferred_k, len(self.tri_nodes))
-            )
+            self.k_candidates = max(8, min(inferred_k, len(self.tri_nodes)))
         else:
             self.k_candidates = 0
             self.max_cell_radius = 0.0
             self.tree = None
 
-    def locate(self, query_lat, query_lon, k_candidates=None):
+    def locate(self, y, x, k_candidates=None, unique=True):
         r"""Locate the UGRID face index containing query points.
 
         Performs a high-performance spatial lookup using a two-stage
-        filter-and-verify algorithm: $O(\log N)$ nearest-centroid
-        retrieval via SciPy KD-Tree followed by an $O(1)$ vectorised
+        filter-and-verify algorithm: O(log N) nearest-centroid
+        retrieval via SciPy KD-Tree followed by an O(1) vectorised
         scalar triple product check.
 
         :O(1) out-of-bounds early rejection:
@@ -297,102 +313,177 @@ class UGRIDLocator:
 
         .. versionadded:: NEXTVERSION
 
+        :Parameters:
+
+            y: TODO
+
+            x: TODO
+
+            k_candidates: `int` or `None`, optional
+
+            unique: `bool`, optional
+                Return sorted cell indices without duplicates TODO
+
         """
+        # For each point, the UGRID axis index for the cell that
+        # contains it, or the value -1 of no cells contain a point.
+        results = np.full(y.shape, -1, dtype=int)
+
         n_triangles = len(self.tri_nodes)
         if n_triangles == 0:
             # Every point is outside of the mesh (because the mesh has
             # no faces!)
-            return np.full(q_lon.shape, -1, dtype=int)
+            return results
 
-        # Convert the query points to N-vectors
-        r_lat = np.radians(query_lat)
-        r_lon = np.radians(query_lon)
-        Q = np.column_stack(
-            [
-                np.cos(r_lat) * np.cos(r_lon),
-                np.cos(r_lat) * np.sin(r_lon),
-                np.sin(r_lat),
-            ]
-        )
+        if self.spherical:
+            # Spherical polar coordinates: Convert the query points to
+            # N-vectors
+            r_lat = np.radians(y)
+            r_lon = np.radians(x)
+            Q = np.column_stack(
+                [
+                    np.cos(r_lat) * np.cos(r_lon),
+                    np.cos(r_lat) * np.sin(r_lon),
+                    np.sin(r_lat),
+                ]
+            )
+        else:
+            # Cartesian coordinates (eastings, northings)
+            Q = np.column_stack([x, y])
 
-        n_points = len(query_lat)
-        results = np.full(n_points, -1, dtype=int)
-        unmatched_indices = np.arange(n_points)
+        # List of points that are unresolved (i.e. that haven't yet
+        # been shown to lie either inside a cell or outside the entire
+        # mesh). This list gets updated each time we pass through the
+        # search loop. Each point is given by its integer index
+        # position in the 'y' and 'x' arrays.
+        unmatched_indices = np.arange(y.size)
 
         atol = float(cf_atol())
-        max_dist_bound = self.max_cell_radius + atol
+        max_distance_bound = self.max_cell_radius + atol
 
         if k_candidates is None:
             k_current = self.k_candidates
         else:
-            k_current  = min(k_candidates, n_triangles)
-                
+            k_current = k_candidates
+
+        k_current = min(k_current, n_triangles)
+
         # Progressive search loop bounded by physical distance
         while len(unmatched_indices) > 0:
             Q_unmatched = Q[unmatched_indices]
 
             # Query tree for distances and candidate indices
-            dists, cand_tri_indices = self.tree.query(Q_unmatched, k=k_current)
-
+            #
+            # For each point, 'triangle_indices' contains the indices
+            # for 'k_current' closest candidate triangles; and
+            # 'distances' contains the distance from the each point to
+            # each candidate triangle.
+            #
+            # E.g. distances = [[0.007 0.007 0.028 0.029 0.040]
+            #                   [1.130 1.150 1.153 1.164 1.166]]
+            # triangle_indices = [[0 3 2 4 1]
+            #                     [2 0 3 1 4]]
+            # k_current = 5
+            distances, triangle_indices = self.tree.query(
+                Q_unmatched, k=k_current
+            )
             if k_current == 1:
-                dists = dists[:, None]
-                cand_tri_indices = cand_tri_indices[:, None]
+                # Makes use that the arrays are always 2-d
+                distances = distances[:, None]
+                triangle_indices = triangle_indices[:, None]
 
+            # List of points that are matched (i.e. that are shown to
+            # lie either inside a cell or outside the entire mesh)
+            # during this pass through the search loop. Each point is
+            # given by its integer index position in the 'y' and 'x'
+            # arrays.
             newly_matched = []
-            definitely_outside = []
 
-            for sub_idx, global_idx in enumerate(unmatched_indices):
-                q_vec = Q[global_idx]
-                pt_dists = dists[sub_idx]
-                cand_tris = cand_tri_indices[sub_idx]
+            # List of points that are found to be outside of the
+            # entire mesh during this pass through the search loop.
+            # Each point is given by its integer index position in the
+            # 'y' and 'x' arrays.
+            outside_mesh = []
 
-                # Instant rejection: Nearest centroid is farther than
-                # max cell radius
-                if pt_dists[0] > max_dist_bound:
-                    definitely_outside.append(global_idx)
+            for sub_idx, point_idx in enumerate(unmatched_indices):
+                q_vec = Q[point_idx]
+                pt_dists = distances[sub_idx]
+                candidate_triangles = triangle_indices[sub_idx]
+
+                # The nearest candidate triangle centroid is farther
+                # away than the maximum cell radius, so the point must
+                # be outside of the entire mesh.
+                if pt_dists[0] > max_distance_bound:
+                    outside_mesh.append(point_idx)
                     continue
 
-                # Truncate search to candidates within max_dist_bound
-                valid_mask = (pt_dists <= max_dist_bound) & (
-                    cand_tris < n_triangles
+                # Restrict the search to candidate triangles whose
+                # centroids are no further than the maximum cell
+                # radius from the point
+                valid_mask = (pt_dists <= max_distance_bound) & (
+                    candidate_triangles < n_triangles
                 )
-                valid_tris = cand_tris[valid_mask]
+                valid_triangles = candidate_triangles[valid_mask]
 
-                # Point-in-triangle boundary check
-                for tri_idx in valid_tris:
+                # Point-in-triangle check, but only on triangles whose
+                # centroids are no further away than the maximum cell
+                # radius
+                for tri_idx in valid_triangles:
                     v = self.nodes_3d[self.tri_nodes[tri_idx]]
-                    crosses = np.cross(v, np.roll(v, -1, axis=0))
 
-                    if np.all(np.dot(crosses, q_vec) >= -atol):
-                        results[global_idx] = self.parent_face_ids[tri_idx]
-                        newly_matched.append(global_idx)
+                    if self.spherical:
+                        # Spherical polar coordinates: 3-d Cross
+                        # product of N-vectors with target vector
+                        crosses = np.cross(v, np.roll(v, -1, axis=0))
+                        is_inside = np.all(np.dot(crosses, q_vec) >= -atol)
+                    else:
+                        # Cartesian coordinates: 2-d cross product of
+                        # edge vectors with (q - v)
+                        v_next = np.roll(v, -1, axis=0)
+                        crosses = (v_next[:, 0] - v[:, 0]) * (
+                            q_vec[1] - v[:, 1]
+                        ) - (v_next[:, 1] - v[:, 1]) * (q_vec[0] - v[:, 0])
+                        is_inside = np.all(crosses >= -atol)
+
+                    if is_inside:
+                        # This point lies inside a cell
+                        results[point_idx] = self.parent_face_ids[tri_idx]
+                        newly_matched.append(point_idx)
                         break
 
                 # If we have searched all candidates within physical
                 # range and found no match, then the point is outside
                 # the mesh.
-                if (
-                    global_idx not in newly_matched
-                    and np.any(pt_dists > max_dist_bound)
+                if point_idx not in newly_matched and np.any(
+                    pt_dists > max_distance_bound
                 ):
-                    definitely_outside.append(global_idx)
+                    outside_mesh.append(point_idx)
 
             # Drop points that were matched or proven to be outside
-            resolved = newly_matched + definitely_outside
+            resolved = newly_matched + outside_mesh
             if resolved:
                 unmatched_indices = np.setdiff1d(
                     unmatched_indices, resolved, assume_unique=True
                 )
 
-            # Stop if all remaining candidates exceed distance bound
-            # or tree size
-            if (
-                k_current >= n_triangles
-                or len(definitely_outside) == len(unmatched_indices)
+            # Stop if all remaining candidate triangles exceed the
+            # distance bound or tree size
+            if k_current >= n_triangles or len(outside_mesh) == len(
+                unmatched_indices
             ):
                 break
 
             # Scale up k only for remaining ambiguous points
             k_current = min(k_current * 4, n_triangles)
-        
+
+        size = results.size
+        if unique and size:
+            # Return sorted cell indices without duplicates, nor
+            # out-of-mesh indicators.
+            if size > 1:
+                results = np.unique(results)
+
+            if results[0] == -1:
+                results = results[1:]
+
         return results

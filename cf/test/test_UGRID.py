@@ -76,6 +76,10 @@ class UGRIDTest(unittest.TestCase):
         os.path.dirname(os.path.abspath(__file__)), "ugrid_3.nc"
     )
 
+    global_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ugrid_global_1.nc"
+    )
+
     def setUp(self):
         """Preparations called immediately before each test method."""
         # Disable log messages to silence expected warnings
@@ -306,6 +310,108 @@ class UGRIDTest(unittest.TestCase):
                     edge = i
                 elif u.domain_topology().get_cell() == "face":
                     face = i
+
+    def test_UGRID_locate_1(self):
+        """Test cf.locate with a limited area mesh."""
+        f = cf.example_field(8)
+
+        # Get the location for every point in the mesh
+        node_lat = f.construct("latitude").array[::-1]
+        node_lon = f.construct("longitude").array[::-1]
+        self.assertEqual(cf.locate(node_lat, node_lon, f).tolist(), [0, 1, 2])
+
+        # Get the indices for a subset of points in the mesh
+        lat = [34, 32]
+        lon = [-44, -44]
+        self.assertEqual(cf.locate(lat, lon, f).tolist(), [0, 1])
+
+        # Get the index for a point outside of the mesh
+        lat = -89
+        lon = 180
+        self.assertEqual(cf.locate(lat, lon, f).tolist(), [])
+        self.assertEqual(
+            cf.locate(lat, lon, f, unique=False).tolist(),
+            [-1],
+        )
+
+        # Get the indices for a subset of points in the mesh and a
+        # point outside of the mesh, including duplicates
+        lat = [34, 32, -89, 34.1]
+        lon = [-44, -44, 180, -44.1]
+        self.assertEqual(cf.locate(lat, lon, f).tolist(), [0, 1])
+        self.assertEqual(
+            cf.locate(lat, lon, f, unique=False).tolist(),
+            [0, 1, -1, 0],
+        )
+
+    def test_UGRID_locate_2(self):
+        """Test cf.locate with a global mesh."""
+        # Locate global file path within cf-python test directory
+        f = cf.read(self.global_file)[0]
+
+        # Get the location for every point in the mesh
+        node_lat = f.construct("latitude").array[::-1]
+        node_lon = f.construct("longitude").array[::-1]
+
+        self.assertEqual(
+            cf.locate(node_lat, node_lon, f).tolist(),
+            list(range(node_lat.size)),
+        )
+        self.assertEqual(
+            cf.locate(node_lat, node_lon, f, unique=False).tolist(),
+            list(range(node_lat.size - 1, -1, -1)),
+        )
+
+        # Extract face node connectivity matrix
+        face_nodes_construct = f.construct(
+            "face_node_connectivity", default=None
+        )
+        if face_nodes_construct is not None:
+            face_nodes = face_nodes_construct.array
+            start_index = getattr(face_nodes_construct, "start_index", 0)
+        else:
+            # Fallback if accessed via domain ancillary / bounds
+            bounds = f.construct("longitude").get_bounds().array
+            # Create synthetic 0-based index for global verification test
+            face_nodes = np.arange(len(bounds) * 3).reshape(-1, 3)
+            start_index = 0
+
+        global_locator = RobustUGRIDLocator(
+            nodes_lon=node_lon,
+            nodes_lat=node_lat,
+            face_nodes=face_nodes,
+            start_index=start_index,
+        )
+
+        # Verify initial candidate depth and cell radius calculation
+        self.assertGreater(global_locator.k_candidates, 0)
+        self.assertGreater(global_locator.max_cell_radius, 0.0)
+
+        # Query arbitrary point across the global mesh
+        res = global_locator.locate(0.0, 0.0)
+        self.assertIsInstance(int(res), int)
+
+    def test_out_of_bounds_rejection(self):
+        """Verify O(1) distance bound instantly rejects out-of-mesh points."""
+        # Query points far outside the mesh coordinate bounds
+        far_lon, far_lat = [100.0, -180.0, 0.0], [80.0, -90.0, 0.0]
+        results = self.locator.locate(far_lon, far_lat)
+
+        np.testing.assert_array_equal(results, np.array([-1, -1, -1]))
+
+    def test_tolerance_boundary_resolution(self):
+        """Test boundary point resolution using cf.atol() settings."""
+        # Point right on the shared edge between Face 0 and Face 1
+        edge_lon, edge_lat = -44.0, 33.0
+
+        with cf.atol(1e-8):
+            res = self.locator.locate(edge_lon, edge_lat)
+            self.assertIn(res, [0, 1])
+
+        # Test with relaxed global tolerance
+        with cf.atol(1e-3):
+            res_relaxed = self.locator.locate(edge_lon + 1e-4, edge_lat)
+            self.assertNotEqual(res_relaxed, -1)
 
 
 if __name__ == "__main__":

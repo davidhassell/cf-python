@@ -3242,7 +3242,7 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 )
 
 
-def locate(lat, lon, f=None):
+def locate(lat, lon, f=None, unique=True):
     """Locate cells containing latitude-longitude locations.
 
     The cells must be defined by a discrete axis that has 1-d latitude
@@ -3260,7 +3260,10 @@ def locate(lat, lon, f=None):
     are provided then they are paired element-wise.
 
     If a cell contains more than one of the latitude-longitude
-    locations, then that cell's index appears only once in the output.
+    locations, then that cell's index appears only once in the output. TODO
+
+    If a latitude-longitude location lies outside of all cells then it
+    is ignored. TODO
 
     .. versionadded:: 3.20.0
 
@@ -3269,13 +3272,15 @@ def locate(lat, lon, f=None):
 
     :Parameters:
 
-        lat: (sequence of) number
+        lat: array_like
             The latitude(s), in degrees north, for which to find the
-            cell indices. Must be in the range [-90, 90].
+            cell indices. Must be in the range [-90, 90]. A scalar or
+            multi-dimensional array is flattened to 1-d.
 
-        lon: (sequence of) number
+        lon: array_like
             The longitude(s), in degrees east, for which to find the
-            cell indices.
+            cell indices. A scalar or multi-dimensional array is
+            flattened to 1-d.
 
         f: `Field` or `Domain` or `None`, optional
             The Field or Domain containing the UGRID or HEALPix
@@ -3289,6 +3294,11 @@ def locate(lat, lon, f=None):
             condition in a Field's `subspace` and `indices` methods,
             since, for instance, ``f.subspace(X=cf.locate(0, 45))`` is
             equivalent to ``f.subspace(X=cf.locate(0, 45, f))``.
+
+        unique: `bool`, optional
+            TODO
+
+            .. versionadded:: NEXTVERSION
 
     :Returns:
 
@@ -3327,7 +3337,7 @@ def locate(lat, lon, f=None):
 
     """
 
-    def _locate(lat, lon, f):
+    def _locate(lat, lon, f, unique=True):
         # HEALPix
         healpix = f.coordinate(
             "healpix_index", filter_by_naxes=(1,), default=None
@@ -3335,15 +3345,15 @@ def locate(lat, lon, f=None):
         if healpix is not None:
             from .healpix_utils import _healpix_locate
 
-            return _healpix_locate(lat, lon, f)
+            return _healpix_locate(lat, lon, f, unique=unique)
 
         # UGRID
-        ugrid = f.domain_topology(filter_by_cell=('face',), default=None)
+        ugrid = f.domain_topology(filter_by_cell=("face",), default=None)
         if ugrid is not None:
             from .ugrid_utils import _ugrid_locate
 
-            return _ugrid_locate(lat, lon, f)
-            
+            return _ugrid_locate(lat, lon, f, unique=unique)
+
         # Geometry
         geometry = any(
             aux.get_geometry(False)
@@ -3357,7 +3367,7 @@ def locate(lat, lon, f=None):
 
         raise NotImplementedError(
             f"Can't find cell locations for {f!r}: Can only find locations "
-            "for UGRID and HEALPix cells"
+            "for UGRID face cells and HEALPix cells"
         )
 
     if np.abs(lat).max() > 90:
@@ -3366,7 +3376,8 @@ def locate(lat, lon, f=None):
             f"the range [-90, 90]. Got: {lat}"
         )
 
-    # Make sure that lat and lon have the same number of elements
+    # Make sure that lat and lon are 1-d numpy arrays with the same
+    # number of elements
     lat = np.atleast_1d(lat).ravel()
     lon = np.atleast_1d(lon).ravel()
     if lat.size == 1 and lon.size > 1:
@@ -3375,11 +3386,11 @@ def locate(lat, lon, f=None):
         lon = np.full_like(lat, lon, dtype=lon.dtype)
     elif lat.size != lon.size:
         raise ValueError("TODO")
-        
-    if f is None:
-        return partial(_locate, lat, lon)
 
-    return _locate(lat, lon, f)
+    if f is None:
+        return partial(_locate, lat, lon, unique=unique)
+
+    return _locate(lat, lon, f, unique=unique)
 
 
 @lru_cache(maxsize=1)
