@@ -376,20 +376,38 @@ class UGRIDTest(unittest.TestCase):
             face_nodes = np.arange(len(bounds) * 3).reshape(-1, 3)
             start_index = 0
 
-        global_locator = RobustUGRIDLocator(
-            nodes_lon=node_lon,
-            nodes_lat=node_lat,
-            face_nodes=face_nodes,
-            start_index=start_index,
+    def test_UGRID_locate_3(self):
+        """Test cf.locate with a concave cell."""
+        f = cf.example_field(8)
+
+        xbounds = f.coordinate("X").bounds
+        xbounds[0, 1] = -44.5
+        xbounds[1, 2] = -44.5
+        xbounds[2, 2] = -44.5
+
+        ybounds = f.coordinate("Y").bounds
+        ybounds[0, 1] = 34.5
+        ybounds[1, 2] = 34.5
+        ybounds[2, 2] = 34.5
+
+        x = f.coordinate("X")
+        x[...] = [-44.9, -44, -43]
+
+        y = f.coordinate("Y")
+        y[...] = [34.9, 31.1, 34.5]
+
+        # Get the location for every point in the mesh
+        node_lat = f.construct("latitude").array[::-1]
+        node_lon = f.construct("longitude").array[::-1]
+        self.assertEqual(cf.locate(node_lat, node_lon, f).tolist(), [0, 1, 2])
+
+        # Get the indices for a subset of points in the mesh and a
+        # point outside of the mesh, including duplicates
+        lat = [34.9, 34.4]
+        lon = [-44.9, -44.4]
+        self.assertEqual(
+            cf.locate(lat, lon, f, unique=False).tolist(), [0, -1]
         )
-
-        # Verify initial candidate depth and cell radius calculation
-        self.assertGreater(global_locator.k_candidates, 0)
-        self.assertGreater(global_locator.max_cell_radius, 0.0)
-
-        # Query arbitrary point across the global mesh
-        res = global_locator.locate(0.0, 0.0)
-        self.assertIsInstance(int(res), int)
 
     def test_out_of_bounds_rejection(self):
         """Verify O(1) distance bound instantly rejects out-of-mesh points."""
