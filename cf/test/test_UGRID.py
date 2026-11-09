@@ -331,7 +331,7 @@ class UGRIDTest(unittest.TestCase):
         self.assertEqual(cf.locate(lat, lon, f).tolist(), [])
         self.assertEqual(
             cf.locate(lat, lon, f, unique=False).tolist(),
-            [-1],
+            [-3],
         )
 
         # Get the indices for a subset of points in the mesh and a
@@ -341,7 +341,7 @@ class UGRIDTest(unittest.TestCase):
         self.assertEqual(cf.locate(lat, lon, f).tolist(), [0, 1])
         self.assertEqual(
             cf.locate(lat, lon, f, unique=False).tolist(),
-            [0, 1, -1, 0],
+            [0, 1, -3, 0],
         )
 
     def test_UGRID_locate_2(self):
@@ -362,22 +362,8 @@ class UGRIDTest(unittest.TestCase):
             list(range(node_lat.size - 1, -1, -1)),
         )
 
-        # Extract face node connectivity matrix
-        face_nodes_construct = f.construct(
-            "face_node_connectivity", default=None
-        )
-        if face_nodes_construct is not None:
-            face_nodes = face_nodes_construct.array
-            start_index = getattr(face_nodes_construct, "start_index", 0)
-        else:
-            # Fallback if accessed via domain ancillary / bounds
-            bounds = f.construct("longitude").get_bounds().array
-            # Create synthetic 0-based index for global verification test
-            face_nodes = np.arange(len(bounds) * 3).reshape(-1, 3)
-            start_index = 0
-
     def test_UGRID_locate_3(self):
-        """Test cf.locate with a concave cell."""
+        """Test cf.locate with a concave cells."""
         f = cf.example_field(8)
 
         xbounds = f.coordinate("X").bounds
@@ -406,30 +392,67 @@ class UGRIDTest(unittest.TestCase):
         lat = [34.9, 34.4]
         lon = [-44.9, -44.4]
         self.assertEqual(
-            cf.locate(lat, lon, f, unique=False).tolist(), [0, -1]
+            cf.locate(lat, lon, f, unique=False).tolist(), [0, -3]
         )
 
-    def test_out_of_bounds_rejection(self):
-        """Verify O(1) distance bound instantly rejects out-of-mesh points."""
-        # Query points far outside the mesh coordinate bounds
-        far_lon, far_lat = [100.0, -180.0, 0.0], [80.0, -90.0, 0.0]
-        results = self.locator.locate(far_lon, far_lat)
+        # A "U" shaped cell interlocking with a "W" a shaped
+        # cell. Then test a left-to-right row of points that cuts
+        # through the vertical "arms" of each letter.
+        from cf.ugrid_utils import PolygonLocator
 
-        np.testing.assert_array_equal(results, np.array([-1, -1, -1]))
+        locator = PolygonLocator(
+            nodes_y=[
+                300,
+                100,
+                100,
+                300,
+                300,
+                100,
+                100,
+                300,
+                300,
+                100,
+                100,
+                300,
+                400,
+                400,
+            ],
+            nodes_x=[
+                100,
+                100,
+                600,
+                600,
+                500,
+                500,
+                400,
+                400,
+                300,
+                300,
+                200,
+                200,
+                200,
+                500,
+            ],
+            face_nodes=np.ma.masked_equal(
+                [
+                    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],  # W
+                    [12, 10, 9, 8, 7, 6, 5, 13, -1, -1, -1, -1],  # U
+                ],
+                -1,
+            ),
+            spherical=False,
+            atol=cf.atol(),
+        )
 
-    def test_tolerance_boundary_resolution(self):
-        """Test boundary point resolution using cf.atol() settings."""
-        # Point right on the shared edge between Face 0 and Face 1
-        edge_lon, edge_lat = -44.0, 33.0
-
-        with cf.atol(1e-8):
-            res = self.locator.locate(edge_lon, edge_lat)
-            self.assertIn(res, [0, 1])
-
-        # Test with relaxed global tolerance
-        with cf.atol(1e-3):
-            res_relaxed = self.locator.locate(edge_lon + 1e-4, edge_lat)
-            self.assertNotEqual(res_relaxed, -1)
+        index = locator.locate(
+            y=[201] * 12,
+            x=[99, 101, 199, 201, 299, 301, 399, 401, 499, 501, 599, 601],
+            unique=False,
+            _cartesian=True,
+        )
+        self.assertEqual(
+            index.tolist(), [-2, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, -2]
+        )
 
 
 if __name__ == "__main__":

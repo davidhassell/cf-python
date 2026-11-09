@@ -517,7 +517,7 @@ def _healpix_change_indexing_scheme(
         healpix_index.data._set_cached_elements(new_cache)
 
 
-def _healpix_locate(lat, lon, f, unique=True):
+def _healpix_locate(lat, lon, f=None, unique=True, return_operator=False):
     """Locate HEALPix cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -533,6 +533,8 @@ def _healpix_locate(lat, lon, f, unique=True):
 
     See CF Appendix F: Grid Mappings.
     https://doi.org/10.5281/zenodo.14274886
+
+    This is a worker function that is called by `cf.locate`.
 
     .. versionadded:: 3.20.0
 
@@ -553,7 +555,32 @@ def _healpix_locate(lat, lon, f, unique=True):
             The Field or Domain containing the HEALPix grid.
 
         unique: `bool`, optional
-            TODO
+            If True (the default) then return sorted cell indices
+            without duplicates, nor placeholders for locations that do
+            not lie inside any cell. If False then an index is
+            returned for every location, including non-valid index
+            placeholders for locations that do not lie inside any
+            cell.
+
+            The outside-of-mesh placeholder is ``-N``, where ``N`` is
+            the size of the HEALPix discrete axis, which is always a
+            non-valid index.
+
+            .. versionadded:: NEXTVERSION
+
+        return_operator: `bool`, optional
+            If True then do not locate cells, but return an operator
+            that is able to do the locating. The operator is a
+            function that takes the same *lat*, *lon* and *unique*
+            arguments as `cf.locate`. When multiple `cf.locate` calls
+            for the same field or domain are expected, using the
+            operator to do the locating can in principle be much
+            faster but for HEALPix domains there is currently no
+            increase in performance.
+
+            When returning the operator, the *lat* and *lon*
+            parameters are ignored (so may both be set to `None`), and
+            the *unique* parameter is also ignored.
 
             .. versionadded:: NEXTVERSION
 
@@ -566,89 +593,14 @@ def _healpix_locate(lat, lon, f, unique=True):
             HEALPix indices defined by the indexing scheme.
 
     """
-    import dask.array as da
+    locator = HEALPixLocator(f)
 
-    try:
-        import healpix
-    except ImportError as e:
-        raise ImportError(
-            f"{e}. Must install healpix (https://pypi.org/project/healpix) "
-            "to allow the location of HEALPix cells"
-        )
+    if return_operator:
+        return locator.locate
 
-    if not unique:
-        raise NotImplementedError("TODO")
-
-    hp = f.healpix_info()
-
-    healpix_index = hp.get("healpix_index")
-    if healpix_index is None:
-        raise ValueError(
-            f"Can't locate HEALPix cells for {f!r}: There are no "
-            "healpix_index coordinates"
-        )
-
-    indexing_scheme = hp.get("indexing_scheme")
-    match indexing_scheme:
-        case "nuniq":
-            # nuniq indexing scheme
-            index = []
-            healpix_index = healpix_index.array
-            orders = healpix.uniq2pix(healpix_index, nest=True)[0]
-            orders = np.unique(orders)
-            for order in orders:
-                # For this refinement level, find the HEALPix nested
-                # indices of the cells that contain the lat-lon
-                # points.
-                nside = healpix.order2nside(order)
-                pix = healpix.ang2pix(nside, lon, lat, nest=True, lonlat=True)
-                # Remove duplicate indices
-                pix = np.unique(pix)
-                # Convert back to HEALPix nuniq indices
-                pix = healpix._chp.nest2uniq(order, pix, pix)
-                # Find where these HEALPix indices are located in the
-                # healpix_index coordinates
-                index.append(da.where(da.isin(healpix_index, pix))[0])
-
-            index = da.unique(da.concatenate(index, axis=0))
-
-        case "nested" | "ring":
-            # nested or ring indexing scheme
-            refinement_level = hp.get("refinement_level")
-            if refinement_level is None:
-                raise ValueError(
-                    f"Can't locate HEALPix cells for {f!r}: refinement_level "
-                    "has not been set in the healpix grid mapping coordinate "
-                    "reference"
-                )
-
-            # Find the HEALPix indices of the cells that contain the
-            # lat-lon points
-            nest = indexing_scheme == "nested"
-            nside = healpix.order2nside(refinement_level)
-            pix = healpix.ang2pix(nside, lon, lat, nest=nest, lonlat=True)
-            # Remove duplicate indices
-            pix = np.unique(pix)
-            # Find where these HEALPix indices are located in the
-            # healpix_index coordinates
-            index = da.where(da.isin(healpix_index, pix))[0]
-
-        case None:
-            raise ValueError(
-                f"Can't locate HEALPix cells for {f!r}: indexing_scheme has "
-                "not been set in the healpix grid mapping coordinate "
-                "reference"
-            )
-
-        case _:
-            raise ValueError(
-                f"Can't locate HEALPix cells for {f!r}: indexing_scheme in "
-                "the healpix grid mapping coordinate reference must be one "
-                f"of {healpix_indexing_schemes()!r}. Got {indexing_scheme!r}"
-            )
-
-    # Return the cell locations as a numpy array of element indices
-    return index.compute()
+    # Find the indices for the locations
+    index = locator.locate(lat, lon, unique=unique)
+    return index
 
 
 def del_healpix_coordinate_reference(f):
@@ -791,3 +743,193 @@ def healpix_info(f):
         info["healpix_index"] = healpix_index
 
     return info
+
+
+class HEALPixLocator:
+    """Locate HEALPix cells containing latitude-longitude locations.
+
+    Returns the indices of the HEALPix axis for the cells containing
+    the latitude-longitude locations.
+
+    If a cell contains more than one of the latitude-longitude
+    locations, then by default that cell's index appears only once in
+    the output. If a latitude-longitude location lies outside of all
+    cells then by default it is ignored. See the *unique* parameter.
+
+    See CF Appendix F: Grid Mappings.
+    https://doi.org/10.5281/zenodo.14274886
+
+    .. versionadded:: NEXTVERSION
+
+    .. seealso:: `cf.locate`
+
+    """
+
+    def __init__(self, f):
+        """**Initialisation**
+
+        :Parameters:
+            f: `Field` or `Domain`
+                The Field or Domain containing the HEALPix grid.
+
+        """
+        self.f = f.copy()
+        self.hp = f.healpix_info()
+
+        healpix_index = self.hp.get("healpix_index")
+        if healpix_index is None:
+            raise ValueError(
+                f"Can't locate HEALPix cells for {f!r}: There are no "
+                "healpix_index coordinates"
+            )
+
+    def locate(self, lat, lon, unique=True):
+        """Find the indices HEALPix face cells containing locations.
+
+        .. versionadded:: NEXTVERSION
+
+        .. seealso:: `cf.locate`
+
+        :Parameters:
+
+            lat array-like or `None`
+                The latitudes, in degrees north, for which to find the
+                cell indices. `None` is equalalent to an empty list.
+
+            lon: array-like or `None`
+                The longitudes, in degrees east, for which to find the
+                cell indices. `None` is equalalent to an empty list.
+
+            unique: `bool`, optional
+                If True (the default) then return sorted cell indices
+                without duplicates, nor non-valid index placeholders
+                for locations that do not lie inside any cell. If
+                False then an index is returned for every location,
+                including non-valid index placeholders for locations
+                that do not lie inside any cell.
+
+                The non-valid index placeholder is ``-N``, where N is
+                the size of the UGRID discrete axis.
+
+        :Returns:
+
+            1-d `numpy.ndarray`
+                Indices for the HEALPix axis that contain the
+                latitude-longitude locations. See the *unique*
+                parameter. Note that these indices identify locations
+                along the HEALPix axis, and are not the HEALPix
+                indices defined by the indexing scheme.
+
+        """
+        if not unique:
+            raise NotImplementedError(
+                "Can't yet set unique=False for a HEALPix domain."
+            )
+
+        import dask.array as da
+
+        try:
+            import healpix
+        except ImportError as e:
+            raise ImportError(
+                f"{e}. Must install healpix "
+                "(https://pypi.org/project/healpix) "
+                "to allow the location of HEALPix cells"
+            )
+
+        # Make sure that 'lat' and 'lon' are 1-d numpy arrays with the
+        # same number of elements
+        if lat is None:
+            lat = np.array([])
+
+        if lon is None:
+            lon = np.array([])
+
+        lat = np.atleast_1d(lat).reshape(-1)
+        lon = np.atleast_1d(lon).reshape(-1)
+        if lat.size == 1 and lon.size > 1:
+            lat = np.full_like(lon, lat, dtype=lat.dtype)
+        elif lon.size == 1 and lat.size > 1:
+            lon = np.full_like(lat, lon, dtype=lon.dtype)
+        elif lat.size != lon.size:
+            raise ValueError(
+                f"Incompatible lat and lon sizes: {lat.size} != {lon.size}"
+            )
+
+        if not lat.size or not lon.size:
+            # Return an empty index list if there are no lat or lon
+            # coordinates
+            return np.array([], dtype=int)
+
+        if np.abs(lat).max() > 90:
+            raise ValueError(
+                f"Can't find cell locations for {self.f!r}: Latitudes must "
+                f"be in the range [-90, 90]. Got: {lat}"
+            )
+
+        indexing_scheme = self.hp.get("indexing_scheme")
+        healpix_index = self.hp.get("healpix_index")
+
+        match indexing_scheme:
+            case "nuniq":
+                # nuniq indexing scheme
+                index = []
+                healpix_index = healpix_index.array
+                orders = healpix.uniq2pix(healpix_index, nest=True)[0]
+                orders = np.unique(orders)
+                for order in orders:
+                    # For this refinement level, find the HEALPix nested
+                    # indices of the cells that contain the lat-lon
+                    # points.
+                    nside = healpix.order2nside(order)
+                    pix = healpix.ang2pix(
+                        nside, lon, lat, nest=True, lonlat=True
+                    )
+                    # Remove duplicate indices
+                    pix = np.unique(pix)
+                    # Convert back to HEALPix nuniq indices
+                    pix = healpix._chp.nest2uniq(order, pix, pix)
+                    # Find where these HEALPix indices are located in the
+                    # healpix_index coordinates
+                    index.append(da.where(da.isin(healpix_index, pix))[0])
+
+                index = da.unique(da.concatenate(index, axis=0))
+
+            case "nested" | "ring":
+                # nested or ring indexing scheme
+                refinement_level = self.hp.get("refinement_level")
+                if refinement_level is None:
+                    raise ValueError(
+                        f"Can't locate HEALPix cells for {self.f!r}: "
+                        "refinement_level has not been set in the "
+                        "healpix grid mapping coordinate reference"
+                    )
+
+                # Find the HEALPix indices of the cells that contain the
+                # lat-lon points
+                nest = indexing_scheme == "nested"
+                nside = healpix.order2nside(refinement_level)
+                pix = healpix.ang2pix(nside, lon, lat, nest=nest, lonlat=True)
+                # Remove duplicate indices
+                pix = np.unique(pix)
+                # Find where these HEALPix indices are located in the
+                # healpix_index coordinates
+                index = da.where(da.isin(healpix_index, pix))[0]
+
+            case None:
+                raise ValueError(
+                    f"Can't locate HEALPix cells for {self.f!r}: indexing_scheme "
+                    "has not been set in the healpix grid mapping coordinate "
+                    "reference"
+                )
+
+            case _:
+                raise ValueError(
+                    f"Can't locate HEALPix cells for {self.f!r}: indexing_scheme "
+                    "in the healpix grid mapping coordinate reference must "
+                    f"be one of {healpix_indexing_schemes()!r}. "
+                    f"Got {indexing_scheme!r}"
+                )
+
+        # Return the cell locations as a numpy array of element indices
+        return index.compute()

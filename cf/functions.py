@@ -3242,28 +3242,22 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 )
 
 
-def locate(lat, lon, f=None, unique=True):
+def locate(lat, lon, f=None, unique=True, return_operator=False):
     """Locate cells containing latitude-longitude locations.
 
     The cells must be defined by a discrete axis that has 1-d latitude
     and longitude coordinates, or for which it is possible to create
     1-d latitude and longitude coordinates from other metadata (as is
-    the case for a HEALPix axis). At present, only a HEALPix axis is
-    supported.
+    the case for a HEALPix axis). At present, only HEALPix and UGRID
+    axes are supported.
 
     Returns the indices of the discrete axis for the cells containing
     the latitude-longitude locations.
 
-    If a single latitude is given then it is paired with each
-    longitude, and if a single longitude is given then it is paired
-    with each latitude. If multiple latitudes and multiple longitudes
-    are provided then they are paired element-wise.
-
     If a cell contains more than one of the latitude-longitude
-    locations, then that cell's index appears only once in the output. TODO
-
-    If a latitude-longitude location lies outside of all cells then it
-    is ignored. TODO
+    locations, then by default that cell's index appears only once in
+    the output. If a latitude-longitude location lies outside of all
+    cells then by default it is ignored. See the *unique* parameter.
 
     .. versionadded:: 3.20.0
 
@@ -3272,19 +3266,22 @@ def locate(lat, lon, f=None, unique=True):
 
     :Parameters:
 
-        lat: array_like
-            The latitude(s), in degrees north, for which to find the
-            cell indices. Must be in the range [-90, 90]. A scalar or
-            multi-dimensional array is flattened to 1-d.
-
-        lon: array_like
-            The longitude(s), in degrees east, for which to find the
+        lat: array_like or `None`
+            The latitudes, in degrees north, for which to find the
             cell indices. A scalar or multi-dimensional array is
-            flattened to 1-d.
+            flattened to 1-d. If *lat* has size 1 and *lon* has size
+            greater than 1 then *lat* is automatically broadcast to
+            the shape of *lon*. `None` is equalalent to an empty list.
+
+        lon: array_like or `None`x
+            The longitudes, in degrees east, for which to find the
+            cell indices. A scalar or multi-dimensional array is
+            flattened to 1-d. If *lon* has size 1 and *lat* has size
+            greater than 1 then *lon* is automatically broadcast to
+            the shape of *lat*. `None` is equalalent to an empty list.
 
         f: `Field` or `Domain` or `None`, optional
-            The Field or Domain containing the UGRID or HEALPix
-            grid.
+            The Field or Domain containing the UGRID or HEALPix grid.
 
             If `None` (the default) then a callable function is
             returned, which when called with A Field as its argument
@@ -3296,16 +3293,44 @@ def locate(lat, lon, f=None, unique=True):
             equivalent to ``f.subspace(X=cf.locate(0, 45, f))``.
 
         unique: `bool`, optional
-            TODO
+            If True (the default) then return sorted cell indices
+            without duplicates, nor placeholders for locations that do
+            not lie inside any cell. If False then an index is
+            returned for every location, including non-valid index
+            placeholders for locations that do not lie inside any
+            cell.
+
+            The outside-of-mesh placeholder is ``-N``, where ``N`` is
+            the size of the discrete axis, which is always a non-valid
+            index.
+
+            .. versionadded:: NEXTVERSION
+
+        return_operator: `bool`, optional
+            If True then do not locate cells, but return an operator
+            that is able to do the locating. The operator is a
+            function that takes the same *lat*, *lon* and *unique*
+            arguments as this function, and may also have extra
+            configuration parameters. When multiple `cf.locate` calls
+            for the same field or domain are expected, using the
+            operator to do the locating can be much faster. For UGRID
+            domains the performance benefits can be large, but for
+            HEALPix domains there is currently no increase in
+            performance.
+
+            When returning the operator, the *lat* and *lon*
+            parameters are ignored (so may both be set to `None`), and
+            the *unique* parameter is also ignored.
 
             .. versionadded:: NEXTVERSION
 
     :Returns:
 
-        `numpy.ndarray` or function
+        1-d `numpy.ndarray` or function
             Indices for the discrete axis that contain the
-            latitude-longitude locations, or if *f* is `None`, a
-            function that will return those indices.
+            latitude-longitude locations. See the *unique*
+            parameter. If *f* is `None` then a function is returned
+            that for producing indices is returned.
 
     **Examples**
 
@@ -3335,9 +3360,28 @@ def locate(lat, lon, f=None, unique=True):
     >>> func(f)
     array([31])
 
+    A UGRID example with `return_operator=True`:
+
+    >>> f = cf.example_field(8)
+    >>> print(f)
+    Field: air_temperature (ncvar%ta)
+    ---------------------------------
+    Data            : air_temperature(time(2), ncdim%nMesh2_face(3)) K
+    Cell methods    : time(2): point (interval: 3600 s)
+    Dimension coords: time(2) = [2016-01-02 01:00:00, 2016-01-02 11:00:00] gregorian
+    Auxiliary coords: longitude(ncdim%nMesh2_face(3)) = [-44.0, -44.0, -42.0] degrees_east
+                    : latitude(ncdim%nMesh2_face(3)) = [34.0, 32.0, 34.0] degrees_north
+    Topologies      : cell:face(ncdim%nMesh2_face(3), 4) = [[2, ..., --]]
+    Connectivities  : connectivity:edge(ncdim%nMesh2_face(3), 5) = [[0, ..., --]]
+    >>> operator = cf.locate(None, None, f, return_operator=True)
+    >>> operator([-90, 32], [-180, -44], unique=False)
+    array([-3,  1])
+    >>> operator(32, -44)
+    array([1])
+
     """
 
-    def _locate(lat, lon, f, unique=True):
+    def _locate(lat, lon, f, unique=True, return_operator=False):
         # HEALPix
         healpix = f.coordinate(
             "healpix_index", filter_by_naxes=(1,), default=None
@@ -3345,14 +3389,18 @@ def locate(lat, lon, f=None, unique=True):
         if healpix is not None:
             from .healpix_utils import _healpix_locate
 
-            return _healpix_locate(lat, lon, f, unique=unique)
+            return _healpix_locate(
+                lat, lon, f, unique=unique, return_operator=return_operator
+            )
 
         # UGRID
         ugrid = f.domain_topology(filter_by_cell=("face",), default=None)
         if ugrid is not None:
             from .ugrid_utils import _ugrid_locate
 
-            return _ugrid_locate(lat, lon, f, unique=unique)
+            return _ugrid_locate(
+                lat, lon, f, unique=unique, return_operator=return_operator
+            )
 
         # Geometry
         geometry = any(
@@ -3362,35 +3410,26 @@ def locate(lat, lon, f=None, unique=True):
             ).values()
         )
         if geometry:
-            # Geometries - not coded up, yet.
-            pass
+            # Geometries: Can extend PolygonLocator to cover this
+            raise NotImplementedError(
+                f"Can't yet find cell locations for geometry cells: {f!r}"
+            )
 
         raise NotImplementedError(
             f"Can't find cell locations for {f!r}: Can only find locations "
-            "for UGRID face cells and HEALPix cells"
+            "for UGRID face and HEALPix cells"
         )
-
-    if np.abs(lat).max() > 90:
-        raise ValueError(
-            f"Can't find cell locations for {f!r}: Latitudes must be in "
-            f"the range [-90, 90]. Got: {lat}"
-        )
-
-    # Make sure that lat and lon are 1-d numpy arrays with the same
-    # number of elements
-    lat = np.atleast_1d(lat).ravel()
-    lon = np.atleast_1d(lon).ravel()
-    if lat.size == 1 and lon.size > 1:
-        lat = np.full_like(lon, lat, dtype=lat.dtype)
-    elif lon.size == 1 and lat.size > 1:
-        lon = np.full_like(lat, lon, dtype=lon.dtype)
-    elif lat.size != lon.size:
-        raise ValueError("TODO")
 
     if f is None:
-        return partial(_locate, lat, lon, unique=unique)
+        if return_operator:
+            raise ValueError(
+                "Can only set return_operator=True when also providing a "
+                "field or domain"
+            )
 
-    return _locate(lat, lon, f, unique=unique)
+        return partial(_locate, lat, lon, unique=unique, return_operator=False)
+
+    return _locate(lat, lon, f, unique=unique, return_operator=return_operator)
 
 
 @lru_cache(maxsize=1)
