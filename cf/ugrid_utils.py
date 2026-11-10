@@ -3,7 +3,7 @@ import numpy as np
 from cf import atol as cf_atol
 
 
-def _ugrid_locate(lat, lon, f, unique=True, return_operator=False):
+def _ugrid_locate(y,x, f, latlon=True,unique=True, return_operator=False):
     """Locate UGRID cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -85,8 +85,8 @@ def _ugrid_locate(lat, lon, f, unique=True, return_operator=False):
         nodes_x, nodes_y = nodes
     else:
         raise ValueError(
-            "Can't locate latitudes and longitudes for a UGRID domain that "
-            f"does not have well-defined X and Y node coordinates: {f!r}"
+            "Can't locate points for a UGRID domain that does not have "
+            f"well-defined X and Y node coordinates: {f!r}"
         )
 
     # Does the field have a spherical polar node coordinates?
@@ -95,8 +95,8 @@ def _ugrid_locate(lat, lon, f, unique=True, return_operator=False):
     # Still here?
     if not spherical:
         raise NotImplementedError(
-            "Can't yet locate latitudes and longitudes for a UGRID "
-            "domain with a non-latitude_longitude coordinate system"
+            "Can't yet locate points for a UGRID domain with a "
+            "non-latitude_longitude coordinate system"
         )
 
     # Initialise a polygon locator instance
@@ -112,9 +112,7 @@ def _ugrid_locate(lat, lon, f, unique=True, return_operator=False):
         return locator.locate
 
     # Still here?
-    if spherical:
-        y, x = lat, lon
-    else:
+    if not spherical:
         # Convert spherical polar 'lat' and 'lon' to 'y' and 'x' in
         # the domain's non-latitude_longitude (e.g. Cartesian,
         # rotated_latitude_longitude) coordinate system.
@@ -123,8 +121,8 @@ def _ugrid_locate(lat, lon, f, unique=True, return_operator=False):
             "domain with a non-latitude_longitude coordinate system"
         )
 
-    # Find the indices for the locations
-    index = locator.locate(y, x, unique=unique)
+    # Find the indices for the points
+    index = locator.locate(y, x, latlon=latlon,unique=unique)
     return index
 
 
@@ -211,7 +209,7 @@ class PolygonLocator:
     """
 
     def __init__(
-        self, nodes_y, nodes_x, face_nodes, spherical=True, atol=1e-12
+            self, nodes_y, nodes_x, face_nodes, cr, latlon_cr, atol=1e-12,
     ):
         """**Initialisation**
 
@@ -227,6 +225,10 @@ class PolygonLocator:
                 Integer connectivity matrix of shape ``(n_faces,
                 max_nodes_per_face)``.
 
+            grid_mapping:
+
+            latlon_grid_mapping:
+        
             spherical: `bool`, optional
                 If True (the default) then coordinates are spherical
                 lat/lon. If False, coordinates are 2-d Cartesian plane
@@ -237,14 +239,18 @@ class PolygonLocator:
 
         """
         from scipy.spatial import cKDTree
-
-        self.spherical = bool(spherical)
+        
+        self.cr = cr
+        self.latlon_cr = latlon_cr
         self.atol = float(atol)
+
+        self.spherical = self.grid_mapping_name(cr) in (
+            "latitude_longitude", "rotated_latitude_longitude" )
 
         # Build node coordinates array
         if spherical:
-            # Convert spherical polar node coordinates to 3-d
-            # N-vectors (unit sphere). Array shape is (n_nodes, 3).
+            # Spherical polar node coordinates (possibly rotated):
+            # Convert to 3-d N-vectors. Array shape is (n_nodes, 3).
             nodes_x, nodes_y = np.radians(nodes_x), np.radians(nodes_y)
             self.nodes = np.column_stack(
                 [
@@ -254,8 +260,8 @@ class PolygonLocator:
                 ]
             )
         else:
-            # 2-d Cartesian node coordinates (eastings and
-            # northings). Array shape is (n_nodes, 2).
+            # 2-d Cartesian node coordinates. Array shape is (n_nodes,
+            # 2).
             self.nodes = np.column_stack([nodes_x, nodes_y])
 
         # Get the face_node_connectivity mask (True where a face has
@@ -481,22 +487,26 @@ class PolygonLocator:
             c = polygon.mean(axis=0)
             c /= np.linalg.norm(c)
 
-            def is_ccw(v0, v1, v2):
+            def anticlockwise(v0, v1, v2):
+                """True if vertices are arranged anticlockwise."""
                 return np.dot(np.cross(v1 - v0, v2 - v1), c) > 1e-12
 
-            def point_in_tri(pt, v0, v1, v2):
+            def point_in_triangle(pt, v0, v1, v2):
+                """True if point pt is inside triangle (v0, v1, v2)."""
                 v_arr = np.array([v0, v1, v2])
                 crosses = np.cross(v_arr, np.roll(v_arr, -1, axis=0))
                 return np.all(np.dot(crosses, pt) >= -self.atol)
 
         else:
 
-            def is_ccw(v0, v1, v2):
+            def anticlockwise(v0, v1, v2):
+                """True if vertices are arranged anticlockwise."""
                 return (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (
                     v2[0] - v0[0]
                 ) > 1e-12
 
-            def point_in_tri(pt, v0, v1, v2):
+            def point_in_triangle(pt, v0, v1, v2):
+                """True if point pt is inside triangle (v0, v1, v2)."""
                 v_arr = np.array([v0, v1, v2])
                 v_next = np.roll(v_arr, -1, axis=0)
                 crosses = (v_next[:, 0] - v_arr[:, 0]) * (
@@ -519,7 +529,7 @@ class PolygonLocator:
                     polygon[next_i],
                 )
 
-                if not is_ccw(p_prev, p_curr, p_next):
+                if not anticlockwise(p_prev, p_curr, p_next):
                     continue
 
                 contains_other = False
@@ -528,7 +538,7 @@ class PolygonLocator:
                     if other_i in (prev_i, curr_i, next_i):
                         continue
 
-                    if point_in_tri(polygon[other_i], p_prev, p_curr, p_next):
+                    if point_in_triangle(polygon[other_i], p_prev, p_curr, p_next):
                         contains_other = True
                         break
 
@@ -548,7 +558,7 @@ class PolygonLocator:
 
         return triangles
 
-    def locate(self, y, x, unique=True, k_candidates=None, _cartesian=False):
+    def locate(self, y, x, latlon=True, unique=True, k_candidates=None):
         r"""Find the indices UGRID face cells containing locations.
 
         Performs a high-performance spatial lookup using a two-stage
@@ -618,6 +628,9 @@ class PolygonLocator:
                 parameter.
 
         """
+        if self.grid_mapping == "latitude_longitude":pass
+        
+        
         if self.spherical and _cartesian:
             raise ValueError(
                 "Can't set _cartesian=True when self.spherical=True"
@@ -660,7 +673,21 @@ class PolygonLocator:
         if n_triangles == 0:
             return results
 
+        if self.grid_mapping_name(self.cr) == "latitude_longitude":
+            if not latlon:
+                # Nodes are defined in latitude_longitude, but the
+                # points are not.
+                raise ValueError("TODO")
+        elif latlon:
+            # Points are defined in latitude_longitude, but the nodes
+            # are not => Convert the points to the CRS of the nodes.
+            #
+            # Make use of self.cr and self.latlon_cr
+            pass
+        
         if self.spherical:
+            # Spherical polar point coordinates (possibly rotated):
+            # Convert to 3-d N-vectors. Array shape is (n_nodes, 3).
             if np.abs(y).max() > 90:
                 raise ValueError(
                     "Can't find cell locations: Latitudes must be in "
@@ -678,15 +705,10 @@ class PolygonLocator:
                     np.sin(r_lat),
                 ]
             )
-        elif _cartesian:
-            # Cartesian coordinates (eastings and northings). Array
-            # shape is (n_points, 2).
-            Q = np.column_stack([x, y])
         else:
-            raise NotImplementedError(
-                "Can't yet locate latitudes and longitudes for a UGRID "
-                "domain with a non-latitude_longitude coordinate system"
-            )
+            # 2-d Cartesian point coordinates. Array shape is
+            # (n_nodes, 2).
+            Q = np.column_stack([x, y])
 
         unmatched_indices = np.arange(n_points)
         max_distance_bound = self.max_cell_radius + self.atol
