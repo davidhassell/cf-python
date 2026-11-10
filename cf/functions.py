@@ -51,7 +51,7 @@ class Constant(cfdm.Constant):
 
 class DeprecationError(Exception):
     pass
-g
+
 
 KWARGS_MESSAGE_MAP = {
     "relaxed_identity": "Use keywords 'strict' or 'relaxed' instead.",
@@ -3242,7 +3242,7 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 )
 
 
-def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
+def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
     """Locate cells containing latitude-longitude locations.
 
     The cells must be defined by a discrete axis that has 1-d latitude
@@ -3266,40 +3266,27 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
 
     :Parameters:
 
-        lat: array_like or `None`
-            The latitudes, in degrees north, for which to find the
-            cell indices. A scalar or multi-dimensional array is
-            flattened to 1-d. If *lat* has size 1 and *lon* has size
-            greater than 1 then *lat* is automatically broadcast to
-            the shape of *lon*. `None` is equalalent to an empty list.
-
-        lon: array_like or `None`
-            The longitudes, in degrees east, for which to find the
-            cell indices. A scalar or multi-dimensional array is
-            flattened to 1-d. If *lon* has size 1 and *lat* has size
-            greater than 1 then *lon* is automatically broadcast to
-            the shape of *lat*. `None` is equalalent to an empty list.
-
         y: array_like or `None`
-            The Y coordinates of the points to locate, in the same
-            units as the 1-d Y coordinates that defined cells of the
-            discrete axis. For discrete axes with index coordinates
-            (such as HEALPix or reduced Gausian grids), *y* must be in
-            degrees north. A scalar or multi-dimensional array is
-            flattened to 1-d. If *lat* has size 1 and *lon* has size
-            greater than 1 then *lat* is automatically broadcast to
-            the shape of *lon*. `None` is equalalent to an empty list.
+            The Y coordinates of the points to locate, either in
+            degrees north or in the same units as the 1-d Y
+            coordinates that define cells of the discrete axis. For
+            discrete axes with index coordinates (such as for HEALPix
+            or reduced Gaussian grids), *y* must be in degrees
+            north. A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
 
         x: array_like or `None`
-            The X coordinates of the points to locate, in the same
-            units as the 1-d X coordinates that defined cells of the
-            discrete axis. For discrete axes with index coordinates
-            (such as HEALPix or reduced Gausian grids), *x* must be in
-            degrees east. A scalar or multi-dimensional array is
-            flattened to 1-d. If *lat* has size 1 and *lon* has size
-            greater than 1 then *lat* is automatically broadcast to
-            the shape of *lon*. `None` is equalalent to an empty list.
-
+            The X coordinates of the points to locate, either in
+            degrees east or in the same units as the 1-d X coordinates
+            that define cells of the discrete axis. For discrete axes
+            with index coordinates (such as for HEALPix or reduced
+            Gaussian grids), *x* must be in degrees east. A scalar or
+            multi-dimensional array is flattened to 1-d. If *lat* has
+            size 1 and *lon* has size greater than 1 then *lat* is
+            automatically broadcast to the shape of *lon*. `None` is
+            equivalent to an empty list.
 
         f: `Field` or `Domain` or `None`, optional
             The Field or Domain containing the UGRID or HEALPix grid.
@@ -3313,15 +3300,29 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
             for instance ``f.subspace(X=cf.locate(0, 45))`` is
             equivalent to ``f.subspace(X=cf.locate(0, 45, f))``.
 
+        latlon: `bool`, optional
+            If True (the default) then *y* is assumed to be in units
+            of degrees north, and *x* in units of degees east. If
+            False then *y* and *x* are assumed to be in units of the
+            node coordinates in the domain.
+
+            When the domain has a non-latitude_longitude coordinate
+            reference system (CRS), it is still allowed to provide *y*
+            and *x* points in latitude and longitude (i.e. *latlon* is
+            True). In this case, the latitude and longitude points
+            will internally be automatically converted to their
+            equivalent points in the CRS of the domain.
+
+            .. versionadded:: NEXTVERSION
+
         unique: `bool`, optional
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations that do
-            not lie inside any cell. If False then an index is
-            returned for every location, including non-valid index
-            placeholders for locations that do not lie inside any
-            cell.
+            without duplicates, nor placeholders for locations are
+            out-of-domain (i.e that do not lie inside any cell). If
+            False then an index is returned for every location,
+            including placeholders for out-of-domain points.
 
-            The outside-of-mesh placeholder is ``-N``, where ``N`` is
+            The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
             index.
 
@@ -3336,6 +3337,10 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
             for the same field or domain are expected, using the
             operator to do the locating can be much faster.
 
+            When returning the operator, the *y* and *x* parameters
+            are ignored (so may both be set to `None`), and the
+            *unique* parameter is also ignored.
+
             For HEALPix domains there is currently no increase in
             performance.
 
@@ -3349,17 +3354,13 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
             cached kd-tree to find the cell index for each point
             location takes only 50 microseconds.
 
-            When returning the operator, the *y* and *x* parameters
-            are ignored (so may both be set to `None`), and the
-            *unique* parameter is also ignored.
-
             .. versionadded:: NEXTVERSION
 
     :Returns:
 
-        1-d `numpy.ndarray` or function
-            Cell indices for the discrete axis that contain the (Y, X)
-            locations. See the *unique* parameter.
+        `numpy.ndarray` or function
+            1-d cell indices for the discrete axis that contain the
+            (Y, X) locations. See the *unique* parameter.
 
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
@@ -3417,7 +3418,7 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
 
     """
 
-    def _locate(y, x, f, unique=True, return_operator=False):
+    def _locate(y, x, f, latlon=True, unique=True, return_operator=False):
         # HEALPix
         healpix = f.coordinate(
             "healpix_index", filter_by_naxes=(1,), default=None
@@ -3427,9 +3428,14 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
 
             if not latlon:
                 raise ValueError("Must set latlon=True for HEALPix grids")
-            
+
             return _healpix_locate(
-                y, x, f, latlon=latlon,unique=unique, return_operator=return_operator
+                y,
+                x,
+                f,
+                latlon=latlon,
+                unique=unique,
+                return_operator=return_operator,
             )
 
         # UGRID
@@ -3438,7 +3444,12 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
             from .ugrid_utils import _ugrid_locate
 
             return _ugrid_locate(
-                y,x, f, latlon=latlon,unique=unique, return_operator=return_operator
+                y,
+                x,
+                f,
+                latlon=latlon,
+                unique=unique,
+                return_operator=return_operator,
             )
 
         # Geometry
@@ -3468,10 +3479,14 @@ def locate(y, x, f=None, latlon=True,unique=True, return_operator=False):
                 "field or domain"
             )
 
-        return partial(_locate, y,x, latlon=latlon,unique=unique, return_operator=False)
+        return partial(
+            _locate, y, x, latlon=latlon, unique=unique, return_operator=False
+        )
 
     # Return the located cell indices
-    return _locate(y,x,f, latlon=latlon,unique=unique, return_operator=return_operator)
+    return _locate(
+        y, x, f, latlon=latlon, unique=unique, return_operator=return_operator
+    )
 
 
 @lru_cache(maxsize=1)

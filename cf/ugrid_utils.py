@@ -3,7 +3,7 @@ import numpy as np
 from cf import atol as cf_atol
 
 
-def _ugrid_locate(y,x, f, latlon=True,unique=True, return_operator=False):
+def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
     """Locate UGRID cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -29,51 +29,93 @@ def _ugrid_locate(y,x, f, latlon=True,unique=True, return_operator=False):
 
     :Parameters:
 
-        lat: array-like or `None`
-            The latitudes, in degrees north, for which to find the
-            cell indices. `None` is equalalent to an empty list.
-
-        lon: array-like or `None`
-            The longitudes, in degrees east, for which to find the
-            cell indices. `None` is equalalent to an empty list.
+        y: array_like or `None`
+            The Y coordinates of the points to locate, either in
+            degrees north or in the same units as the 1-d Y
+            coordinates that define cells of the discrete axis. A
+            scalar or multi-dimensional array is flattened to 1-d. If
+            *lat* has size 1 and *lon* has size greater than 1 then
+            *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
+        
+        x: array_like or `None`
+            The X coordinates of the points to locate, either in
+            degrees east or in the same units as the 1-d X coordinates
+            that define cells of the discrete axis. A scalar or
+            multi-dimensional array is flattened to 1-d. If *lat* has
+            size 1 and *lon* has size greater than 1 then *lat* is
+            automatically broadcast to the shape of *lon*. `None` is
+            equivalent to an empty list.
 
         f: `Field` or `Domain`
             The field or domain containing the UGRID grid.
 
+        latlon: `bool`, optional
+            If True (the default) then *y* is assumed to be in units
+            of degrees north, and *x* in units of degees east. If
+            False then *y* and *x* are assumed to be in units of the
+            node coordinates in the domain.
+
+            When the domain has a non-latitude_longitude
+            coordinate reference system (CRS), it is still allowed
+            to provide *y* and *x* points in latitude and
+            longitude (i.e. *latlon* is True). In this case, the
+            latitude and longitude points will internally be
+            automatically converted to their equivalent points in
+            the CRS of the domain.
+
         unique: `bool`, optional
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations that do
-            not lie inside any cell. If False then an index is
-            returned for every location, including non-valid index
-            placeholders for locations that do not lie inside any
-            cell.
+            without duplicates, nor placeholders for locations are
+            out-of-domain (i.e that do not lie inside any cell). If
+            False then an index is returned for every location,
+            including placeholders for out-of-domain points.
 
-            The outside-of-mesh placeholder is ``-N``, where ``N`` is
-            the size of the UGRID discrete axis, which is always a
-            non-valid index.
+            The out-of-domain placeholder is ``-N``, where ``N`` is
+            the size of the discrete axis, which is always a non-valid
+            index.
 
         return_operator: `bool`, optional
             If True then do not locate cells, but return an operator
             that is able to do the locating. The operator is a
-            function that takes the same *lat*, *lon* and *unique*
-            arguments as this function, and also has extra
+            function that takes the same *y*, *x* and *unique*
+            arguments as this function, and may also have extra
             configuration parameters. When multiple `cf.locate` calls
             for the same field or domain are expected, using the
             operator to do the locating can be much faster.
 
-            When returning the operator, the *lat* and *lon*
-            parameters are ignored (so may both be set to `None`), and
-            the *unique* parameter is also ignored.
+            When returning the operator, the *y* and *x* parameters
+            are ignored (so may both be set to `None`), and the
+            *unique* parameter is also ignored.
+
+            For UGRID domains the performance benefits can be large,
+            because the kd-tree used for nearest-neighbour lookups is
+            cached inside the operator, and so does not need to be
+            recreated each time a set of points is located. For
+            instance, in one test with a UGRID domain with ~5 million
+            faces, making the kd-tree during the creation of the
+            operator takes ~20 seconds, but using the operator's
+            cached kd-tree to find the cell index for each point
+            location takes only 50 microseconds.
 
     :Returns:
 
-        `numpy.ndarray`
-            Indices for the discrete UGRID axis that contain the
-            latitude-longitude locations.
+        `numpy.ndarray` or function
+            1-d cell indices for the discrete axis that contain the
+            (Y, X) locations. See the *unique* parameter.
+
+            If *f* is `None` then a function is returned that
+            calculates cell indices for a given field or domain.
+
+            If *return_operator* is True then a function is returned
+            that, for the field or domain defined by *f*, calculates
+            cell indices for given (Y, X) locations.
 
     """
     # Get the face_node_connectivity array, and normalise it.
-    face_node_connectivity = f.domain_topology(filter_by_cell=("face",))
+    key, face_node_connectivity = f.domain_topology(
+        filter_by_cell=("face",), item=True
+    )
     face_node_connectivity = face_node_connectivity.normalise(
         start_index=0, remove_empty_columns=True
     )
@@ -89,40 +131,48 @@ def _ugrid_locate(y,x, f, latlon=True,unique=True, return_operator=False):
             f"well-defined X and Y node coordinates: {f!r}"
         )
 
-    # Does the field have a spherical polar node coordinates?
-    spherical = nodes_y.Units.islatitude and nodes_x.Units.islongitude
-
-    # Still here?
-    if not spherical:
-        raise NotImplementedError(
-            "Can't yet locate points for a UGRID domain with a "
-            "non-latitude_longitude coordinate system"
+    # Find the coordinate references for the UGRID face cell
+    # coordinates (if there are any)
+    cr = None
+    cr_latlon = None
+    coordinate_references = f.coordinate_references(todict=True)
+    if coordinate_references:
+        # Find the UGRID face coordinates
+        ugrid_axis = f.get_data_axes(key)[0]
+        coordinates = f.auxiliary_coordinates(
+            filter_by_axis=(ugrid_axis,), axis_mode="exact", todict=True
         )
+        coordinate_keys = [k for k, c in coordinates.items() if c.X or c.Y]
+        if len(coordinate_keys) != 2:
+            raise ValueError("TODO")
+
+        # Find the coordinate references
+        for c in coordinate_references.values():
+            if c.coordinates().issuperset(coordinate_keys):
+                if cr is None:
+                    cr = c
+                else:
+                    raise ValueError("TODO")
+            elif cr.identity("") == "grid_mapping_name:latitude_longitude":
+                cr_latlon = c
 
     # Initialise a polygon locator instance
     locator = PolygonLocator(
         nodes_y.array,
         nodes_x.array,
         face_node_connectivity.array,
-        spherical=spherical,
+        cr=cr,
+        cr_latlon=cr_latlon,
         atol=cf_atol(),
+        units_y=nodes_y.Units,
+        units_x=nodes_x.Units,
     )
 
     if return_operator:
         return locator.locate
 
-    # Still here?
-    if not spherical:
-        # Convert spherical polar 'lat' and 'lon' to 'y' and 'x' in
-        # the domain's non-latitude_longitude (e.g. Cartesian,
-        # rotated_latitude_longitude) coordinate system.
-        raise NotImplementedError(
-            "Can't yet locate latitudes and longitudes for a UGRID "
-            "domain with a non-latitude_longitude coordinate system"
-        )
-
-    # Find the indices for the points
-    index = locator.locate(y, x, latlon=latlon,unique=unique)
+    # Stll here? The find the indices for the points
+    index = locator.locate(y, x, latlon=latlon, unique=unique)
     return index
 
 
@@ -198,7 +248,7 @@ class PolygonLocator:
     `tree`: `scipy.spatial.cKDTree` 3-d KD-Tree spatial index
     constructed over normalised sub-triangle centroids.
 
-    `tri_nodes`: Array of int Array of shape ``(n_sub_triangles,
+    `triangle_nodes`: Array of int Array of shape ``(n_sub_triangles,
     3)``. Node indices defining all sub-triangles generated by
     fan-triangulation of polygon faces.
 
@@ -209,7 +259,16 @@ class PolygonLocator:
     """
 
     def __init__(
-            self, nodes_y, nodes_x, face_nodes, cr, latlon_cr, atol=1e-12,
+        self,
+        nodes_y,
+        nodes_x,
+        face_nodes,
+        cr=None,
+        cr_latlon=None,
+        atol=1e-12,
+        units_y=None,
+        units_x=None,
+        _test=False,
     ):
         """**Initialisation**
 
@@ -225,33 +284,57 @@ class PolygonLocator:
                 Integer connectivity matrix of shape ``(n_faces,
                 max_nodes_per_face)``.
 
-            grid_mapping:
+            cr: `None` or `CoordinateReference`, optional
+                 TODO
 
-            latlon_grid_mapping:
-        
-            spherical: `bool`, optional
-                If True (the default) then coordinates are spherical
-                lat/lon. If False, coordinates are 2-d Cartesian plane
-                coordinates.
+            cr_latlon: `None` or `CoordinateReference`, optional
+                 TODO
 
             atol: `float`, optional
                 Absolute tolerance for floating point comparisons.
 
+            units_y: `Units`, optional
+                TODO
+
+            units_x: `Units`, optional
+                TODO
+
+            _test: `bool`, optional
+                TODO
+
         """
         from scipy.spatial import cKDTree
-        
-        self.cr = cr
-        self.latlon_cr = latlon_cr
-        self.atol = float(atol)
 
-        self.spherical = self.grid_mapping_name(cr) in (
-            "latitude_longitude", "rotated_latitude_longitude" )
+        self.cr = cr
+        self.cr_latlon = cr_latlon
+        self.atol = float(atol)
+        self.units_y = units_y
+        self.units_x = units_x
+        self._test = _test
+
+        # Find the grid mapping name
+        if cr is None:
+            self.grid_mapping = "latitude_longitude"
+        elif _test and isinstance(cr, str):
+            self.grid_mapping = cr
+        else:
+            identity = cr.identity("")
+            if identity.startswith("grid_mapping_name:"):
+                self.grid_mapping = identity[18:]
+            else:
+                raise ValueError("TODO")
+
+        self.spherical = self.grid_mapping in (
+            "latitude_longitude",
+            "rotated_latitude_longitude",
+        )
 
         # Build node coordinates array
-        if spherical:
+        if self.spherical:
             # Spherical polar node coordinates (possibly rotated):
             # Convert to 3-d N-vectors. Array shape is (n_nodes, 3).
-            nodes_x, nodes_y = np.radians(nodes_x), np.radians(nodes_y)
+            nodes_x = np.radians(nodes_x)
+            nodes_y = np.radians(nodes_y)
             self.nodes = np.column_stack(
                 [
                     np.cos(nodes_y) * np.cos(nodes_x),
@@ -263,6 +346,8 @@ class PolygonLocator:
             # 2-d Cartesian node coordinates. Array shape is (n_nodes,
             # 2).
             self.nodes = np.column_stack([nodes_x, nodes_y])
+
+        del nodes_x, nodes_y
 
         # Get the face_node_connectivity mask (True where a face has
         # fewer than the maximum number of nords per face)
@@ -277,7 +362,7 @@ class PolygonLocator:
         # Vectorized convexity check across all faces simultaneously
         is_convex = self._check_convexity(face_nodes, mask)
 
-        tri_list = []
+        triangle_list = []
         parent_list = []
         parents_base = np.arange(self.n_faces, dtype=int)
 
@@ -301,7 +386,7 @@ class PolygonLocator:
             tri_k = np.column_stack([v0, vk, vk1])[valid_k]
             parents_k = convex_parents[valid_k]
 
-            tri_list.append(tri_k)
+            triangle_list.append(tri_k)
             parent_list.append(parents_k)
 
         del convex_faces, convex_mask, convex_parents
@@ -332,30 +417,30 @@ class PolygonLocator:
                 for t in local_tris
             ]
             if local_tri_nodes:
-                tri_list.append(np.array(local_tri_nodes, dtype=int))
+                triangle_list.append(np.array(local_tri_nodes, dtype=int))
                 parent_list.append(
                     np.full(len(local_tris), face_idx, dtype=int)
                 )
 
-        del mask, local_tri_nodes, local_tris
+        del mask, local_tri_nodes, local_tris, non_convex_indices
 
         # Build sub-triangle data structures and cKDTree spatial index
-        if tri_list:
-            tri_nodes = np.vstack(tri_list)
+        if triangle_list:
+            triangle_nodes = np.vstack(triangle_list)
         else:
-            tri_nodes = np.empty((0, 3), dtype=int)
+            triangle_nodes = np.empty((0, 3), dtype=int)
 
-        del tri_list
+        del triangle_list
 
-        if len(tri_nodes) > 0:
-            self.tri_nodes = np.vstack(tri_nodes)
-            del tri_nodes
+        if len(triangle_nodes) > 0:
+            self.triangle_nodes = np.vstack(triangle_nodes)
+            del triangle_nodes
 
             self.parent_face_ids = np.concatenate(parent_list)
             del parent_list
 
-            tri_verts = self.nodes[self.tri_nodes]
-            centroids = tri_verts.mean(axis=1)
+            triangle_vertices = self.nodes[self.triangle_nodes]
+            centroids = triangle_vertices.mean(axis=1)
             if self.spherical:
                 centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
@@ -371,8 +456,10 @@ class PolygonLocator:
             #
             # d_v = distances from vertices to normalised sub-triangle
             #       centroid
-            d_v = np.linalg.norm(tri_verts - centroids[:, None, :], axis=2)
-            del centroids, tri_verts
+            d_v = np.linalg.norm(
+                triangle_vertices - centroids[:, None, :], axis=2
+            )
+            del centroids, triangle_vertices
 
             self.max_cell_radius = float(d_v.max())
 
@@ -392,7 +479,7 @@ class PolygonLocator:
             # (i.e. tha maximum number of sub-triangles that meet at a
             # single node in a mesh) and 99th-percentile cell aspect
             # ratios.
-            node_counts = np.bincount(self.tri_nodes.reshape(-1))
+            node_counts = np.bincount(self.triangle_nodes.reshape(-1))
             max_degree = node_counts.max()
             del node_counts
 
@@ -403,9 +490,11 @@ class PolygonLocator:
             del d_v, min_d
 
             inferred_k = int(np.ceil(2 * max_degree * aspect_multiplier))
-            self.k_candidates = max(8, min(inferred_k, len(self.tri_nodes)))
+            self.k_candidates = max(
+                8, min(inferred_k, len(self.triangle_nodes))
+            )
         else:
-            self.tri_nodes = np.empty((0, 3), dtype=int)
+            self.triangle_nodes = np.empty((0, 3), dtype=int)
             self.parent_face_ids = np.empty((0,), dtype=int)
             self.k_candidates = 0
             self.max_cell_radius = 0.0
@@ -477,6 +566,111 @@ class PolygonLocator:
 
         return non_zero & (n_verts >= 3)
 
+    def _convert(self, lat, lon):
+        """Convert lat/lon points to y/x points in a different CRS.
+
+        The new CRS is defined by `self.cr`. The CRS for the latlon
+        points is defined by `self.cr_latlon`. If `self.cr_latlon` is
+        `None` then the shape of the ellipsoid is taken from
+        `self.cr`.
+
+        The y and x points will have the same units as the Y node and
+        X node corodinates, respectively.
+
+        .. versionadded:: NEXTVERSION
+
+        :Parameters:
+
+            lat: `numpy.ndarray`
+                The latitudes, in a 1-d array.
+
+            lon: `numpy.ndarray`
+                The longitudes, in a 1-d array.
+
+        :Returns:
+
+            `numpy.ndarray`, `numpy.ndarray`
+                The 1-d y and x arrays.
+
+        """
+        try:
+            import pyproj
+        except Exception:
+            raise ImportError(
+                "Can't locate points: Must install the 'pyproj' library"
+            )
+
+        from .mixin.utils.grid_mapping import create_projection_CRS
+        from .units import Units
+
+        # Create the source latitude-longitude CRS
+        cr_latlon = self.cr_latlon
+        if cr_latlon is None:
+            cr_latlon = self.cr
+
+        proj_latlon = create_projection_CRS(cr_latlon, "latitude_longitude")
+        if proj_latlon is None:
+            raise ValueError(
+                "Can't locate points: Unable to create a "
+                f"latitude_longitude pyproj.CRS object from {cr_latlon!r}"
+            )
+
+        # Create the destination CRS
+        proj_dst = create_projection_CRS(self.cr, self.grid_mapping)
+        if proj_dst is None:
+            raise ValueError(
+                "Can't locate points: Unable to create a "
+                f"{self.grid_mapping} pyproj.CRS object for {self.cr!r}"
+            )
+
+        # Create the transform function that converts latitude and
+        # longitudes to y and x coordinates
+        try:
+            transformer = pyproj.Transformer.from_crs(
+                proj_latlon, proj_dst, always_xy=True
+            )
+        except Exception as error:
+            raise ValueError(
+                "Can't locate points: Unable to create a "
+                "pyproj.transformer.Transformer object for converting "
+                f"lat/lon points to y/x: {error}"
+            )
+
+        # Convert the latitudes and longitudes to y and x coordinates
+        try:
+            x, y = transformer.transform(
+                lon, lat, errcheck=True, radians=False
+            )
+        except Exception as error:
+            raise ValueError(
+                "Can't locate points: Unable to convert lat/lon points "
+                f"to y/x: {error}"
+            )
+
+        # Make sure that y and x have the same units as the node
+        # coordinates
+        metres = Units("m")
+        if self.units_x.equivalent(metres):
+            if self.units_x != metres:
+                try:
+                    Units.conform(x, metres, self.units_x, inplace=True)
+                except ValueError:
+                    raise ValueError(
+                        "Can't locate points: Unable to convert longitude "
+                        "points to x points in units of metres"
+                    )
+
+            if self.units_y != metres:
+                try:
+                    Units.conform(y, metres, self.units_y, inplace=True)
+                except ValueError:
+                    raise ValueError(
+                        "Can't locate points: Unable to convert latitude "
+                        "points to y points in units of metres"
+                    )
+
+        return y, x
+
     def _ear_clip(self, polygon):
         """Ear clipping algorithm for individual concave polygons."""
         n = len(polygon)
@@ -538,7 +732,9 @@ class PolygonLocator:
                     if other_i in (prev_i, curr_i, next_i):
                         continue
 
-                    if point_in_triangle(polygon[other_i], p_prev, p_curr, p_next):
+                    if point_in_triangle(
+                        polygon[other_i], p_prev, p_curr, p_next
+                    ):
                         contains_other = True
                         break
 
@@ -559,32 +755,26 @@ class PolygonLocator:
         return triangles
 
     def locate(self, y, x, latlon=True, unique=True, k_candidates=None):
-        r"""Find the indices UGRID face cells containing locations.
+        """Find the indices of UGRID face cells containing points.
 
-        Performs a high-performance spatial lookup using a two-stage
-        filter-and-verify algorithm: O(log N) nearest-centroid
-        retrieval via KD-Tree followed by an O(1) vectorised scalar
-        triple product check.
+        :Method:
 
-        :O(1) out-of-bounds early rejection:
+        Performs a spatial lookup using a two-stage filter-and-verify
+        algorithm: O(log N) nearest-centroid retrieval via the cached
+        KD-Tree, followed by an O(1) vectorised scalar triple product
+        check.
 
-        Query points whose 3-d distance to their nearest centroid
-        exceeds ``self.max_cell_radius + self.atol`` are flagged as
-        outside the mesh instantly without evaluating vector
-        cross-products.
+        - **Fast out-of-mesh rejection**: A point whose distance to
+          its nearest centroid exceeds the pre-determined maximum cell
+          radius is flagged as outside the mesh instantly without,
+          evaluating vector cross-products.
 
-        :Progressive fallback guarantee:
-
-        If a point is within ``self.max_cell_radius`` of the mesh but
-        fails initial verification, `locate` dynamically expands the
-        candidate search radius until the point is either successfully
-        located or distance limits prove it is outside the domain.
-
-        :Tolerance handling:
-
-        Uses `self.atol` for exact boundary and edge resolution:
-        $$\mathbf{v}_i \times \mathbf{v}_{i+1} \cdot \mathbf{q} \ge
-        -\text{self.atol}$$
+        - **Progressive fallback guarantee:**: If a point is within
+          the pre-determined maximum cell radius of the mesh but fails
+          initial verification, `locate` dynamically expands the
+          candidate search radius until the point is either
+          successfully located or it is shown to be outside of the
+          mesh.
 
         .. versionadded:: NEXTVERSION
 
@@ -592,56 +782,59 @@ class PolygonLocator:
 
         :Parameters:
 
-            y: array-like or `None`
-                The latitudes, in degrees north, for which to find the
-                cell indices. `None` is equalalent to an empty list.
+            y: array_like or `None`
+                The Y coordinates of the points to locate, either in
+                degrees north or in the same units as the 1-d Y
+                coordinates that define cells of the discrete axis. A
+                scalar or multi-dimensional array is flattened to
+                1-d. If *lat* has size 1 and *lon* has size greater
+                than 1 then *lat* is automatically broadcast to the
+                shape of *lon*. `None` is equivalent to an empty list.
+            
+            x: array_like or `None`
+                The X coordinates of the points to locate, either in
+                degrees east or in the same units as the 1-d X
+                coordinates that define cells of the discrete axis. A
+                scalar or multi-dimensional array is flattened to
+                1-d. If *lat* has size 1 and *lon* has size greater
+                than 1 then *lat* is automatically broadcast to the
+                shape of *lon*. `None` is equivalent to an empty list.
 
-            x: array-like or `None`
-                The longitudes, in degrees east, for which to find the
-                cell indices. `None` is equalalent to an empty list.
+            latlon: `bool`, optional
+                If True (the default) then *y* is assumed to be in
+                units of degrees north, and *x* in units of degees
+                east. If False then *y* and *x* are assumed to be in
+                units of the node coordinates in the domain.
+
+                When the domain has a non-latitude_longitude
+                coordinate reference system (CRS), it is still allowed
+                to provide *y* and *x* points in latitude and
+                longitude (i.e. *latlon* is True). In this case, the
+                latitude and longitude points will internally be
+                automatically converted to their equivalent points in
+                the CRS of the domain.
 
             unique: `bool`, optional
                 If True (the default) then return sorted cell indices
-                without duplicates, nor non-valid index placeholders
-                for locations that do not lie inside any cell. If
-                False then an index is returned for every location,
-                including non-valid index placeholders for locations
-                that do not lie inside any cell.
+                without duplicates, nor placeholders for locations are
+                out-of-domain (i.e that do not lie inside any
+                cell). If False then an index is returned for every
+                location, including placeholders for out-of-domain
+                points.
 
-                The non-valid index placeholder is ``-N``, where N is
-                the size of the UGRID discrete axis.
+                The out-of-domain placeholder is ``-N``, where ``N``
+                is the size of the discrete axis, which is always a
+                non-valid index.
 
             k_candidates: `int` or `None`, optional
 
-            _cartesian: `bool`, optional
-                *y* and *x* are instead Cartesian coordinates with the
-                same units as the Y and X node coodinates of the
-                parent domain. This is feature is only for testing,
-                and doesn't come with any checks on the consistency
-                between *y* and *x* and the node coordinates.
-
         :Returns:
 
-            1-d `numpy.ndarray`
-                Indices for the HEALPix axis that contain the
-                latitude-longitude locations. See the *unique*
-                parameter.
+            `numpy.ndarray`
+                1-d cell indices for the discrete axis that contain the
+                (Y, X) locations. See the *unique* parameter.
 
         """
-        if self.grid_mapping == "latitude_longitude":pass
-        
-        
-        if self.spherical and _cartesian:
-            raise ValueError(
-                "Can't set _cartesian=True when self.spherical=True"
-            )
-
-        if not self.spherical and not _cartesian:
-            raise NotImplementedError(
-                "Can't yet locate latitudes and longitudes for a UGRID "
-                "domain with a non-latitude_longitude coordinate system"
-            )
-
         # Make sure that 'y' and 'x' are 1-d numpy arrays with the
         # same number of elements
         if y is None:
@@ -669,22 +862,20 @@ class PolygonLocator:
         n_points = y.size
         results = np.full(n_points, -1, dtype=int)
 
-        n_triangles = len(self.tri_nodes)
+        n_triangles = len(self.triangle_nodes)
         if n_triangles == 0:
             return results
 
-        if self.grid_mapping_name(self.cr) == "latitude_longitude":
+        if self.grid_mapping == "latitude_longitude":
             if not latlon:
                 # Nodes are defined in latitude_longitude, but the
                 # points are not.
                 raise ValueError("TODO")
         elif latlon:
             # Points are defined in latitude_longitude, but the nodes
-            # are not => Convert the points to the CRS of the nodes.
-            #
-            # Make use of self.cr and self.latlon_cr
-            pass
-        
+            # are not, so convert the points to the CRS of the nodes.
+            y, x = self._convert(y, x)
+
         if self.spherical:
             # Spherical polar point coordinates (possibly rotated):
             # Convert to 3-d N-vectors. Array shape is (n_nodes, 3).
@@ -696,19 +887,21 @@ class PolygonLocator:
 
             # Convert spherical polar coordinates to 3-d N-vectors
             # (unit sphere). Array shape is (n_points, 3).
-            r_lat = np.radians(y)
-            r_lon = np.radians(x)
+            y = np.radians(y)
+            x = np.radians(x)
             Q = np.column_stack(
                 [
-                    np.cos(r_lat) * np.cos(r_lon),
-                    np.cos(r_lat) * np.sin(r_lon),
-                    np.sin(r_lat),
+                    np.cos(y) * np.cos(x),
+                    np.cos(y) * np.sin(x),
+                    np.sin(y),
                 ]
             )
         else:
             # 2-d Cartesian point coordinates. Array shape is
             # (n_nodes, 2).
             Q = np.column_stack([x, y])
+
+        del y, x
 
         unmatched_indices = np.arange(n_points)
         max_distance_bound = self.max_cell_radius + self.atol
@@ -745,7 +938,7 @@ class PolygonLocator:
                 valid_triangles = candidate_triangles[valid_mask]
 
                 for tri_idx in valid_triangles:
-                    v = self.nodes[self.tri_nodes[tri_idx]]
+                    v = self.nodes[self.triangle_nodes[tri_idx]]
 
                     if self.spherical:
                         crosses = np.cross(v, np.roll(v, -1, axis=0))

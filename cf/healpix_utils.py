@@ -517,7 +517,9 @@ def _healpix_change_indexing_scheme(
         healpix_index.data._set_cached_elements(new_cache)
 
 
-def _healpix_locate(lat, lon, f=None, unique=True, return_operator=False):
+def _healpix_locate(
+    y, x, f=None, latlon=True, unique=True, return_operator=False
+):
     """Locate HEALPix cells containing latitude-longitude locations.
 
     Returns the discrete axis indices of the cells containing the
@@ -542,55 +544,73 @@ def _healpix_locate(lat, lon, f=None, unique=True, return_operator=False):
 
     :Parameters:
 
-        lat: (sequence of) number
-            The latitude(s), in degrees north, for which to find the
-            cell indices. Must be in the range [-90, 90], although
-            this is not checked.
+        y: array_like or `None`
+            The Y coordinates of the points to locate in degrees
+            north. A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
 
-        lon: (sequence of) number
-            The longitude(s), in degrees east, for which to find the
-            cell indices.
+        x: array_like or `None`
+            The X coordinates of the points to locate in degrees
+            east. A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain`
             The Field or Domain containing the HEALPix grid.
 
+        latlon: `bool`, optional
+            If True (the default) then *y* is assumed to be in units
+            of degrees north, and *x* in units of degees east. If
+            False then an exception is raised.
+
+            .. versionadded:: NEXTVERSION
+
         unique: `bool`, optional
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations that do
-            not lie inside any cell. If False then an index is
-            returned for every location, including non-valid index
-            placeholders for locations that do not lie inside any
-            cell.
+            without duplicates, nor placeholders for locations are
+            out-of-domain (i.e that do not lie inside any cell). If
+            False then an index is returned for every location,
+            including placeholders for out-of-domain points.
 
-            The outside-of-mesh placeholder is ``-N``, where ``N`` is
-            the size of the HEALPix discrete axis, which is always a
-            non-valid index.
+            The out-of-domain placeholder is ``-N``, where ``N`` is
+            the size of the discrete axis, which is always a non-valid
+            index.
 
             .. versionadded:: NEXTVERSION
 
         return_operator: `bool`, optional
             If True then do not locate cells, but return an operator
             that is able to do the locating. The operator is a
-            function that takes the same *lat*, *lon* and *unique*
-            arguments as `cf.locate`. When multiple `cf.locate` calls
+            function that takes the same *y*, *x* and *unique*
+            arguments as this function, and may also have extra
+            configuration parameters. When multiple `cf.locate` calls
             for the same field or domain are expected, using the
-            operator to do the locating can in principle be much
-            faster but for HEALPix domains there is currently no
-            increase in performance.
+            operator to do the locating can be much faster.
 
-            When returning the operator, the *lat* and *lon*
-            parameters are ignored (so may both be set to `None`), and
-            the *unique* parameter is also ignored.
+            When returning the operator, the *y* and *x* parameters
+            are ignored (so may both be set to `None`), and the
+            *unique* parameter is also ignored.
+
+            For HEALPix domains there is currently no increase in
+            performance.
 
             .. versionadded:: NEXTVERSION
 
     :Returns:
 
-        `numpy.ndarray`
-            Indices for the HEALPix axis that contain the
-            latitude-longitude locations. Note that these indices
-            identify locations along the HEALPix axis, and are not the
-            HEALPix indices defined by the indexing scheme.
+        `numpy.ndarray` or function
+            1-d cell indices for the discrete axis that contain the
+            (Y, X) locations. See the *unique* parameter.
+
+            If *f* is `None` then a function is returned that
+            calculates cell indices for a given field or domain.
+
+            If *return_operator* is True then a function is returned
+            that, for the field or domain defined by *f*, calculates
+            cell indices for given (Y, X) locations.
 
     """
     locator = HEALPixLocator(f)
@@ -599,7 +619,7 @@ def _healpix_locate(lat, lon, f=None, unique=True, return_operator=False):
         return locator.locate
 
     # Find the indices for the locations
-    index = locator.locate(lat, lon, unique=unique)
+    index = locator.locate(y, x, latlon=latlon, unique=unique)
     return index
 
 
@@ -783,7 +803,7 @@ class HEALPixLocator:
                 "healpix_index coordinates"
             )
 
-    def locate(self, lat, lon, unique=True):
+    def locate(self, lat, lon, latlon=True, unique=True):
         """Find the indices HEALPix face cells containing locations.
 
         .. versionadded:: NEXTVERSION
@@ -792,39 +812,56 @@ class HEALPixLocator:
 
         :Parameters:
 
-            lat array-like or `None`
-                The latitudes, in degrees north, for which to find the
-                cell indices. `None` is equalalent to an empty list.
+            y: array_like or `None`
+                The Y coordinates of the points to locate in degrees
+                north. A scalar or multi-dimensional array is
+                flattened to 1-d. If *lat* has size 1 and *lon* has
+                size greater than 1 then *lat* is automatically
+                broadcast to the shape of *lon*. `None` is equivalent
+                to an empty list.
+            
+            x: array_like or `None`
+                The X coordinates of the points to locate in degrees
+                east. A scalar or multi-dimensional array is flattened
+                to 1-d. If *lat* has size 1 and *lon* has size greater
+                than 1 then *lat* is automatically broadcast to the
+                shape of *lon*. `None` is equivalent to an empty list.
 
-            lon: array-like or `None`
-                The longitudes, in degrees east, for which to find the
-                cell indices. `None` is equalalent to an empty list.
+            latlon: `bool`, optional
+                If True (the default) then *y* is assumed to be in units
+                of degrees north, and *x* in units of degees east. If
+                False then an exception is raised.
+
+                .. versionadded:: NEXTVERSION
 
             unique: `bool`, optional
                 If True (the default) then return sorted cell indices
-                without duplicates, nor non-valid index placeholders
-                for locations that do not lie inside any cell. If
-                False then an index is returned for every location,
-                including non-valid index placeholders for locations
-                that do not lie inside any cell.
+                without duplicates, nor placeholders for locations are
+                out-of-domain (i.e that do not lie inside any
+                cell). If False then an index is returned for every
+                location, including placeholders for out-of-domain
+                points.
 
-                The non-valid index placeholder is ``-N``, where N is
-                the size of the UGRID discrete axis.
+                The out-of-domain placeholder is ``-N``, where ``N``
+                is the size of the discrete axis, which is always a
+                non-valid index.
+        
+                .. versionadded:: NEXTVERSION
 
         :Returns:
 
-            1-d `numpy.ndarray`
-                Indices for the HEALPix axis that contain the
-                latitude-longitude locations. See the *unique*
-                parameter. Note that these indices identify locations
-                along the HEALPix axis, and are not the HEALPix
-                indices defined by the indexing scheme.
+            `numpy.ndarray` or function
+                1-d Cell indices for the discrete axis that contain
+                the (Y, X) locations. See the *unique* parameter.
 
         """
         if not unique:
             raise NotImplementedError(
                 "Can't yet set unique=False for a HEALPix domain."
             )
+
+        if not latlon:
+            raise ValueError("Can't set latlon=False for a HEALPix domain.")
 
         import dask.array as da
 

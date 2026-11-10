@@ -440,19 +440,87 @@ class UGRIDTest(unittest.TestCase):
                 ],
                 -1,
             ),
-            spherical=False,
+            cr="Cartesian",  # Dummy, non-latitude_longitude CRS
             atol=cf.atol(),
+            _test=True,  # _test=True allows the dummy CRS
         )
 
         index = locator.locate(
             y=[201] * 12,
             x=[99, 101, 199, 201, 299, 301, 399, 401, 499, 501, 599, 601],
+            latlon=False,
             unique=False,
-            _cartesian=True,
         )
         self.assertEqual(
             index.tolist(), [-2, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, -2]
         )
+
+    def test_UGRID_locate_4(self):
+        """Test cf.locate with a non-latitude_longitude mesh."""
+        import pyproj
+
+        from cf.mixin.utils.grid_mapping import create_projection_CRS
+
+        f = cf.read("ugrid_global_1.nc")[0]
+
+        # f0: latitude_longitude mesh
+        f0 = f.copy()
+
+        # Modify f to have a rotated_latitude_longitude mesh that is
+        # geographically identical to f's mesh.
+        cr = cf.CoordinateReference()
+        cr.set_coordinates({"auxiliarycoordinate1", "auxiliarycoordinate0"})
+        cc = cr.coordinate_conversion
+        cc.set_parameters(
+            {
+                "grid_mapping_name": "rotated_latitude_longitude",
+                "grid_north_pole_latitude": 38.0,
+                "grid_north_pole_longitude": 190.0,
+            }
+        )
+
+        proj_latlon = create_projection_CRS(cr, "latitude_longitude")
+        proj_dst = create_projection_CRS(cr, "rotated_latitude_longitude")
+        transformer = pyproj.Transformer.from_crs(
+            proj_latlon, proj_dst, always_xy=True
+        )
+
+        lat = f.coord("Y").array
+        lon = f.coord("X").array
+        x, y = transformer.transform(lon, lat, errcheck=True, radians=False)
+        f.coord("Y")[...] = y
+        f.coord("X")[...] = x
+
+        shape = f.coord("Y").bounds.shape
+        lat = f.coord("Y").bounds.array.reshape(-1)
+        lon = f.coord("X").bounds.array.reshape(-1)
+        x, y = transformer.transform(lon, lat, errcheck=True, radians=False)
+        f.coord("Y").bounds[...] = y.reshape(shape)
+        f.coord("X").bounds[...] = x.reshape(shape)
+
+        cr.clear_coordinates()
+        cr.set_coordinates(["auxiliarycoordinate0", "auxiliarycoordinate1"])
+        f.set_construct(cr)
+
+        # Test that latlon=True locations give identical results for
+        # both fields (latiude_longitude and
+        # rotated_latitude_longitude)
+        lat = f0.coord("Y").array
+        lon = f0.coord("X").array
+
+        i0 = cf.locate(lat, lon, f0)
+        i = cf.locate(lat, lon, f)
+
+        self.assertTrue((i0 == i).all())
+
+        # Test that latlon=False locations for the
+        # rotated_latitude_longitude gives identical results
+        rlat = f.coord("Y").array
+        rlon = f.coord("X").array
+
+        j = cf.locate(rlat, rlon, f, latlon=False)
+
+        self.assertTrue((i0 == j).all())
 
 
 if __name__ == "__main__":
