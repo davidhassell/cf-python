@@ -520,21 +520,13 @@ def _healpix_change_indexing_scheme(
 def _healpix_locate(
     y, x, f=None, latlon=True, unique=True, return_operator=False
 ):
-    """Locate HEALPix cells containing latitude-longitude locations.
+    """Locate HEALPix cells containing points.
 
-    Returns the discrete axis indices of the cells containing the
-    latitude-longitude locations.
+    The cells must be defined by a horizontal HEALPix discrete axis
+    that has 1-d coordinates.
 
-    If a single latitude is given then it is paired with each
-    longitude, and if a single longitude is given then it is paired
-    with each latitude. If multiple latitudes and multiple longitudes
-    are provided then they are paired element-wise.
-
-    If a cell contains more than one of the given latitude-longitude
-    locations then that cell's index appears only once in the output.
-
-    See CF Appendix F: Grid Mappings.
-    https://doi.org/10.5281/zenodo.14274886
+    The points are defined within the domain's latitude_longitude
+    coordinate system.
 
     This is a worker function that is called by `cf.locate`.
 
@@ -546,25 +538,25 @@ def _healpix_locate(
 
         y: array_like or `None`
 
-            The Y coordinates of the points to locate, in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees north.
-        
+            The Y coordinates of the points to locate, in units of
+            degrees north within the domain's latitude_longitude
+            coordinate system (``latlon=True``),.
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
-           
+            1-d. If *y* has size 1 and *x* has size greater than 1
+            then *y* is automatically broadcast to the shape of
+            *x*. `None` is equivalent to an empty list.
+
        x: array_like or `None`
-           
-            The X coordinates of the points to locate, in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees east.
-                     
+
+            The X coordinates of the points to locate, in units
+            of degrees east within the domain's latitude_longitude
+            coordinate system (``latlon=True``).
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
+            1-d. If *x* has size 1 and *y* has size greater than 1
+            then *x* is automatically broadcast to the shape of
+            *y*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain`
             The Field or Domain containing the horizontal HEALPix grid.
@@ -579,11 +571,12 @@ def _healpix_locate(
             .. versionadded:: NEXTVERSION
 
         unique: `bool`, optional
+
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations are
+            without duplicates, nor placeholders for points that are
             out-of-domain (i.e that do not lie inside any cell). If
-            False then an index is returned for every location,
-            including placeholders for out-of-domain points.
+            False then an index is returned for every point, including
+            placeholders for out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
@@ -813,7 +806,7 @@ class HEALPixLocator:
                 "healpix_index coordinates"
             )
 
-    def locate(self, lat, lon, latlon=True, unique=True):
+    def locate(self, y, x, latlon=True, unique=True):
         """Find the indices HEALPix face cells containing locations.
 
         .. versionadded:: NEXTVERSION
@@ -823,51 +816,52 @@ class HEALPixLocator:
         :Parameters:
 
             y: array_like or `None`
-                The Y coordinates of the points to locate in degrees
-                north. The coordinate system is determined from the
-                domain containing the horizontal grid.
+
+                The Y coordinates of the points to locate, in units of
+                degrees north within the domain's latitude_longitude
+                coordinate system (``latlon=True``),.
 
                 A scalar or multi-dimensional array is flattened to
-                1-d. If *lat* has size 1 and *lon* has size greater
-                than 1 then *lat* is automatically broadcast to the
-                shape of *lon*. `None` is equivalent to an empty list.
-            
+                1-d. If *y* has size 1 and *x* has size greater than 1
+                then *y* is automatically broadcast to the shape of
+                *x*. `None` is equivalent to an empty list.
+
             x: array_like or `None`
-                The X coordinates of the points to locate in degrees
-                east. The coordinate system is determined from the
-                domain containing the horizontal grid.
+
+                The X coordinates of the points to locate, in units of
+                degrees east within the domain's latitude_longitude
+                coordinate system (``latlon=True``).
 
                 A scalar or multi-dimensional array is flattened to
-                1-d. If *lat* has size 1 and *lon* has size greater
-                than 1 then *lat* is automatically broadcast to the
-                shape of *lon*. `None` is equivalent to an empty list.
+                1-d. If *x* has size 1 and *y* has size greater than 1
+                then *x* is automatically broadcast to the shape of
+                *y*. `None` is equivalent to an empty list.
 
             latlon: `bool`, optional
-                If True (the default) then *y* is assumed to be in units
-                of degrees north, and *x* in units of degees east. If
+
+                If True (the default) then *y* and *x* are points in
+                the latitude_longitude coordinate system that is
+                explicitly or implicitly defined by the domain. If
                 False then an exception is raised.
 
-                .. versionadded:: NEXTVERSION
-
             unique: `bool`, optional
+
                 If True (the default) then return sorted cell indices
-                without duplicates, nor placeholders for locations are
-                out-of-domain (i.e that do not lie inside any
+                without duplicates, nor placeholders for points that
+                are out-of-domain (i.e that do not lie inside any
                 cell). If False then an index is returned for every
-                location, including placeholders for out-of-domain
+                point, including placeholders for out-of-domain
                 points.
 
                 The out-of-domain placeholder is ``-N``, where ``N``
                 is the size of the discrete axis, which is always a
                 non-valid index.
-        
-                .. versionadded:: NEXTVERSION
 
         :Returns:
 
-            `numpy.ndarray` or function
-                The indices for the discrete axis that contain the
-                points. See the *unique* parameter.
+            `numpy.ndarray`
+                The cell indices for the discrete axis that contain
+                the points. See the *unique* parameter.
 
         """
         if not unique:
@@ -891,27 +885,30 @@ class HEALPixLocator:
 
         # Make sure that 'lat' and 'lon' are 1-d numpy arrays with the
         # same number of elements
-        if lat is None:
-            lat = np.array([])
+        if y is None:
+            y = np.array([])
 
-        if lon is None:
-            lon = np.array([])
+        if x is None:
+            x = np.array([])
 
-        lat = np.atleast_1d(lat).reshape(-1)
-        lon = np.atleast_1d(lon).reshape(-1)
-        if lat.size == 1 and lon.size > 1:
-            lat = np.full_like(lon, lat, dtype=lat.dtype)
-        elif lon.size == 1 and lat.size > 1:
-            lon = np.full_like(lat, lon, dtype=lon.dtype)
-        elif lat.size != lon.size:
+        y = np.atleast_1d(y).reshape(-1)
+        x = np.atleast_1d(x).reshape(-1)
+        if y.size == 1 and x.size > 1:
+            y = np.full_like(x, y, dtype=y.dtype)
+        elif x.size == 1 and y.size > 1:
+            x = np.full_like(y, x, dtype=x.dtype)
+        elif y.size != x.size:
             raise ValueError(
-                f"Incompatible lat and lon sizes: {lat.size} != {lon.size}"
+                f"Incompatible lat and lon sizes: {y.size} != {x.size}"
             )
 
-        if not lat.size or not lon.size:
+        if not y.size or not x.size:
             # Return an empty index list if there are no lat or lon
             # coordinates
             return np.array([], dtype=int)
+
+        lat = y
+        lon = x
 
         if np.abs(lat).max() > 90:
             raise ValueError(

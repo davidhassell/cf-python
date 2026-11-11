@@ -4,22 +4,15 @@ from cf import atol as cf_atol
 
 
 def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
-    """Locate UGRID cells containing latitude-longitude locations.
+    """Locate UGRID cells containing points.
 
-    Returns the discrete axis indices of the cells containing the
-    latitude-longitude locations.
+    The cells must be defined by a horizontal UGRID discrete axis that
+    has 1-d coordinates.
 
-    If a single latitude is given then it is paired with each
-    longitude, and if a single longitude is given then it is paired
-    with each latitude. If multiple latitudes and multiple longitudes
-    are provided then they are paired element-wise.
-
-    If a cell contains more than one of the latitude-longitude
-    locations, then by default that cell's index appears only once in
-    the output (see the *unique* parameter).
-
-    If a latitude-longitude location lies outside of all cells then by
-    default it is ignored (see the *unique* parameter).
+    The points are defined either within the domain's
+    latitude_longitude coordinate system (*latlon* is True), or else
+    within the coordinate system that defines the discrete axis cell
+    coordinates (*latlon* is False).
 
     This is a worker function that is called by `cf.locate`.
 
@@ -31,29 +24,29 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
 
         y: array_like or `None`
 
-            The Y coordinates of the points to locate, either in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees north; or in
-            the coordinate system of the discrete axis cell
-            coordinates, in the same units as the Y cell coordinates.
-        
+            The Y coordinates of the points to locate, either in units
+            of degrees north within the domain's latitude_longitude
+            coordinate system (``latlon=True``), or in the same units
+            as the Y cell coordinates within the coordinate system of
+            the discrete axis cell coordinates (``latlon=False``).
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
-           
-       x: array_like or `None`
-           
-            The X coordinates of the points to locate, either in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees east; or in
-            the coordinate system of the discrete axis cell
-            coordinates, in the same units as the X cell coordinates.
-                     
+            1-d. If *y* has size 1 and *x* has size greater than 1
+            then *y* is automatically broadcast to the shape of
+            *x*. `None` is equivalent to an empty list.
+
+        x: array_like or `None`
+
+            The X coordinates of the points to locate, either in units
+            of degrees east within the domain's latitude_longitude
+            coordinate system (``latlon=True``), or in the same units
+            as the X cell coordinates within the coordinate system of
+            the discrete axis cell coordinates (``latlon=False``).
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
+            1-d. If *x* has size 1 and *y* has size greater than 1
+            then *x* is automatically broadcast to the shape of
+            *y*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain`
             The field or domain containing the horizontal UGRID grid.
@@ -67,6 +60,10 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
             axis cell coordinates.
 
             When the discrete axis cell coordinates have a
+            latitude_longitude coordinate system, *latlon* must
+            be True.
+
+            When the discrete axis cell coordinates have a
             non-latitude_longitude coordinate system, it is still
             allowed to provide *y* and *x* points in latitude and
             longitude (by setting *latlon* to True). In this case, the
@@ -75,11 +72,12 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
             the discrete axis cell coordinates.
 
         unique: `bool`, optional
+
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations are
+            without duplicates, nor placeholders for points that are
             out-of-domain (i.e that do not lie inside any cell). If
-            False then an index is returned for every location,
-            including placeholders for out-of-domain points.
+            False then an index is returned for every point, including
+            placeholders for out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
@@ -142,7 +140,8 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
         )
 
     # Find the coordinate references for the UGRID face cell
-    # coordinates (if there are any)
+    # coordinates (if there are any). We might need them to onvert the
+    # y and x points to a different corodiante system.
     cr = None
     cr_latlon = None
     coordinate_references = f.coordinate_references(todict=True)
@@ -187,52 +186,16 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
 
 
 class PolygonLocator:
-    """Point-in-mesh locator for UGRID unstructured meshes.
+    """Point-in-polygon locator.
 
-    Provides O(log N) spatial indexing and bulk point-in-mesh location
-    for arbitrary planar or spherical unstructured meshes, supporting
-    arbitrary N-gons (triangles, quads, pentagons, hexagons) with both
-    convex and concave geometries.
-
-    Decomposes polygon faces into valid interior sub-triangles using a
-    hybrid pipeline: vectorized fan-triangulation for convex faces and
-    an ear-clipping fallback algorithm for concave elements.
-
-    Point location queries execute a two-stage filter-and-verify
-    algorithm:
-
-    1. **Spatial Filtering (O(log N)):** Employs a
-       `scipy.spatial.cKDTree` built on sub-triangle centroids to
-       fetch candidate faces. Out-of-domain query points are rejected
-       in O(1) time via a precomputed maximum cell radius bound.
-
-    2. **Exact Verification (O(1)):** Evaluates a vectorised scalar
-       triple product point-in-triangle test using `atol` for exact
-       edge and boundary resolution.
-
-    :Notes:
-
-    - **N-vector geometry:** Spherical coordinates are represented as
-      3-d N-vectors. Vector operations replace spherical trigonometry,
-      rendering geometric tests invariant to coordinate branch cuts or
-      poles.
-
-    - **Vectorised fan triangulation:** Arbitrary ``n``-agons are
-      decomposed into ``n-2`` sub-triangles in a single vectorised
-      pass across all faces simultaneously.
-
-    - **Progressive search guarantee:** If a candidate search with
-      initial `k_candidates` fails to locate an interior point in
-      complex boundary regions, the search depth scales progressively
-      (multiplying `k_candidates` by 4 each iteration, bounded by
-      `max_cell_radius`), guaranteeing 100% location reliability
-      without degrading performance for standard points.
+    Works for concave and convex cells (but not yet multi-part cells,
+    or cells with holes).
 
     :Attributes:
 
     `atol`: Absolute tolerance for floating point comparisons.
 
-    `k_candidates`: The initial value for number of nearest triangle
+    `n_sub_triangles`: The initial value for number of nearest triangle
     centroids retrieved from the KD-Tree spatial index for candidate
     evaluation, derived from maximum node valence (i.e. tha maximum
     number of sub-triangles that meet at a single node in a mesh) and
@@ -371,15 +334,22 @@ class PolygonLocator:
 
         # Get the face_node_connectivity mask (True where a face has
         # fewer than the maximum number of nords per face)
+
+        # The face_node_connectivity mask that has the same shape as
+        # 'face_nodes' and is False for each valid vertex of each
+        # face, and True where face_nodes is padded with -1.
         mask = np.ma.getmaskarray(face_nodes)
+
         if np.ma.isMA(face_nodes):
-            face_nodes = np.ma.getdata(face_nodes)
+            # Fill missing values with -1. This is important, and gets
+            # used in `_check_convexity`.
+            face_nodes = face_nodes.filled(-1)
         else:
             face_nodes = np.asanyarray(face_nodes)
 
         self.n_faces, self.max_nodes = face_nodes.shape
 
-        # Vectorized convexity check across all faces simultaneously
+        # Find out if each face is concave or convex
         is_convex = self._check_convexity(face_nodes, mask)
 
         triangle_list = []
@@ -414,35 +384,33 @@ class PolygonLocator:
         # Triangulation of concave faces using the ear clipping
         # algorithm
         # (https://en.wikipedia.org/wiki/Polygon_triangulation)
-        non_convex_indices = np.where(~is_convex)[0]
+        non_convex_indices = np.where(~is_convex)[0].tolist()
         del is_convex
 
-        local_tris = None
-        local_tri_nodes = None
-        for face_idx in non_convex_indices:
-            row_mask = mask[face_idx]
-            valid_node_ids = face_nodes[face_idx, ~row_mask]
+        for f_index in non_convex_indices:
+            row_mask = mask[f_index]
+            valid_node_ids = face_nodes[f_index, ~row_mask]
             if len(valid_node_ids) < 3:
+                # Skip degenerate cells
                 continue
 
-            face_verts = self.nodes[valid_node_ids]
-            local_tris = self._ear_clip(face_verts)
+            # Coordinates of each vertex of this cell
+            face_vertices = self.nodes[valid_node_ids]
 
-            local_tri_nodes = [
-                [
-                    valid_node_ids[t[0]],
-                    valid_node_ids[t[1]],
-                    valid_node_ids[t[2]],
-                ]
-                for t in local_tris
-            ]
-            if local_tri_nodes:
-                triangle_list.append(np.array(local_tri_nodes, dtype=int))
+            # 2-d array of the 0-indexed relative vertex positions of
+            # the sub-triangles within the polygon
+            local_triangles = self._ear_clip(face_vertices)
+
+            # The mesh node indices for each sub-triangle.
+            local_triangle_nodes = valid_node_ids[local_triangles]
+
+            if local_triangle_nodes.size:
+                triangle_list.append(np.array(local_triangle_nodes, dtype=int))
                 parent_list.append(
-                    np.full(len(local_tris), face_idx, dtype=int)
+                    np.full(len(local_triangles), f_index, dtype=int)
                 )
 
-        del mask, local_tri_nodes, local_tris, non_convex_indices
+        del mask, non_convex_indices
 
         # Build sub-triangle data structures and cKDTree spatial index
         if triangle_list:
@@ -464,129 +432,136 @@ class PolygonLocator:
             if self.spherical:
                 centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
+            # Create the kd-tree used for nearest-triangle lookups
             self.tree = cKDTree(centroids)
 
             # Compute the maximum cell radius across the entire mesh =
             # the maximum distance over all triangles from the
-            # triangle centroid to any one of its three vertices. If a
-            # point is greater than this distance away from all
+            # triangle centroid to any one of its three vertices.#
+            #
+            # If a point is greater than this distance away from all
             # triangle centroids, then the point must lie completely
             # outside of the mesh (and therefore not lie in any grid
             # cell).
-            #
-            # d_v = distances from vertices to normalised sub-triangle
-            #       centroid
-            d_v = np.linalg.norm(
-                triangle_vertices - centroids[:, None, :], axis=2
+            self.max_cell_radius = (
+                float(
+                    np.linalg.norm(
+                        triangle_vertices - centroids[:, None, :], axis=2
+                    ).max()
+                )
+                + self.atol
             )
+
             del centroids, triangle_vertices
-
-            self.max_cell_radius = float(d_v.max())
-
-            # Infer an initial value for k_candidates = The number of
-            # nearest triangle centroids retrieved from the KD-Tree
-            # spatial index for candidate evaluation.
-            #
-            # k_candidates has to be less or equal to the total number
-            # of triangles. The initial value and should be small
-            # enough to be sufficient for most points. For a given
-            # point, if a triangle (of a face) cannot be found to
-            # contain it, k_candidates will be increased in the
-            # `locate` method until we find one that does (if
-            # approriate).
-            #
-            # The initial value is derived from maximum node valence
-            # (i.e. tha maximum number of sub-triangles that meet at a
-            # single node in a mesh) and 99th-percentile cell aspect
-            # ratios.
-            node_counts = np.bincount(self.triangle_nodes.reshape(-1))
-            max_degree = node_counts.max()
-            del node_counts
-
-            min_d = np.maximum(d_v.min(axis=1), self.atol)
-            aspect_multiplier = float(
-                np.percentile(d_v.max(axis=1) / min_d, 99)
-            )
-            del d_v, min_d
-
-            inferred_k = int(np.ceil(2 * max_degree * aspect_multiplier))
-            self.k_candidates = max(
-                8, min(inferred_k, len(self.triangle_nodes))
-            )
         else:
             self.triangle_nodes = np.empty((0, 3), dtype=int)
             self.parent_face_ids = np.empty((0,), dtype=int)
-            self.k_candidates = 0
             self.max_cell_radius = 0.0
             self.tree = None
 
     def _check_convexity(self, face_nodes, mask):
-        """Vectorized convexity check across all faces."""
+        """Convexity check for all faces.
+
+        .. versionadded:: NEXTVERSION
+
+        :Parameters:
+
+            face_nodes: `numpy.array`
+                The face_node_connectivity array that contains the
+                node index of each vertex of each cell, padded with
+                ``-1`` when a cell has fewer than `max_nodes`
+                vertices.
+
+            mask: `numpy.array`
+                The face_node_connectivity mask that has the same
+                shape as *face_nodes* and is False for each valid
+                vertex of each face, and True where *face_nodes* is
+                padded with ``-1``.
+
+        :Returns:
+
+            `nump.ndarray`
+                1-d Boolean array of size `n_faces` that is True or
+                convex cells and False for concave cells.
+
+        """
         if self.max_nodes <= 3:
+            # All cells are triangles (or degenerate) => convex
             return np.ones(self.n_faces, dtype=bool)
 
-        n_verts = (~mask).sum(axis=1)
+        # Number of vertices for each cell
+        n_vertices = (~mask).sum(axis=1)
 
-        # Note: Map masked slots to dummy node 0 for safe vectorized
-        # slicing; invalid entries are ignored later on.
-        safe_indices = np.where(mask, 0, face_nodes)
+        # Coordinates of each vertex of each cell.
+        #
+        # When a cell has fewer than 'self.max_nodes' vertices it is
+        # padded with the coordinates of node index 'self.max_nodes -
+        # 1' (by virtue of the fact that 'face_nodes' is padded with
+        # -1), and such fake vertices are ignored later on via the
+        # 'mask' boolean array.
+        vertices = self.nodes[face_nodes]
 
-        verts = self.nodes[safe_indices]  # (n_faces, max_nodes, D)
+        # Column indices
+        columns = np.arange(self.max_nodes)
 
-        col_idx = np.arange(self.max_nodes)
-        row_idx = np.arange(self.n_faces)[:, None]
+        # Row indices
+        rows = np.arange(self.n_faces)[:, None]
 
         next_col = np.where(
-            col_idx[None, :] < n_verts[:, None],
-            (col_idx[None, :] + 1) % n_verts[:, None],
-            col_idx[None, :],
+            columns[None, :] < n_vertices[:, None],
+            (columns[None, :] + 1) % n_vertices[:, None],
+            columns[None, :],
         )
         next_next_col = np.where(
-            col_idx[None, :] < n_verts[:, None],
-            (col_idx[None, :] + 2) % n_verts[:, None],
-            col_idx[None, :],
+            columns[None, :] < n_vertices[:, None],
+            (columns[None, :] + 2) % n_vertices[:, None],
+            columns[None, :],
         )
 
-        v_curr = verts
-        v_next = verts[row_idx, next_col]
-        v_next_next = verts[row_idx, next_next_col]
+        v_curr = vertices
+        v_next = vertices[rows, next_col]
+        v_next_next = vertices[rows, next_next_col]
 
         edges1 = v_next - v_curr
+        del v_curr
         edges2 = v_next_next - v_next
+        del v_next, v_next_next
 
-        valid_cross_mask = col_idx[None, :] < n_verts[:, None]
-
+        # Work out if each cell is convex or concave
         if self.spherical:
-            valid_3d = valid_cross_mask[:, :, None]
-
-            centroids = (verts * valid_3d).sum(axis=1) / n_verts[:, None]
+            valid_3d = ~mask[:, :, None]
+            centroids = (vertices * valid_3d).sum(axis=1) / n_vertices[:, None]
+            del valid_3d, vertices
             centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
             crosses_3d = np.cross(edges1, edges2)
+            del edges1, edges2
+
             dots = (crosses_3d * centroids[:, None, :]).sum(axis=2)
             del crosses_3d, centroids
 
-            is_pos = np.all((dots > self.atol) | ~valid_cross_mask, axis=1)
-            is_neg = np.all((dots < -self.atol) | ~valid_cross_mask, axis=1)
+            is_pos = np.all((dots > self.atol) | mask, axis=1)
+            is_neg = np.all((dots < -self.atol) | mask, axis=1)
             del dots
         else:
+            del vertices
+
             crosses = (
                 edges1[:, :, 0] * edges2[:, :, 1]
                 - edges1[:, :, 1] * edges2[:, :, 0]
             )
+            del edges1, edges2
 
-            is_pos = np.all((crosses > self.atol) | ~valid_cross_mask, axis=1)
-            is_neg = np.all((crosses < -self.atol) | ~valid_cross_mask, axis=1)
+            is_pos = np.all((crosses > self.atol) | mask, axis=1)
+            is_neg = np.all((crosses < -self.atol) | mask, axis=1)
             del crosses
-
-        del valid_cross_mask
 
         non_zero = is_pos | is_neg
         del is_pos, is_neg
 
-        return non_zero & (n_verts >= 3)
+        return non_zero & (n_vertices >= 3)
 
-    def _convert(self, lat, lon):
+    def _convert_from_latlon(self, lat, lon):
         """Convert lat/lon points to y/x points in a different CRS.
 
         The new CRS is defined by `self.cr`. The CRS for the latlon
@@ -594,18 +569,18 @@ class PolygonLocator:
         `None` then the shape of the ellipsoid is taken from
         `self.cr`.
 
-        The y and x points will have the same units as the Y node and
-        X node corodinates, respectively.
+        The returned y and x points will have the same units as the Y
+        and X node corodinates, respectively.
 
         .. versionadded:: NEXTVERSION
 
         :Parameters:
 
             lat: `numpy.ndarray`
-                The latitudes, in a 1-d array.
+                The 1-d latitudes in degrees north.
 
             lon: `numpy.ndarray`
-                The longitudes, in a 1-d array.
+                The 1-d longitudes in degrees east.
 
         :Returns:
 
@@ -640,7 +615,7 @@ class PolygonLocator:
         if proj_dst is None:
             raise ValueError(
                 "Can't locate points: Unable to create a "
-                f"{self.grid_mapping} pyproj.CRS object for {self.cr!r}"
+                f"{self.grid_mapping} pyproj.CRS object from {self.cr!r}"
             )
 
         # Create the transform function that converts latitude and
@@ -653,7 +628,8 @@ class PolygonLocator:
             raise ValueError(
                 "Can't locate points: Unable to create a "
                 "pyproj.transformer.Transformer object for converting "
-                f"lat/lon points to y/x: {error}"
+                f"latitude_longitude points to {self.grid_mapping} points: "
+                f"{error}"
             )
 
         # Convert the latitudes and longitudes to y and x coordinates
@@ -663,8 +639,9 @@ class PolygonLocator:
             )
         except Exception as error:
             raise ValueError(
-                "Can't locate points: Unable to convert lat/lon points "
-                f"to y/x: {error}"
+                "Can't locate points: Unable to convert latitude_longitude "
+                f"to {self.grid_mapping} points using "
+                f"pyproj.transformer.Transformer: {error}"
             )
 
         # Make sure that y and x have the same units as the node
@@ -676,23 +653,159 @@ class PolygonLocator:
                     Units.conform(x, metres, self.units_x, inplace=True)
                 except ValueError:
                     raise ValueError(
-                        "Can't locate points: Unable to convert longitude "
-                        "points to x points in units of metres"
+                        "Can't locate points: Unable to convert "
+                        f"latitude_longitude points to {self.grid_mapping} "
+                        f"points in units of metres"
                     )
 
+        if self.units_y.equivalent(metres):
             if self.units_y != metres:
                 try:
                     Units.conform(y, metres, self.units_y, inplace=True)
                 except ValueError:
                     raise ValueError(
-                        "Can't locate points: Unable to convert latitude "
-                        "points to y points in units of metres"
+                        "Can't locate points: Unable to convert "
+                        f"latitude_longitude points to {self.grid_mapping} "
+                        f"points in units of metres"
                     )
 
         return y, x
 
-    def _ear_clip(self, polygon):
-        """Ear clipping algorithm for individual concave polygons."""
+    def _ear_clip(self, face_vertices):
+        """Ear clipping algorithm for individual concave polygons.
+
+        Decomposes the concave polygon into sub-triangles.
+
+        .. versionadded:: NEXTVERSION
+
+        :Parameters:
+
+            face_vertices: `numpy.ndarray`
+                Coordinates of each vertex of a polygon.
+
+        :Returns:
+
+            `numpy.array`
+                2-d array of the 0-indexed relative vertex positions
+                of the sub-triangles within the polygon.
+
+        """
+        n_vertices, dim = face_vertices.shape
+        if n_vertices == 3:
+            return np.array([[0, 1, 2]])
+
+        # Define a cross product scalar helper, separtely for 3-d and
+        # 2-d cases.
+        if dim == 3:
+            centroid = np.mean(face_vertices, axis=0)
+            norm_val = np.linalg.norm(centroid)
+            if norm_val > 0:
+                normal = centroid / norm_val
+            else:
+                normal = np.array([0.0, 0.0, 1.0])
+
+            def cross_scalar(v1, v2):
+                return float(np.dot(np.cross(v1, v2), normal))
+
+        else:
+
+            def cross_scalar(v1, v2):
+                # 2-d cross-product (determinant): v1_x * v2_y - v1_y
+                # * v2_x (avoids numpy DeprecationWarning for 2-d
+                # np.cross)
+                return float(v1[0] * v2[1] - v1[1] * v2[0])
+
+        # Determine winding order (anticlockwise vs. clockwise) from
+        # total signed area
+        total_area = 0.0
+        for i in range(n_vertices):
+            v1 = face_vertices[i]
+            v2 = face_vertices[(i + 1) % n_vertices]
+            total_area += cross_scalar(v1, v2)
+
+        if total_area >= 0:
+            sign = 1.0
+        else:
+            sign = -1.0
+
+        indices = list(range(n_vertices))
+        triangles = []
+
+        def is_convex(a, b, c):
+            v1 = face_vertices[b] - face_vertices[a]
+            v2 = face_vertices[c] - face_vertices[a]
+            return sign * cross_scalar(v1, v2) > self.atol
+
+        def contains_no_other_points(a, b, c, idx_list):
+            pa, pb, pc = face_vertices[a], face_vertices[b], face_vertices[c]
+            for p_idx in idx_list:
+                if p_idx in (a, b, c):
+                    continue
+
+                pt = face_vertices[p_idx]
+                c1 = sign * cross_scalar(pb - pa, pt - pa)
+                c2 = sign * cross_scalar(pc - pb, pt - pb)
+                c3 = sign * cross_scalar(pa - pc, pt - pc)
+                if c1 >= -self.atol and c2 >= -self.atol and c3 >= -self.atol:
+                    return False
+
+            return True
+
+        # Ear clipping loop
+        #
+        # 'max_ops' doesn't alter execution under normal
+        # conditions. It simply serves as defense-in-depth safety
+        # against infinite loops if edge-case topology bugs or future
+        # refactoring (such as to include geomerty cells) ever prevent
+        # indices from shrinking.
+        max_ops = n_vertices * n_vertices
+
+        count = 0
+        while len(indices) > 3 and count < max_ops:
+            count += 1
+            ear_found = False
+            num_verts = len(indices)
+
+            for i in range(num_verts):
+                prev_i = indices[(i - 1) % num_verts]
+                curr_i = indices[i]
+                next_i = indices[(i + 1) % num_verts]
+
+                if is_convex(prev_i, curr_i, next_i):
+                    if contains_no_other_points(
+                        prev_i, curr_i, next_i, indices
+                    ):
+                        triangles.append((prev_i, curr_i, next_i))
+                        indices.pop(i)
+                        ear_found = True
+                        break
+
+            # Safety fallback if floating-point edge cases prevent ear
+            # detection
+            if not ear_found:
+                triangles.append(indices[:3])
+                # Remove the middle vertex (the "tip" of the ear) of
+                # the triangle
+                indices.pop(1)
+
+        if len(indices) == 3:
+            triangles.append(indices)
+
+        return np.array(triangles)
+
+    def _ear_clip_old(self, polygon):
+        """Ear clipping algorithm for individual concave polygons.
+
+        :Parameters:
+
+            polygon: `numpy.ndarray`
+                Coordinates of each vertex of a polygon.
+
+        :Returns:
+
+            TODO
+
+        """
         n = len(polygon)
         indices = list(range(n))
         triangles = []
@@ -703,7 +816,7 @@ class PolygonLocator:
 
             def anticlockwise(v0, v1, v2):
                 """True if vertices are arranged anticlockwise."""
-                return np.dot(np.cross(v1 - v0, v2 - v1), c) > 1e-12
+                return np.dot(np.cross(v1 - v0, v2 - v1), c) > self.atol
 
             def point_in_triangle(pt, v0, v1, v2):
                 """True if point pt is inside triangle (v0, v1, v2)."""
@@ -717,7 +830,7 @@ class PolygonLocator:
                 """True if vertices are arranged anticlockwise."""
                 return (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (
                     v2[0] - v0[0]
-                ) > 1e-12
+                ) > self.atol
 
             def point_in_triangle(pt, v0, v1, v2):
                 """True if point pt is inside triangle (v0, v1, v2)."""
@@ -774,27 +887,30 @@ class PolygonLocator:
 
         return triangles
 
-    def locate(self, y, x, latlon=True, unique=True, k_candidates=None):
-        """Find the indices of UGRID face cells containing points.
+    def locate(self, y, x, latlon=True, unique=True, n_sub_triangles=8):
+        """Locate UGRID cells containing points.
+
+        The cells are defined by a horizontal UGRID discrete axis that
+        has 1-d coordinates.
+
+        The points are defined either within the domain's
+        latitude_longitude coordinate system (*latlon* is True), or
+        else within the coordinate system that defines the UGRID
+        discrete axis cell coordinates (*latlon* is False).
+
+        Works for concave and convex cells (but not yet multi-part
+        cells, or cells with holes).
 
         :Method:
 
-        Performs a spatial lookup using a two-stage filter-and-verify
-        algorithm: O(log N) nearest-centroid retrieval via the cached
-        KD-Tree, followed by an O(1) vectorised scalar triple product
-        check.
-
-        - **Fast out-of-mesh rejection**: A point whose distance to
-          its nearest centroid exceeds the pre-determined maximum cell
-          radius is flagged as outside the mesh instantly without,
-          evaluating vector cross-products.
-
-        - **Progressive fallback guarantee:**: If a point is within
-          the pre-determined maximum cell radius of the mesh but fails
-          initial verification, `locate` dynamically expands the
-          candidate search radius until the point is either
-          successfully located or it is shown to be outside of the
-          mesh.
+        Grid cells are internally decomposed into non-overlapping
+        sub-triangles. For each target point, the *n_sub_triangles*
+        sub-triangles whose centroids are closest to the point are
+        initially retrieved and tested for containment. If no match is
+        found, and the point has not been identified as being
+        out-of-domain, then more sub-triangles with farther-away
+        centroids are included, until a match is found or the point
+        has been identified as not lying in any cell.
 
         .. versionadded:: NEXTVERSION
 
@@ -803,40 +919,44 @@ class PolygonLocator:
         :Parameters:
 
             y: array_like or `None`
-        
+
                 The Y coordinates of the points to locate, either in
-                the latitude_longitude coordinate system that is
-                explicitly or implicitly defined by the domain, in
-                degrees north; or in the coordinate system of the
-                discrete axis cell coordinates, in the same units as
-                the Y cell coordinates.
-           
+                units of degrees north within the domain's
+                latitude_longitude coordinate system
+                (``latlon=True``), or in the same units as the Y cell
+                coordinates within the coordinate system of the
+                discrete axis cell coordinates (``latlon=False``).
+
                 A scalar or multi-dimensional array is flattened to
-                1-d. If *lat* has size 1 and *lon* has size greater
-                than 1 then *lat* is automatically broadcast to the
-                shape of *lon*. `None` is equivalent to an empty list.
-           
-           x: array_like or `None`
-           
+                1-d. If *y* has size 1 and *x* has size greater than 1
+                then *y* is automatically broadcast to the shape of
+                *x*. `None` is equivalent to an empty list.
+
+            x: array_like or `None`
+
                 The X coordinates of the points to locate, either in
-                the latitude_longitude coordinate system that is
-                explicitly or implicitly defined by the domain, in
-                degrees east; or in the coordinate system of the
-                discrete axis cell coordinates, in the same units as
-                the X cell coordinates.
-                     
+                units of degrees east within the domain's
+                latitude_longitude coordinate system
+                (``latlon=True``), or in the same units as the X cell
+                coordinates within the coordinate system of the
+                discrete axis cell coordinates (``latlon=False``).
+
                 A scalar or multi-dimensional array is flattened to
-                1-d. If *lat* has size 1 and *lon* has size greater
-                than 1 then *lat* is automatically broadcast to the
-                shape of *lon*. `None` is equivalent to an empty list.
+                1-d. If *x* has size 1 and *y* has size greater than 1
+                then *x* is automatically broadcast to the shape of
+                *y*. `None` is equivalent to an empty list.
 
             latlon: `bool`, optional
-        
+
                 If True (the default) then *y* and *x* are points in
                 the latitude_longitude coordinate system that is
                 explicitly or implicitly defined by the domain. If
                 False then *y* and *x* are points in the coordinate
                 system of the discrete axis cell coordinates.
+
+                When the discrete axis cell coordinates have a
+                latitude_longitude coordinate system, *latlon* must be
+                True.
 
                 When the discrete axis cell coordinates have a
                 non-latitude_longitude coordinate system, it is still
@@ -848,18 +968,45 @@ class PolygonLocator:
                 coordinates.
 
             unique: `bool`, optional
+
                 If True (the default) then return sorted cell indices
-                without duplicates, nor placeholders for locations are
-                out-of-domain (i.e that do not lie inside any
+                without duplicates, nor placeholders for points that
+                are out-of-domain (i.e that do not lie inside any
                 cell). If False then an index is returned for every
-                location, including placeholders for out-of-domain
+                point, including placeholders for out-of-domain
                 points.
 
                 The out-of-domain placeholder is ``-N``, where ``N``
                 is the size of the discrete axis, which is always a
                 non-valid index.
 
-            k_candidates: `int` or `None`, optional
+            n_sub_triangles: `int`, optional
+
+                The initial number of sub-triangles queried for each
+                point, selected in order of nearest centroid distance
+                to the point.
+
+                Grid cells are internally decomposed into
+                non-overlapping sub-triangles. For each target point,
+                the *n_sub_triangles* sub-triangles whose centroids
+                are closest to the point are initially retrieved and
+                tested for containment. If no match is found, and the
+                point has not been identified as being out-of-domain,
+                then more sub-triangles with farther-away centroids
+                are included, until a match is found or the point has
+                been identified as not lying in any cell.
+
+                The value of *n_sub_triangles* only affects the
+                performance of the location operation, not the indices
+                of the located cells. For any given mesh, there will
+                be an optimal value that finds the requested points
+                the fastest. By default *n_sub_triangles* is
+                ``8``. This is usually sufficient for locating,
+                without needing to widen the search radius, any point
+                in a mesh composed of low aspect-ratio triangles,
+                quadrilaterals, pectagons, or hexagons (because for
+                such meshes, it would be unusual for more than eight
+                sub-triangles to all share the same mesh node).
 
         :Returns:
 
@@ -884,30 +1031,48 @@ class PolygonLocator:
             x = np.full_like(y, x, dtype=x.dtype)
         elif y.size != x.size:
             raise ValueError(
-                "Incompatible y and x sizes in "
-                f"{self.__class__.__name__}.locate: {y.size} != {x.size}"
+                f"Incompatible y and x sizes: {y.size} != {x.size}"
             )
 
         if not y.size or not x.size:
             # Return an empty index list if there are no x or y coordinates
             return np.array([], dtype=int)
 
+        # Initialise the out put array of indices. It is important
+        # that it is initialised to -self.n_faces.
         n_points = y.size
-        results = np.full(n_points, -1, dtype=int)
+        results = np.full(n_points, -self.n_faces, dtype=int)
 
         n_triangles = len(self.triangle_nodes)
         if n_triangles == 0:
+            # There are only degenerate cells, so no points can lie in
+            # them
             return results
+
+        # Make sure that n_sub_triangles is >= 1 and (a requirement of
+        # scipy.spatial.cKDTree) not greater than the total number of
+        # triangles
+        n_sub_triangles = int(n_sub_triangles)
+        if n_sub_triangles < 1:
+            raise ValueError(
+                f"n_sub_triangles must be >= 1. Got: {n_sub_triangles}"
+            )
+
+        n_sub_triangles = min(n_sub_triangles, n_triangles)
 
         if self.grid_mapping == "latitude_longitude":
             if not latlon:
                 # Nodes are defined in latitude_longitude, but the
                 # points are not.
-                raise ValueError("TODO")
+                raise ValueError(
+                    "Must set latlon=True when the node coordinates are "
+                    "defined by a latitude_longitude coordinate system"
+                )
+
         elif latlon:
             # Points are defined in latitude_longitude, but the nodes
             # are not, so convert the points to the CRS of the nodes.
-            y, x = self._convert(y, x)
+            y, x = self._convert_from_latlon(y, x)
 
         if self.spherical:
             # Spherical polar point coordinates (possibly rotated):
@@ -918,8 +1083,6 @@ class PolygonLocator:
                     f"the range [-90, 90]. Got: {y}"
                 )
 
-            # Convert spherical polar coordinates to 3-d N-vectors
-            # (unit sphere). Array shape is (n_points, 3).
             y = np.radians(y)
             x = np.radians(x)
             Q = np.column_stack(
@@ -937,10 +1100,10 @@ class PolygonLocator:
         del y, x
 
         unmatched_indices = np.arange(n_points)
-        max_distance_bound = self.max_cell_radius + self.atol
+        max_cell_radius = self.max_cell_radius
 
-        k_current = self.k_candidates if k_candidates is None else k_candidates
-        k_current = min(k_current, n_triangles)
+        old_k = 0
+        k_current = n_sub_triangles
 
         while len(unmatched_indices) > 0:
             Q_unmatched = Q[unmatched_indices]
@@ -953,25 +1116,46 @@ class PolygonLocator:
                 distances = distances[:, None]
                 triangle_indices = triangle_indices[:, None]
 
+            if old_k:
+                # No need to check the triangles we've already
+                # rejected
+                distances = distances[:, old_k:k_current]
+                triangle_indices = triangle_indices[:, old_k:k_current]
+
             newly_matched = []
             outside_mesh = []
 
-            for sub_idx, point_idx in enumerate(unmatched_indices):
-                q_vec = Q[point_idx]
-                pt_dists = distances[sub_idx]
-                candidate_triangles = triangle_indices[sub_idx]
+            for n, p_index in enumerate(unmatched_indices):
+                # The coordinates of the point
+                q_vec = Q[p_index]
 
-                if pt_dists[0] > max_distance_bound:
-                    outside_mesh.append(point_idx)
+                # The distance from the point for each triangle
+                point_distances = distances[n]
+
+                # The indices of the k_current closest triangles
+                candidate_triangles = triangle_indices[n]
+
+                if point_distances[0] > max_cell_radius:  # max_distance_bound:
+                    # The distance of the closest triangle to the
+                    # point is greater than maximum cell radius => the
+                    # point must be outside the mesh.
+                    outside_mesh.append(p_index)
                     continue
 
-                valid_mask = (pt_dists <= max_distance_bound) & (
+                # Get rid of triangles that distance of the triangle
+                # to the point is greater than maximum cell radius
+                # (the point definitely can't be in those).
+                valid_mask = (point_distances <= max_cell_radius) & (
                     candidate_triangles < n_triangles
                 )
                 valid_triangles = candidate_triangles[valid_mask]
 
-                for tri_idx in valid_triangles:
-                    v = self.nodes[self.triangle_nodes[tri_idx]]
+                # Perform a point-in-triangle test for each valid
+                # triangle, checking the triangle closest to the point
+                # first.
+                for t_index in valid_triangles:
+                    # Coordinates of this triangle's vertices
+                    v = self.nodes[self.triangle_nodes[t_index]]
 
                     if self.spherical:
                         crosses = np.cross(v, np.roll(v, -1, axis=0))
@@ -986,14 +1170,15 @@ class PolygonLocator:
                         is_inside = np.all(crosses >= -self.atol)
 
                     if is_inside:
-                        results[point_idx] = self.parent_face_ids[tri_idx]
-                        newly_matched.append(point_idx)
+                        # The point is inside this triangle
+                        results[p_index] = self.parent_face_ids[t_index]
+                        newly_matched.append(p_index)
                         break
 
-                if point_idx not in newly_matched and np.any(
-                    pt_dists > max_distance_bound
+                if p_index not in newly_matched and np.any(
+                    point_distances > max_cell_radius
                 ):
-                    outside_mesh.append(point_idx)
+                    outside_mesh.append(p_index)
 
             resolved = newly_matched + outside_mesh
             if resolved:
@@ -1006,18 +1191,27 @@ class PolygonLocator:
             ):
                 break
 
-            k_current = min(k_current * 4, n_triangles)
+            # Still here? Then double the number of candidate
+            # triangles for the next iteration
+            old_k = k_current
+            if k_current == 1:
+                k_current = 2
+            else:
+                k_current = k_current * 2
+
+            k_current = min(k_current, n_triangles)
 
         size = results.size
         if unique and size:
+            # Return sorted cell indices without duplicates, nor
+            # placeholders for points that are out-of-domain (i.e that
+            # do not lie inside any cell).
             if size > 1:
+                # Unique and sort
                 results = np.unique(results)
 
-            if results[0] == -1:
+            if results[0] < 0:
+                # Remove out-of-domain placeholder
                 results = results[1:]
-        elif -1 in results:
-            # Replace indices of -1 (= outside of mesh) with an
-            # invalid negative index
-            results = np.where(results == -1, -self.n_faces, results)
 
         return results

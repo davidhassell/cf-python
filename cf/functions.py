@@ -3243,21 +3243,15 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 
 
 def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
-    """Locate cells containing latitude-longitude locations.
+    """Locate cells containing points.
 
     The cells must be defined by a horizontal discrete axis that has
-    1-d latitude and longitude coordinates, or for which it is
-    possible to create 1-d latitude and longitude coordinates from
-    other metadata (as is the case for a HEALPix axis). At present,
-    only HEALPix and UGRID axes are supported.
+    1-d coordinates.
 
-    Returns the indices of the discrete axis for the cells containing
-    the latitude-longitude locations.
-
-    If a cell contains more than one of the latitude-longitude
-    locations, then by default that cell's index appears only once in
-    the output. If a latitude-longitude location lies outside of all
-    cells then by default it is ignored. See the *unique* parameter.
+    The points are defined either within the domain's
+    latitude_longitude coordinate system (*latlon* is True), or else
+    within the coordinate system that defines the discrete axis cell
+    coordinates (*latlon* is False).
 
     .. versionadded:: 3.20.0
 
@@ -3268,29 +3262,29 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
 
         y: array_like or `None`
 
-            The Y coordinates of the points to locate, either in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees north; or in
-            the coordinate system of the discrete axis cell
-            coordinates, in the same units as the Y cell coordinates.
-        
+            The Y coordinates of the points to locate, either in units
+            of degrees north within the domain's latitude_longitude
+            coordinate system (``latlon=True``), or in the same units
+            as the Y cell coordinates within the coordinate system of
+            the discrete axis cell coordinates (``latlon=False``).
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
-           
-       x: array_like or `None`
-           
-            The X coordinates of the points to locate, either in the
-            latitude_longitude coordinate system that is explicitly or
-            implicitly defined by the domain, in degrees east; or in
-            the coordinate system of the discrete axis cell
-            coordinates, in the same units as the X cell coordinates.
-                     
+            1-d. If *y* has size 1 and *x* has size greater than 1
+            then *y* is automatically broadcast to the shape of
+            *x*. `None` is equivalent to an empty list.
+
+        x: array_like or `None`
+
+            The X coordinates of the points to locate, either in units
+            of degrees east within the domain's latitude_longitude
+            coordinate system (``latlon=True``), or in the same units
+            as the X cell coordinates within the coordinate system of
+            the discrete axis cell coordinates (``latlon=False``).
+
             A scalar or multi-dimensional array is flattened to
-            1-d. If *lat* has size 1 and *lon* has size greater than 1
-            then *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
+            1-d. If *x* has size 1 and *y* has size greater than 1
+            then *x* is automatically broadcast to the shape of
+            *y*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain` or `None`, optional
             The Field or Domain containing the horizontal grid.

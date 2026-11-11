@@ -329,10 +329,7 @@ class UGRIDTest(unittest.TestCase):
         lat = -89
         lon = 180
         self.assertEqual(cf.locate(lat, lon, f).tolist(), [])
-        self.assertEqual(
-            cf.locate(lat, lon, f, unique=False).tolist(),
-            [-3],
-        )
+        self.assertEqual(cf.locate(lat, lon, f, unique=False).tolist(), [-3])
 
         # Get the indices for a subset of points in the mesh and a
         # point outside of the mesh, including duplicates
@@ -345,7 +342,7 @@ class UGRIDTest(unittest.TestCase):
         )
 
     def test_UGRID_locate_2(self):
-        """Test cf.locate with a global mesh."""
+        """Test cf.locate with a real C12 mesh."""
         # Locate global file path within cf-python test directory
         f = cf.read(self.global_file)[0]
 
@@ -360,6 +357,23 @@ class UGRIDTest(unittest.TestCase):
         self.assertEqual(
             cf.locate(node_lat, node_lon, f, unique=False).tolist(),
             list(range(node_lat.size - 1, -1, -1)),
+        )
+
+        # Now subspace the mesh
+        N = 100
+        index = slice(0, N)
+        g = f.subspace(X=index)
+        self.assertEqual(
+            cf.locate(node_lat, node_lon, g).tolist(),
+            cf.locate(node_lat, node_lon, f).tolist()[index],
+        )
+
+        result = cf.locate(node_lat, node_lon, g, unique=False).tolist()
+        self.assertEqual(
+            result[: node_lat.size - N], [-N] * (node_lat.size - N)
+        )
+        self.assertEqual(
+            result[node_lat.size - N :], list(range(N - 1, -1, -1))
         )
 
     def test_UGRID_locate_3(self):
@@ -395,9 +409,29 @@ class UGRIDTest(unittest.TestCase):
             cf.locate(lat, lon, f, unique=False).tolist(), [0, -3]
         )
 
-        # A "U" shaped cell interlocking with a "W" a shaped
-        # cell. Then test a left-to-right row of points that cuts
-        # through the vertical "arms" of each letter.
+        # An upside down "U" shaped cell interlocking with a "W" a
+        # shaped cell. The numbers in bracket at the vertices are the
+        # node indices.
+        #
+        #
+        # Y=400           (12)----------------------(13)
+        #                  |                          |
+        #                  |       Face 1 ("U")       |
+        #                  |                          |
+        # Y=300  (0)------(11)     (8)------(7)      (4)------(3)
+        #         |        |        |        |        |        |
+        #         |        |        |        |        |        |
+        #         |        |        |        |        |        |
+        # Y=200   |       (10)-----(9)      (6)------(5)       |
+        #         |                                            |
+        #         |                Face 0 ("W")                |
+        #         |                                            |
+        # Y=100  (1)------------------------------------------(2)
+        #
+        #      X=100    X=200    X=300    X=400    X=500    X=600
+        #
+        # Test some left-to-right rows of points that cut through the
+        # mesh at various Y values.
         from cf.ugrid_utils import PolygonLocator
 
         locator = PolygonLocator(
@@ -407,12 +441,12 @@ class UGRIDTest(unittest.TestCase):
                 100,
                 300,
                 300,
-                100,
-                100,
+                200,
+                200,
                 300,
                 300,
-                100,
-                100,
+                200,
+                200,
                 300,
                 400,
                 400,
@@ -442,18 +476,46 @@ class UGRIDTest(unittest.TestCase):
             ),
             cr="Cartesian",  # Dummy, non-latitude_longitude CRS
             atol=cf.atol(),
-            _test=True,  # _test=True allows the dummy CRS
+            _test=True,  # _test=True to allow the dummy CRS
         )
 
-        index = locator.locate(
-            y=[201] * 12,
-            x=[99, 101, 199, 201, 299, 301, 399, 401, 499, 501, 599, 601],
-            latlon=False,
-            unique=False,
+        x = [99, 101, 199, 201, 299, 301, 399, 401, 499, 501, 599, 601]
+
+        # Points through the W body
+        index = locator.locate(y=150, x=x, latlon=False, unique=False)
+        self.assertEqual(
+            index.tolist(), [-2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2]
         )
+
+        # Points through the U and W arms (a)
+        index = locator.locate(y=201, x=x, latlon=False, unique=False)
         self.assertEqual(
             index.tolist(), [-2, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, -2]
         )
+
+        # Points through the U and W arms (b)
+        index = locator.locate(y=299, x=x, latlon=False, unique=False)
+        self.assertEqual(
+            index.tolist(), [-2, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, -2]
+        )
+
+        # Points through the U body
+        index = locator.locate(y=350, x=x, latlon=False, unique=False)
+        self.assertEqual(
+            index.tolist(), [-2, -2, -2, 1, 1, 1, 1, 1, 1, -2, -2, -2]
+        )
+
+        # Points through neither U nor W (a)
+        index = locator.locate(y=99, x=x, latlon=False, unique=False)
+        self.assertEqual(index.tolist(), [-2] * len(x))
+
+        # Points through neither U nor W (b)
+        index = locator.locate(y=401, x=x, latlon=False, unique=False)
+        self.assertEqual(index.tolist(), [-2] * len(x))
+
+        # Points through neither U nor W (c)
+        index = locator.locate(y=401, x=x, latlon=False)
+        self.assertEqual(index.tolist(), [])
 
     def test_UGRID_locate_4(self):
         """Test cf.locate with a non-latitude_longitude mesh."""
@@ -467,7 +529,7 @@ class UGRIDTest(unittest.TestCase):
         f0 = f.copy()
 
         # Modify f to have a rotated_latitude_longitude mesh that is
-        # geographically identical to f's mesh.
+        # geographically identical to f's latitude_longitude mesh.
         cr = cf.CoordinateReference()
         cr.set_coordinates({"auxiliarycoordinate1", "auxiliarycoordinate0"})
         cc = cr.coordinate_conversion
@@ -521,6 +583,21 @@ class UGRIDTest(unittest.TestCase):
         j = cf.locate(rlat, rlon, f, latlon=False)
 
         self.assertTrue((i0 == j).all())
+
+        # Now subspace the mesh
+        N = 100
+        index = slice(0, N)
+        g = f.subspace(X=index)
+        self.assertEqual(
+            cf.locate(lat, lon, g).tolist(),
+            cf.locate(lat, lon, f).tolist()[index],
+        )
+
+        result = cf.locate(lat, lon, g, unique=False).tolist()
+        self.assertEqual(result.count(-g.size), f.size - N)
+
+        result = cf.locate(rlat, rlon, g, latlon=False, unique=False).tolist()
+        self.assertEqual(result.count(-g.size), f.size - N)
 
 
 if __name__ == "__main__":
