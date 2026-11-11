@@ -30,39 +30,49 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
     :Parameters:
 
         y: array_like or `None`
-            The Y coordinates of the points to locate, either in
-            degrees north or in the same units as the 1-d Y
-            coordinates that define cells of the discrete axis. A
-            scalar or multi-dimensional array is flattened to 1-d. If
-            *lat* has size 1 and *lon* has size greater than 1 then
-            *lat* is automatically broadcast to the shape of
-            *lon*. `None` is equivalent to an empty list.
+
+            The Y coordinates of the points to locate, either in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees north; or in
+            the coordinate system of the discrete axis cell
+            coordinates, in the same units as the Y cell coordinates.
         
-        x: array_like or `None`
-            The X coordinates of the points to locate, either in
-            degrees east or in the same units as the 1-d X coordinates
-            that define cells of the discrete axis. A scalar or
-            multi-dimensional array is flattened to 1-d. If *lat* has
-            size 1 and *lon* has size greater than 1 then *lat* is
-            automatically broadcast to the shape of *lon*. `None` is
-            equivalent to an empty list.
+            A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
+           
+       x: array_like or `None`
+           
+            The X coordinates of the points to locate, either in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees east; or in
+            the coordinate system of the discrete axis cell
+            coordinates, in the same units as the X cell coordinates.
+                     
+            A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain`
-            The field or domain containing the UGRID grid.
+            The field or domain containing the horizontal UGRID grid.
 
-        latlon: `bool`, optional
-            If True (the default) then *y* is assumed to be in units
-            of degrees north, and *x* in units of degees east. If
-            False then *y* and *x* are assumed to be in units of the
-            node coordinates in the domain.
+        latlon: `bool`, option
 
-            When the domain has a non-latitude_longitude
-            coordinate reference system (CRS), it is still allowed
-            to provide *y* and *x* points in latitude and
-            longitude (i.e. *latlon* is True). In this case, the
-            latitude and longitude points will internally be
-            automatically converted to their equivalent points in
-            the CRS of the domain.
+            If True (the default) then *y* and *x* are points in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain. If False then *y* and
+            *x* are points in the coordinate system of the discrete
+            axis cell coordinates.
+
+            When the discrete axis cell coordinates have a
+            non-latitude_longitude coordinate system, it is still
+            allowed to provide *y* and *x* points in latitude and
+            longitude (by setting *latlon* to True). In this case, the
+            latitude and longitude points will be automatically
+            converted to equivalent points in the coordinate system of
+            the discrete axis cell coordinates.
 
         unique: `bool`, optional
             If True (the default) then return sorted cell indices
@@ -101,8 +111,8 @@ def _ugrid_locate(y, x, f, latlon=True, unique=True, return_operator=False):
     :Returns:
 
         `numpy.ndarray` or function
-            1-d cell indices for the discrete axis that contain the
-            (Y, X) locations. See the *unique* parameter.
+            The cell indices for the discrete axis that contain the
+            points. See the *unique* parameter.
 
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
@@ -274,24 +284,30 @@ class PolygonLocator:
 
         :Parameters:
 
-            nodes_y: 1-d array-like
-                Laatitudes or northing for all unique mesh nodes.
+            nodes_y: array-like
+                The 1-d Y cooridnates for the unique mesh nodes.
 
-            nodes_x: 1-d array-like
-                Longitudes or eastings for all unique mesh nodes.
+            nodes_x: array-like
+                The 1-d X cooridnates for the unique mesh nodes.
 
-            face_nodes : 2-d array-like
-                Integer connectivity matrix of shape ``(n_faces,
-                max_nodes_per_face)``.
+            face_nodes: array-like
+                The 2-d integer face_node_connectivity matrix.
 
             cr: `None` or `CoordinateReference`, optional
-                 TODO
+                The coordinate system of the mesh coordinates. If
+                `None` (the defaut), then a spherical
+                latitude_longitude coordinate is assumed.
 
             cr_latlon: `None` or `CoordinateReference`, optional
-                 TODO
+                When points to be located are given by latitudes and
+                longitudes, the latitude_longitude coordinate system
+                of those points. If `None` (the defaut), then a
+                spherical latitude_longitude coordinate is assumed.
 
             atol: `float`, optional
-                Absolute tolerance for floating point comparisons.
+                The absolute tolerance used in the floating point
+                comparisons that are required for identifying which
+                cell a point might lie in.
 
             units_y: `Units`, optional
                 TODO
@@ -300,7 +316,11 @@ class PolygonLocator:
                 TODO
 
             _test: `bool`, optional
-                TODO
+                If True then all *cr* and *cr_latlon* to be strings in
+                cases where the coordinate systems are not needed for
+                point conversions. The sole purpose of this is to
+                facilitate testing of the code, and in general this
+                parameter should be set to False (the default).
 
         """
         from scipy.spatial import cKDTree
@@ -783,36 +803,49 @@ class PolygonLocator:
         :Parameters:
 
             y: array_like or `None`
+        
                 The Y coordinates of the points to locate, either in
-                degrees north or in the same units as the 1-d Y
-                coordinates that define cells of the discrete axis. A
-                scalar or multi-dimensional array is flattened to
+                the latitude_longitude coordinate system that is
+                explicitly or implicitly defined by the domain, in
+                degrees north; or in the coordinate system of the
+                discrete axis cell coordinates, in the same units as
+                the Y cell coordinates.
+           
+                A scalar or multi-dimensional array is flattened to
                 1-d. If *lat* has size 1 and *lon* has size greater
                 than 1 then *lat* is automatically broadcast to the
                 shape of *lon*. `None` is equivalent to an empty list.
-            
-            x: array_like or `None`
+           
+           x: array_like or `None`
+           
                 The X coordinates of the points to locate, either in
-                degrees east or in the same units as the 1-d X
-                coordinates that define cells of the discrete axis. A
-                scalar or multi-dimensional array is flattened to
+                the latitude_longitude coordinate system that is
+                explicitly or implicitly defined by the domain, in
+                degrees east; or in the coordinate system of the
+                discrete axis cell coordinates, in the same units as
+                the X cell coordinates.
+                     
+                A scalar or multi-dimensional array is flattened to
                 1-d. If *lat* has size 1 and *lon* has size greater
                 than 1 then *lat* is automatically broadcast to the
                 shape of *lon*. `None` is equivalent to an empty list.
 
             latlon: `bool`, optional
-                If True (the default) then *y* is assumed to be in
-                units of degrees north, and *x* in units of degees
-                east. If False then *y* and *x* are assumed to be in
-                units of the node coordinates in the domain.
+        
+                If True (the default) then *y* and *x* are points in
+                the latitude_longitude coordinate system that is
+                explicitly or implicitly defined by the domain. If
+                False then *y* and *x* are points in the coordinate
+                system of the discrete axis cell coordinates.
 
-                When the domain has a non-latitude_longitude
-                coordinate reference system (CRS), it is still allowed
-                to provide *y* and *x* points in latitude and
-                longitude (i.e. *latlon* is True). In this case, the
-                latitude and longitude points will internally be
-                automatically converted to their equivalent points in
-                the CRS of the domain.
+                When the discrete axis cell coordinates have a
+                non-latitude_longitude coordinate system, it is still
+                allowed to provide *y* and *x* points in latitude and
+                longitude (by setting *latlon* to True). In this case,
+                the latitude and longitude points will be
+                automatically converted to equivalent points in the
+                coordinate system of the discrete axis cell
+                coordinates.
 
             unique: `bool`, optional
                 If True (the default) then return sorted cell indices
@@ -831,8 +864,8 @@ class PolygonLocator:
         :Returns:
 
             `numpy.ndarray`
-                1-d cell indices for the discrete axis that contain the
-                (Y, X) locations. See the *unique* parameter.
+                The cell indices for the discrete axis that contain
+                the points. See the *unique* parameter.
 
         """
         # Make sure that 'y' and 'x' are 1-d numpy arrays with the

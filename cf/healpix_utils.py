@@ -545,26 +545,36 @@ def _healpix_locate(
     :Parameters:
 
         y: array_like or `None`
-            The Y coordinates of the points to locate in degrees
-            north. A scalar or multi-dimensional array is flattened to
+
+            The Y coordinates of the points to locate, in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees north.
+        
+            A scalar or multi-dimensional array is flattened to
             1-d. If *lat* has size 1 and *lon* has size greater than 1
             then *lat* is automatically broadcast to the shape of
             *lon*. `None` is equivalent to an empty list.
-
-        x: array_like or `None`
-            The X coordinates of the points to locate in degrees
-            east. A scalar or multi-dimensional array is flattened to
+           
+       x: array_like or `None`
+           
+            The X coordinates of the points to locate, in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees east.
+                     
+            A scalar or multi-dimensional array is flattened to
             1-d. If *lat* has size 1 and *lon* has size greater than 1
             then *lat* is automatically broadcast to the shape of
             *lon*. `None` is equivalent to an empty list.
 
         f: `Field` or `Domain`
-            The Field or Domain containing the HEALPix grid.
+            The Field or Domain containing the horizontal HEALPix grid.
 
-        latlon: `bool`, optional
-            If True (the default) then *y* is assumed to be in units
-            of degrees north, and *x* in units of degees east. If
-            False then an exception is raised.
+        latlon: `bool`, option
+
+            If True (the default) then *y* and *x* are points in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain. If False then an
+            exception is raised.
 
             .. versionadded:: NEXTVERSION
 
@@ -602,8 +612,8 @@ def _healpix_locate(
     :Returns:
 
         `numpy.ndarray` or function
-            1-d cell indices for the discrete axis that contain the
-            (Y, X) locations. See the *unique* parameter.
+            The cell indices for the discrete axis that contain the
+            points. See the *unique* parameter.
 
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
@@ -814,16 +824,21 @@ class HEALPixLocator:
 
             y: array_like or `None`
                 The Y coordinates of the points to locate in degrees
-                north. A scalar or multi-dimensional array is
-                flattened to 1-d. If *lat* has size 1 and *lon* has
-                size greater than 1 then *lat* is automatically
-                broadcast to the shape of *lon*. `None` is equivalent
-                to an empty list.
+                north. The coordinate system is determined from the
+                domain containing the horizontal grid.
+
+                A scalar or multi-dimensional array is flattened to
+                1-d. If *lat* has size 1 and *lon* has size greater
+                than 1 then *lat* is automatically broadcast to the
+                shape of *lon*. `None` is equivalent to an empty list.
             
             x: array_like or `None`
                 The X coordinates of the points to locate in degrees
-                east. A scalar or multi-dimensional array is flattened
-                to 1-d. If *lat* has size 1 and *lon* has size greater
+                east. The coordinate system is determined from the
+                domain containing the horizontal grid.
+
+                A scalar or multi-dimensional array is flattened to
+                1-d. If *lat* has size 1 and *lon* has size greater
                 than 1 then *lat* is automatically broadcast to the
                 shape of *lon*. `None` is equivalent to an empty list.
 
@@ -851,8 +866,8 @@ class HEALPixLocator:
         :Returns:
 
             `numpy.ndarray` or function
-                1-d Cell indices for the discrete axis that contain
-                the (Y, X) locations. See the *unique* parameter.
+                The indices for the discrete axis that contain the
+                points. See the *unique* parameter.
 
         """
         if not unique:

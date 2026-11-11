@@ -3245,11 +3245,11 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
     """Locate cells containing latitude-longitude locations.
 
-    The cells must be defined by a discrete axis that has 1-d latitude
-    and longitude coordinates, or for which it is possible to create
-    1-d latitude and longitude coordinates from other metadata (as is
-    the case for a HEALPix axis). At present, only HEALPix and UGRID
-    axes are supported.
+    The cells must be defined by a horizontal discrete axis that has
+    1-d latitude and longitude coordinates, or for which it is
+    possible to create 1-d latitude and longitude coordinates from
+    other metadata (as is the case for a HEALPix axis). At present,
+    only HEALPix and UGRID axes are supported.
 
     Returns the indices of the discrete axis for the cells containing
     the latitude-longitude locations.
@@ -3267,29 +3267,33 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
     :Parameters:
 
         y: array_like or `None`
-            The Y coordinates of the points to locate, either in
-            degrees north or in the same units as the 1-d Y
-            coordinates that define cells of the discrete axis. For
-            discrete axes with index coordinates (such as for HEALPix
-            or reduced Gaussian grids), *y* must be in degrees
-            north. A scalar or multi-dimensional array is flattened to
+
+            The Y coordinates of the points to locate, either in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees north; or in
+            the coordinate system of the discrete axis cell
+            coordinates, in the same units as the Y cell coordinates.
+        
+            A scalar or multi-dimensional array is flattened to
+            1-d. If *lat* has size 1 and *lon* has size greater than 1
+            then *lat* is automatically broadcast to the shape of
+            *lon*. `None` is equivalent to an empty list.
+           
+       x: array_like or `None`
+           
+            The X coordinates of the points to locate, either in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain, in degrees east; or in
+            the coordinate system of the discrete axis cell
+            coordinates, in the same units as the X cell coordinates.
+                     
+            A scalar or multi-dimensional array is flattened to
             1-d. If *lat* has size 1 and *lon* has size greater than 1
             then *lat* is automatically broadcast to the shape of
             *lon*. `None` is equivalent to an empty list.
 
-        x: array_like or `None`
-            The X coordinates of the points to locate, either in
-            degrees east or in the same units as the 1-d X coordinates
-            that define cells of the discrete axis. For discrete axes
-            with index coordinates (such as for HEALPix or reduced
-            Gaussian grids), *x* must be in degrees east. A scalar or
-            multi-dimensional array is flattened to 1-d. If *lat* has
-            size 1 and *lon* has size greater than 1 then *lat* is
-            automatically broadcast to the shape of *lon*. `None` is
-            equivalent to an empty list.
-
         f: `Field` or `Domain` or `None`, optional
-            The Field or Domain containing the UGRID or HEALPix grid.
+            The Field or Domain containing the horizontal grid.
 
             If `None` (the default) then a callable function is
             returned, which when called with a field or domain as its
@@ -3300,18 +3304,21 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
             for instance ``f.subspace(X=cf.locate(0, 45))`` is
             equivalent to ``f.subspace(X=cf.locate(0, 45, f))``.
 
-        latlon: `bool`, optional
-            If True (the default) then *y* is assumed to be in units
-            of degrees north, and *x* in units of degees east. If
-            False then *y* and *x* are assumed to be in units of the
-            node coordinates in the domain.
+        latlon: `bool`, option
 
-            When the domain has a non-latitude_longitude coordinate
-            reference system (CRS), it is still allowed to provide *y*
-            and *x* points in latitude and longitude (i.e. *latlon* is
-            True). In this case, the latitude and longitude points
-            will internally be automatically converted to their
-            equivalent points in the CRS of the domain.
+            If True (the default) then *y* and *x* are points in the
+            latitude_longitude coordinate system that is explicitly or
+            implicitly defined by the domain. If False then *y* and
+            *x* are points in the coordinate system of the discrete
+            axis cell coordinates.
+
+            When the discrete axis cell coordinates have a
+            non-latitude_longitude coordinate system, it is still
+            allowed to provide *y* and *x* points in latitude and
+            longitude (by setting *latlon* to True). In this case, the
+            latitude and longitude points will be automatically
+            converted to equivalent points in the coordinate system of
+            the discrete axis cell coordinates.
 
             .. versionadded:: NEXTVERSION
 
@@ -3359,8 +3366,8 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
     :Returns:
 
         `numpy.ndarray` or function
-            1-d cell indices for the discrete axis that contain the
-            (Y, X) locations. See the *unique* parameter.
+            The indices for the discrete axis that contain the
+            points. See the *unique* parameter.
 
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
