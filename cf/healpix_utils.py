@@ -518,7 +518,7 @@ def _healpix_change_indexing_scheme(
 
 
 def _healpix_locate(
-    y, x, f=None, latlon=True, unique=True, return_operator=False
+    y, x, f=None, latlon=True, unique=True, return_domain_operator=False
 ):
     """Locate HEALPix cells containing points.
 
@@ -539,8 +539,8 @@ def _healpix_locate(
         y: array_like or `None`
 
             The Y coordinates of the points to locate, in units of
-            degrees north within the domain's latitude_longitude
-            coordinate system (``latlon=True``),.
+            degrees north within the domain's (implied)
+            latitude_longitude coordinate system (``latlon=True``),.
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *y* has size 1 and *x* has size greater than 1
@@ -549,9 +549,9 @@ def _healpix_locate(
 
        x: array_like or `None`
 
-            The X coordinates of the points to locate, in units
-            of degrees east within the domain's latitude_longitude
-            coordinate system (``latlon=True``).
+            The X coordinates of the points to locate, in units of
+            degrees east within the domain's (implied)
+            latitude_longitude coordinate system (``latlon=True``).
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *x* has size 1 and *y* has size greater than 1
@@ -573,10 +573,10 @@ def _healpix_locate(
         unique: `bool`, optional
 
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for points that are
-            out-of-domain (i.e that do not lie inside any cell). If
-            False then an index is returned for every point, including
-            placeholders for out-of-domain points.
+            without duplicates, and without placeholders for points
+            that are out-of-domain (i.e that do not lie inside any
+            cell). If False then an index is returned for every point,
+            including placeholders for out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
@@ -584,21 +584,22 @@ def _healpix_locate(
 
             .. versionadded:: NEXTVERSION
 
-        return_operator: `bool`, optional
-            If True then do not locate cells, but return an operator
-            that is able to do the locating. The operator is a
-            function that takes the same *y*, *x* and *unique*
-            arguments as this function, and may also have extra
-            configuration parameters. When multiple `cf.locate` calls
-            for the same field or domain are expected, using the
-            operator to do the locating can be much faster.
+        return_domain_operator: `bool`, optional
 
-            When returning the operator, the *y* and *x* parameters
-            are ignored (so may both be set to `None`), and the
-            *unique* parameter is also ignored.
+            If True then do not locate cells, but return a callable
+            operator that is able to do the locating for the domain
+            defined by *f*. The operator is a function that takes the
+            same *y*, *x*, *latlon* and *unique* arguments as this
+            function, and may also have extra configuration
+            parameters. When multiple `_healpix_locate` calls for the
+            same field or domain are expected, using the domain
+            operator to do the locating can be much faster. In this
+            case, the *y* and *x* parameters are ignored (so may both
+            be set to `None`), and the *latlon* and *unique*
+            parameters are also ignored.
 
-            For HEALPix domains there is currently no increase in
-            performance.
+            For HEALPix cells, using a domain operator gives the same
+            performance as repeated `_healpix_locate` calls.
 
             .. versionadded:: NEXTVERSION
 
@@ -611,14 +612,14 @@ def _healpix_locate(
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
 
-            If *return_operator* is True then a function is returned
-            that, for the field or domain defined by *f*, calculates
-            cell indices for given (Y, X) locations.
+            If *return_domain_operator* is True then a function is
+            returned that, for the field or domain defined by *f*,
+            calculates cell indices for given (Y, X) locations.
 
     """
     locator = HEALPixLocator(f)
 
-    if return_operator:
+    if return_domain_operator:
         return locator.locate
 
     # Find the indices for the locations
@@ -847,11 +848,11 @@ class HEALPixLocator:
             unique: `bool`, optional
 
                 If True (the default) then return sorted cell indices
-                without duplicates, nor placeholders for points that
-                are out-of-domain (i.e that do not lie inside any
-                cell). If False then an index is returned for every
-                point, including placeholders for out-of-domain
-                points.
+                without duplicates, and without placeholders for
+                points that are out-of-domain (i.e that do not lie
+                inside any cell). If False then an index is returned
+                for every point, including placeholders for
+                out-of-domain points.
 
                 The out-of-domain placeholder is ``-N``, where ``N``
                 is the size of the discrete axis, which is always a

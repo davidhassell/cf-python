@@ -3242,7 +3242,9 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 )
 
 
-def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
+def locate(
+    y, x, f=None, latlon=True, unique=True, return_domain_operator=False
+):
     """Locate cells containing points.
 
     The cells must be defined by a horizontal discrete axis that has
@@ -3263,10 +3265,11 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
         y: array_like or `None`
 
             The Y coordinates of the points to locate, either in units
-            of degrees north within the domain's latitude_longitude
-            coordinate system (``latlon=True``), or in the same units
-            as the Y cell coordinates within the coordinate system of
-            the discrete axis cell coordinates (``latlon=False``).
+            of degrees north within the domain's (implied)
+            latitude_longitude coordinate system (``latlon=True``), or
+            in the same units as the Y cell coordinates within the
+            coordinate system of the discrete axis cell coordinates
+            (``latlon=False``).
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *y* has size 1 and *x* has size greater than 1
@@ -3276,10 +3279,11 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
         x: array_like or `None`
 
             The X coordinates of the points to locate, either in units
-            of degrees east within the domain's latitude_longitude
-            coordinate system (``latlon=True``), or in the same units
-            as the X cell coordinates within the coordinate system of
-            the discrete axis cell coordinates (``latlon=False``).
+            of degrees east within the domain's (implied)
+            latitude_longitude coordinate system (``latlon=True``), or
+            in the same units as the X cell coordinates within the
+            coordinate system of the discrete axis cell coordinates
+            (``latlon=False``).
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *x* has size 1 and *y* has size greater than 1
@@ -3291,8 +3295,8 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
 
             If `None` (the default) then a callable function is
             returned, which when called with a field or domain as its
-            argument returns the indices for that field, i.e
-            ``cf.locate(y, x, f)`` is equivalent to ``cf.locate(y,
+            positional argument returns the indices for that field,
+            i.e ``cf.locate(y, x, f)`` is equivalent to ``cf.locate(y,
             x)(f)``. This returned function may be used as a condition
             in a field or domain's `subspace` and `indices` methods,
             for instance ``f.subspace(X=cf.locate(0, 45))`` is
@@ -3317,10 +3321,11 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
             .. versionadded:: NEXTVERSION
 
         unique: `bool`, optional
+
             If True (the default) then return sorted cell indices
-            without duplicates, nor placeholders for locations are
-            out-of-domain (i.e that do not lie inside any cell). If
-            False then an index is returned for every location,
+            without duplicates, and without placeholders for points
+            that are out-of-domain (i.e that do not lie inside any
+            cell). If False then an index is returned for every point,
             including placeholders for out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
@@ -3329,31 +3334,34 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
 
             .. versionadded:: NEXTVERSION
 
-        return_operator: `bool`, optional
-            If True then do not locate cells, but return an operator
-            that is able to do the locating. The operator is a
-            function that takes the same *y*, *x* and *unique*
-            arguments as this function, and may also have extra
-            configuration parameters. When multiple `cf.locate` calls
-            for the same field or domain are expected, using the
-            operator to do the locating can be much faster.
+        return_domain_operator: `bool`, optional
 
-            When returning the operator, the *y* and *x* parameters
-            are ignored (so may both be set to `None`), and the
-            *unique* parameter is also ignored.
+            If True then do not locate cells, but return a callable
+            operator that is able to do the locating for the domain
+            defined by *f*. The operator is a function that takes the
+            same *y*, *x*, *latlon*, and *unique* arguments as this
+            function, and may also have extra configuration
+            parameters. When multiple `cf.locate` calls for the same
+            field or domain are expected, using the domain operator to
+            do the locating can be much faster. In this case, the *y*
+            and *x* parameters are ignored (so may both be set to
+            `None`), and the *latlon* and *unique* parameters are also
+            ignored.
 
-            For HEALPix domains there is currently no increase in
-            performance.
-
-            For UGRID domains the performance benefits can be large,
-            because the kd-tree used for nearest-neighbour lookups is
-            cached inside the operator, and so does not need to be
-            recreated each time a set of points is located. For
+            For HEALPix cells, using a domain operator gives the same
+            performance as repeated `cf.locate` calls. However, for
+            UGRID cells the performance benefits can be large, because
+            the kd-tree used to in the location of the points is
+            cached inside the domain operator, and so does not need to
+            be recreated each time a set of points is located. For
             instance, in one test with a UGRID domain with ~5 million
-            faces, making the kd-tree during the creation of the
-            operator takes ~20 seconds, but using the operator's
-            cached kd-tree to find the cell index for each point
-            location takes only 50 microseconds.
+            faces, locating one point with `cf.locate` takes ~20
+            seconds, which is nearly all taken up with defining the
+            sub-triangles and storing them in the kd-tree, and only 50
+            microseconds is for locating the cell after that. In this
+            case, creating the domain operator takes ~20 seconds (it
+            needs to cache the kd-tree), but all subsequent uses of
+            the operator are very fast.
 
             .. versionadded:: NEXTVERSION
 
@@ -3366,9 +3374,9 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
             If *f* is `None` then a function is returned that
             calculates cell indices for a given field or domain.
 
-            If *return_operator* is True then a function is returned
-            that, for the field or domain defined by *f*, calculates
-            cell indices for given (Y, X) locations.
+            If *return_domain_operator* is True then a function is
+            returned that, for the field or domain defined by *f*,
+            calculates cell indices for given (Y, X) locations.
 
     **Examples**
 
@@ -3398,7 +3406,7 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
     >>> func(f)
     array([31])
 
-    A UGRID example with `return_operator=True`:
+    A UGRID example with `return_domain_operator=True`:
 
     >>> f = cf.example_field(8)
     >>> print(f)
@@ -3411,7 +3419,7 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
                     : latitude(ncdim%nMesh2_face(3)) = [34.0, 32.0, 34.0] degrees_north
     Topologies      : cell:face(ncdim%nMesh2_face(3), 4) = [[2, ..., --]]
     Connectivities  : connectivity:edge(ncdim%nMesh2_face(3), 5) = [[0, ..., --]]
-    >>> operator = cf.locate(None, None, f, return_operator=True)
+    >>> operator = cf.locate(None, None, f, return_domain_operator=True)
     >>> operator([-90, 32], [-180, -44], unique=False)
     array([-3,  1])
     >>> operator([-90, 32], [-180, -44])
@@ -3419,7 +3427,9 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
 
     """
 
-    def _locate(y, x, f, latlon=True, unique=True, return_operator=False):
+    def _locate(
+        y, x, f, latlon=True, unique=True, return_domain_operator=False
+    ):
         # HEALPix
         healpix = f.coordinate(
             "healpix_index", filter_by_naxes=(1,), default=None
@@ -3436,7 +3446,7 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
                 f,
                 latlon=latlon,
                 unique=unique,
-                return_operator=return_operator,
+                return_domain_operator=return_domain_operator,
             )
 
         # UGRID
@@ -3450,7 +3460,7 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
                 f,
                 latlon=latlon,
                 unique=unique,
-                return_operator=return_operator,
+                return_domain_operator=return_domain_operator,
             )
 
         # Geometry
@@ -3474,19 +3484,29 @@ def locate(y, x, f=None, latlon=True, unique=True, return_operator=False):
 
     if f is None:
         # Return an operator that can do the locating
-        if return_operator:
+        if return_domain_operator:
             raise ValueError(
-                "Can only set return_operator=True when also providing a "
-                "field or domain"
+                "Can only set return_domain_operator=True when also "
+                "providing a field or domain"
             )
 
         return partial(
-            _locate, y, x, latlon=latlon, unique=unique, return_operator=False
+            _locate,
+            y,
+            x,
+            latlon=latlon,
+            unique=unique,
+            return_domain_operator=False,
         )
 
     # Return the located cell indices
     return _locate(
-        y, x, f, latlon=latlon, unique=unique, return_operator=return_operator
+        y,
+        x,
+        f,
+        latlon=latlon,
+        unique=unique,
+        return_domain_operator=return_domain_operator,
     )
 
 

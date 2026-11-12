@@ -432,9 +432,9 @@ class UGRIDTest(unittest.TestCase):
         #
         # Test some left-to-right rows of points that cut through the
         # mesh at various Y values.
-        from cf.ugrid_utils import PolygonLocator
+        from cf.ugrid_utils import PolygonWindow
 
-        locator = PolygonLocator(
+        locator = PolygonWindow(
             nodes_y=[
                 300,
                 100,
