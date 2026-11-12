@@ -98,7 +98,11 @@ def _ugrid_locate(
             of a cell into sub-triangles might break down and create
             some sub-triangles that are partially outside of the cell,
             which could result in point not being correctly (and this
-            is more likely for a too-large *atol*).
+            is more likely for a too-large *atol*). An appropriate
+            size of *atol* will depend on the precision and magnitudes
+            of the mesh node coordinates, and the shapes of the cells
+            (for instance, cells with high aspect ratios or concave
+            cells are more likely to cause problems).
 
         return_domain_operator: `bool`, optional
 

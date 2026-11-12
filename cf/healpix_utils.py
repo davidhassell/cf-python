@@ -547,7 +547,7 @@ def _healpix_locate(
             then *y* is automatically broadcast to the shape of
             *x*. `None` is equivalent to an empty list.
 
-       x: array_like or `None`
+        x: array_like or `None`
 
             The X coordinates of the points to locate, in units of
             degrees east within the domain's (implied)
@@ -589,14 +589,12 @@ def _healpix_locate(
             If True then do not locate cells, but return a callable
             operator that is able to do the locating for the domain
             defined by *f*. The operator is a function that takes the
-            same *y*, *x*, *latlon* and *unique* arguments as this
-            function, and may also have extra configuration
-            parameters. When multiple `_healpix_locate` calls for the
-            same field or domain are expected, using the domain
-            operator to do the locating can be much faster. In this
-            case, the *y* and *x* parameters are ignored (so may both
-            be set to `None`), and the *latlon* and *unique*
-            parameters are also ignored.
+            same *y*, *x*, *latlon*, and *unique* arguments. When
+            multiple `cf.locate` calls for the same field or domain
+            are expected, using the domain operator to do the locating
+            can be much faster. In this case, the *y* and *x*
+            parameters are ignored (so may both be set to `None`), and
+            the *latlon* and *unique* parameters are also ignored.
 
             For HEALPix cells, using a domain operator gives the same
             performance as repeated `_healpix_locate` calls.

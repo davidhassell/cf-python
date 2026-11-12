@@ -3243,7 +3243,13 @@ unique_constructs.__doc__ = unique_constructs.__doc__.replace(
 
 
 def locate(
-    y, x, f=None, latlon=True, unique=True, return_domain_operator=False
+    y,
+    x,
+    f=None,
+    latlon=True,
+    unique=True,
+    atol=None,
+    return_domain_operator=False,
 ):
     """Locate cells containing points.
 
@@ -3428,7 +3434,13 @@ def locate(
     """
 
     def _locate(
-        y, x, f, latlon=True, unique=True, return_domain_operator=False
+        y,
+        x,
+        f,
+        latlon=True,
+        unique=True,
+        atol=None,
+        return_domain_operator=False,
     ):
         # HEALPix
         healpix = f.coordinate(
@@ -3440,6 +3452,7 @@ def locate(
             if not latlon:
                 raise ValueError("Must set latlon=True for HEALPix grids")
 
+            # Note: atol is ignored for HEALPix grids
             return _healpix_locate(
                 y,
                 x,
@@ -3460,6 +3473,7 @@ def locate(
                 f,
                 latlon=latlon,
                 unique=unique,
+                atol=atol,
                 return_domain_operator=return_domain_operator,
             )
 
@@ -3496,6 +3510,7 @@ def locate(
             x,
             latlon=latlon,
             unique=unique,
+            atol=atol,
             return_domain_operator=False,
         )
 
@@ -3506,6 +3521,7 @@ def locate(
         f,
         latlon=latlon,
         unique=unique,
+        atol=atol,
         return_domain_operator=return_domain_operator,
     )
 
