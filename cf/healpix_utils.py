@@ -612,7 +612,7 @@ def _healpix_locate(
 
             If *return_domain_operator* is True then a function is
             returned that, for the field or domain defined by *f*,
-            calculates cell indices for given (Y, X) locations.
+            calculates cell indices for the given (Y, X) locations.
 
     """
     locator = HEALPixLocator(f)

@@ -1,4 +1,7 @@
 import numpy as np
+from cfdm import integer_dtype
+
+from cf import atol as cf_atol
 
 
 def _ugrid_locate(
@@ -87,22 +90,18 @@ def _ugrid_locate(
 
         atol: `float`, optional
 
-            The non-negative absolute tolerance for the numerical
-            comparisons used when checking whether a point lies inside
-            a cell. If ``None`` (the default) then ``1e-12`` is used
-            when the highest floating-point precision of *nodes_y* and
-            *nodes_x* is 64-bit, and ``1e-6`` is used when the highest
-            floating-point precision is 32-bit.
-
-            If *atol* is too large or too small then the decomposition
-            of a cell into sub-triangles might break down and create
-            some sub-triangles that are partially outside of the cell,
-            which could result in point not being correctly (and this
-            is more likely for a too-large *atol*). An appropriate
-            size of *atol* will depend on the precision and magnitudes
-            of the mesh node coordinates, and the shapes of the cells
-            (for instance, cells with high aspect ratios or concave
-            cells are more likely to cause problems).
+            The absolute tolerance used for geometric orientation and
+            degeneracy tests during sub-triangle decomposition, and
+            for point-in-triangle location checks. Specifically,
+            *atol* resolves the sign (positive, negative, or zero) for
+            small values of the cross-product (2-d planar) or scalar
+            triple-product (3-d spherical) of two vectors that share a
+            vertex. Small values arise when a sub-triangle is
+            degenerate or has collinear edges, or when a point to
+            locate lies on or very close to a sub-triangle edge. The
+            default value is set by the `cf.atol` function. Note that all
+            internal floating-point calculations are carried out at
+            64-bit precision.
 
         return_domain_operator: `bool`, optional
 
@@ -110,12 +109,12 @@ def _ugrid_locate(
             operator that is able to do the locating for the domain
             defined by *f*. The operator is a function that takes the
             same *y*, *x*, *latlon*, and *unique* arguments as this
-            function, and also the extra *n_sub_triangles*
-            configuration parameter. When multiple `_ugrid_locate`
-            calls for the same field or domain are expected, using the
-            domain operator to do the locating can be much faster. In
-            this case, the *y* and *x* parameters are ignored (so may
-            both be set to `None`), and the *latlon* and *unique*
+            function, and also the extra *k_initial* configuration
+            parameter. When multiple `_ugrid_locate` calls for the
+            same field or domain are expected, using the domain
+            operator to do the locating can be much faster. In this
+            case, the *y* and *x* parameters are ignored (so may both
+            be set to `None`), and the *latlon* and *unique*
             parameters are also ignored.
 
             Using a domain operator can give a large increase in
@@ -143,7 +142,7 @@ def _ugrid_locate(
 
             If *return_domain_operator* is True then a function is
             returned that, for the field or domain defined by *f*,
-            calculates cell indices for given (Y, X) locations.
+            calculates cell indices for the given (Y, X) locations.
 
     """
     # Get the face_node_connectivity array, and normalise it.
@@ -205,7 +204,7 @@ def _ugrid_locate(
         face_node_connectivity.array,
         cr=cr,
         cr_latlon=cr_latlon,
-        atol=atol,
+        atol=cf_atol(),
         units_y=nodes_y.Units,
         units_x=nodes_x.Units,
     )
@@ -227,9 +226,9 @@ class PolygonWindow:
 
     `atol`: Absolute tolerance for floating point comparisons.
 
-    `n_sub_triangles`: The initial value for number of nearest triangle
+    `k_initial`: The initial value for number of nearest triangle
     centroids retrieved from the KD-Tree spatial index for candidate
-    evaluation, derived from maximum node valence (i.e. tha maximum
+    evaluation, derived from maximum nTODOode valence (i.e. tha maximum
     number of sub-triangles that meet at a single node in a mesh) and
     99th-percentile cell aspect ratios.
 
@@ -238,22 +237,22 @@ class PolygonWindow:
     mesh. Defines the physical threshold for O(1) out-of-bounds
     rejection.
 
-    `max_nodes`: The maximum number of nodes for any face cell.
+    `max_vertices`: The maximum number of vertices for any face cell.
 
-    `n_faces`: The number of face cells in the mesh.
+    `n_cells`: The number of face cells in the mesh.
 
     `nodes`: Array of shape ``(n_nodes, 3)`` or ``(n_nodes,
     2)``. Either 3-d unit N-vectors representing all unique mesh nodes
     on the unit sphere; or the 2-d Cartesian coordinates of each node.
 
-    `parent_face_ids`: Array of shape ``(n_sub_triangles,)``. Maps
-    each sub-triangle back to its 0-based parent face index in the
-    original `face_nodes` matrix.
+    `parent_face_ids`: Array of shape ``(n_triangles,)``. Maps each
+    sub-triangle back to its 0-based parent face index in the original
+    `face_nodes` matrix.
 
     `tree`: `scipy.spatial.cKDTree` 3-d KD-Tree spatial index
     constructed over normalised sub-triangle centroids.
 
-    `triangle_nodes`: Array of int Array of shape ``(n_sub_triangles,
+    `triangle_nodes`: Array of int Array of shape ``(n_triangles,
     3)``. Node indices defining all sub-triangles generated by
     fan-triangulation of polygon faces.
 
@@ -310,20 +309,19 @@ class PolygonWindow:
 
             atol: `float`, optional
 
-                The non-negative absolute tolerance for the numerical
-                comparisons used when checking whether a point lies
-                inside a cell. If ``None`` (the default) then
-                ``1e-12`` is used when the highest floating-point
-                precision of *nodes_y* and *nodes_x* is 64-bit, and
-                ``1e-6`` is used when the highest floating-point
-                precision is 32-bit.
-
-                If *atol* is too large or too small then the
-                decomposition of a cell into sub-triangles might break
-                down and create some sub-triangles that are partially
-                outside of the cell, which could result in point not
-                being correctly (and this is more likely for a
-                too-large *atol*).
+                The absolute tolerance used for geometric orientation
+                and degeneracy tests during sub-triangle
+                decomposition, and for point-in-triangle location
+                checks. Specifically, *atol* resolves the sign
+                (positive, negative, or zero) for small values of the
+                cross-product (2-d planar) or scalar triple-product
+                (3-d spherical) of two vectors that share a
+                vertex. Small values arise when a sub-triangle is
+                degenerate or has collinear edges, or when a point to
+                locate lies on or very close to a sub-triangle
+                edge. By default, *atol* is ``1e-12``. Note that all
+                internal floating-point calculations are carried out
+                at 64-bit precision.
 
             units_y: `Units`or `None`, optional
 
@@ -358,20 +356,9 @@ class PolygonWindow:
         self._test = _test
 
         # Parse atol
-        if atol is None:
-            dtype = np.result_type(
-                np.asanyarray(nodes_x[0]).dtype,
-                np.asanyarray(nodes_y[0]).dtype,
-                np.float32,
-            )
-            if dtype == np.float32:
-                atol = 1e-6
-            else:
-                atol = 1e-12
-        else:
-            atol = float(atol)
-            if atol < 0:
-                raise ValueError("atol must be non-negative")
+        atol = float(atol)
+        if atol < 0:
+            raise ValueError("atol must be non-negative")
 
         self.atol = atol
 
@@ -396,6 +383,8 @@ class PolygonWindow:
         )
 
         # Build node coordinates array
+        nodes_y = np.asarray(nodes_y, dtype=np.float64)
+        nodes_x = np.asarray(nodes_x, dtype=np.float64)
         if self.spherical:
             # Spherical polar node coordinates (possibly rotated):
             # Convert to 3-d N-vectors. Array shape is (n_nodes, 3).
@@ -430,47 +419,76 @@ class PolygonWindow:
         else:
             face_nodes = np.asanyarray(face_nodes)
 
-        self.n_faces, self.max_nodes = face_nodes.shape
+        self.n_cells, self.max_vertices = face_nodes.shape
 
         # Find out if each face is concave or convex
-        is_convex = self._check_convexity(face_nodes, mask)
+        is_convex = self._check_convexity(face_nodes, mask, self.atol)
 
         triangle_list = []
         parent_list = []
-        parents_base = np.arange(self.n_faces, dtype=int)
+        parents_base = np.arange(
+            self.n_cells, dtype=integer_dtype(self.n_cells)
+        )
 
-        # Triangulation of convex faces using fan trinagulation
+        # Triangulation of convex polygons using fan triangulation
         # (https://en.wikipedia.org/wiki/Fan_triangulation)
         convex_faces = face_nodes[is_convex]
         convex_mask = mask[is_convex]
         convex_parents = parents_base[is_convex]
 
-        for k in range(1, self.max_nodes - 1):
-            v0 = convex_faces[:, 0]
-            vk = convex_faces[:, k]
-            vk1 = convex_faces[:, k + 1]
+        k = 0
+        vertex_0 = convex_faces[:, 0]
+        vertex_k1 = convex_faces[:, k + 1]
 
-            valid_k = (
-                (~convex_mask[:, 0])
-                & (~convex_mask[:, k])
-                & (~convex_mask[:, k + 1])
-            )
+        mask_0 = ~convex_mask[:, 0]
+        mask_k1 = ~convex_mask[:, k + 1]
 
-            tri_k = np.column_stack([v0, vk, vk1])[valid_k]
+        for k in range(1, self.max_vertices - 1):
+            vertex_k = vertex_k1
+            vertex_k1 = convex_faces[:, k + 1]
+
+            mask_k = mask_k1
+            mask_k1 = ~convex_mask[:, k + 1]
+
+            valid_k = mask_0 & mask_k & mask_k1
+
+            triangles_k = np.column_stack([vertex_0, vertex_k, vertex_k1])[
+                valid_k
+            ]
             parents_k = convex_parents[valid_k]
 
-            triangle_list.append(tri_k)
+            triangle_list.append(triangles_k)
             parent_list.append(parents_k)
 
+        del (
+            vertex_0,
+            vertex_k,
+            vertex_k1,
+            mask_0,
+            mask_k,
+            mask_k1,
+            triangles_k,
+            parents_k,
+            valid_k,
+        )
         del convex_faces, convex_mask, convex_parents
 
-        # Triangulation of concave faces using the ear clipping
+        # Triangulation of concave polygons using the ear clipping
         # algorithm
         # (https://en.wikipedia.org/wiki/Polygon_triangulation)
-        non_convex_indices = np.where(~is_convex)[0].tolist()
+        #
+        # "Concave" here means any polygons that have not been
+        # previously registered as being convex, and so it is possible
+        # for a polygon that is actually convex to end up going
+        # through the ear clipping algorithm.
+        if is_convex.all():
+            concave_indices = []
+        else:
+            concave_indices = np.where(~is_convex)[0]
+
         del is_convex
 
-        for f_index in non_convex_indices:
+        for f_index in concave_indices:
             row_mask = mask[f_index]
             valid_node_ids = face_nodes[f_index, ~row_mask]
             if len(valid_node_ids) < 3:
@@ -482,9 +500,9 @@ class PolygonWindow:
 
             # 2-d array of the 0-indexed relative vertex positions of
             # the sub-triangles within the polygon
-            local_triangles = self._ear_clip(face_vertices)
+            local_triangles = self._ear_clip(face_vertices, self.atol)
 
-            # The mesh node indices for each sub-triangle.
+            # The mesh node indices for each sub-triangle
             local_triangle_nodes = valid_node_ids[local_triangles]
 
             if local_triangle_nodes.size:
@@ -493,7 +511,7 @@ class PolygonWindow:
                     np.full(len(local_triangles), f_index, dtype=int)
                 )
 
-        del mask, non_convex_indices
+        del mask, concave_indices
 
         # Build sub-triangle data structures and cKDTree spatial index
         if triangle_list:
@@ -504,35 +522,67 @@ class PolygonWindow:
         del triangle_list
 
         if len(triangle_nodes):
+            # The node indices for each sub-triangle, with shape
+            # (n_cells, 3).
+            #
+            # E.g if there are 3 cells with 7 unique nodes decomposed
+            # into a total of 5 sub-triangles, then triangle_nodes
+            # could be [[2, 3, 1], [4, 5, 3], [6, 1, 3], [2, 1, 0],
+            # [4, 3, 2]]
             self.triangle_nodes = np.vstack(triangle_nodes)
             del triangle_nodes
 
+            # The cell index for each sub-triangle, which shape
+            # (n_triangles,).
+            #
+            # E.g. if parent_face_ids is [0, 1, 2, 0, 1] then there
+            # are 3 cells (0, 1, and 2). Cell 0 contains the two
+            # sub-triangles with sub-triangle indices 0 and 3, cell 1
+            # contains the two sub-triangles with sub-triangle indices
+            # 1 and 4, and cell 2 contains the one sub-triangle with
+            # sub-triangle index 2.
             self.parent_face_ids = np.concatenate(parent_list)
             del parent_list
 
+            # The vertex coordinates for each sub-triangle, with shape
+            # (n_triangles, 3, N) for N-d coordinates.
             triangle_vertices = self.nodes[self.triangle_nodes]
+
+            # The centroid coordinates for each sub-triangle, with
+            # shape (n_triangles, N) for N-d coordinates.
             centroids = triangle_vertices.mean(axis=1)
             if self.spherical:
+                # The centroid calculated above lies in the sphere's
+                # interior, so move it to the sphere's surface.
                 centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
-            # Create the kd-tree used for nearest-triangle lookups
+            # The kd-tree used for nearest-triangle lookups
             self.kdtree = cKDTree(centroids)
 
-            # Compute the maximum cell radius across the entire mesh =
-            # the maximum distance over all triangles from the
-            # triangle centroid to any one of its three vertices.#
+            # Compute the maximum cell radius across the entire mesh,
+            # i.e. the maximum over all triangles of the straight-line
+            # (Euclidean) distance from the triangle centroid to any
+            # one of its three vertices.
             #
-            # If a point is greater than this distance away from all
-            # triangle centroids, then the point must lie completely
-            # outside of the mesh (and therefore not lie in any grid
-            # cell).
+            # Note: In the spherical case, each straight-line chord
+            # lies in the sphere's interior, and is not an arc on the
+            # sphere's surface.
+            #
+            # If a point is greater than this Euclidean distance away
+            # from all triangle centroids, then it is impossible for
+            # it to lie in any sub-triangle, and therefore it can't
+            # lie in any cell.
+            #
+            # We add the square root of atol because atol is defined
+            # with implicit units of distance squared, and
+            # max_cell_radius has units of just distance.
             self.max_cell_radius = (
                 float(
                     np.linalg.norm(
                         triangle_vertices - centroids[:, None, :], axis=2
                     ).max()
                 )
-            ) + self.atol
+            ) + self.atol**0.5
 
             del centroids, triangle_vertices
         else:
@@ -541,75 +591,103 @@ class PolygonWindow:
             self.max_cell_radius = 0.0
             self.kdtree = None
 
-    def _check_convexity(self, face_nodes, mask):
+    def _check_convexity(self, face_nodes, mask, atol):
         """Convexity check for all faces.
+
+        :Method:
+
+        Determines whether each cell is strictly convex by checking
+        that all consecutive edge pairs turn in the same direction
+        around the cell perimeter (all interior angles strictly less
+        than 180 degrees).
+
+        A cell is convex if all of its vertices "turn" consistently
+        anticlockwise or consistently clockwise. The turn at a vertex
+        is calculated as the cross product of the vertex's two edges
+        (2-d case), or as the dot product of the cell centroid with
+        the cross product of the vertex's two edges (3-d case). If
+        turn > atol then it is anticlockwise and if turn < -atol then
+        it is clockwise.
+
+        If a cell has both anticlockwise and clockwise turns then the
+        cell is concave.
+
+        If -atol <= turn <= atol for any vertex, then the cell has
+        collinear or degenerate edges, and is flagged as non-convex.
 
         .. versionadded:: NEXTVERSION
 
         :Parameters:
 
             face_nodes: `numpy.array`
-                The face_node_connectivity array that contains the
-                node index of each vertex of each cell, padded with
-                ``-1`` when a cell has fewer than `max_nodes`
-                vertices.
+                The face_node_connectivity array with shape (n_cells,
+                max_vertices) that contains the node index of each
+                vertex of each cell, padded with ``-1`` when a cell
+                has fewer than `max_vertices` vertices.
 
             mask: `numpy.array`
                 The face_node_connectivity mask that has the same
                 shape as *face_nodes* and is False for each valid
                 vertex of each face, and True where *face_nodes* is
-                padded with ``-1``.
+                padded with ``-1`` for missing vertices.
+
+            atol: `float`
+                The postive absolute tolerance used to assess the turn
+                of a vertex. See the method description.
 
         :Returns:
 
-            `nump.ndarray`
-                1-d Boolean array of size `n_faces` that is True or
-                convex cells and False for concave cells.
+            `numpy.array`
+                1-d Boolean array of shape (n_cells,) that is True for
+                convex cells and False otherwise.
 
         """
-        if self.max_nodes <= 3:
-            # All cells are triangles (or degenerate) => convex
-            return np.ones(self.n_faces, dtype=bool)
+        if self.max_vertices <= 3:
+            # All cells are triangles (or degenerate)
+            is_convex = (~mask).all(axis=1)
+            return is_convex
 
         # Number of vertices for each cell
         n_vertices = (~mask).sum(axis=1)
 
-        # Coordinates of each vertex of each cell.
+        # Coordinates of cell's vertices, with shape (n_cells,
+        # max_vertices, N) for N-d coordinates.
         #
-        # When a cell has fewer than 'self.max_nodes' vertices it is
-        # padded with the coordinates of node index 'self.max_nodes -
-        # 1' (by virtue of the fact that 'face_nodes' is padded with
-        # -1), and such fake vertices are ignored later on via the
-        # 'mask' boolean array.
+        # When a cell has fewer than 'max_vertices' vertices, it is
+        # padded with an arbitrary value, and such fake vertices are
+        # ignored later on by applying the 'mask' Boolean array.
         vertices = self.nodes[face_nodes]
 
         # Column indices
-        columns = np.arange(self.max_nodes)
+        columns = np.arange(
+            self.max_vertices, dtype=integer_dtype(self.max_vertices - 1)
+        )
+        columns = columns[None, :]
 
         # Row indices
-        rows = np.arange(self.n_faces)[:, None]
+        rows = np.arange(self.n_cells, dtype=integer_dtype(self.n_cells - 1))
+        rows = rows[:, None]
 
         next_col = np.where(
-            columns[None, :] < n_vertices[:, None],
-            (columns[None, :] + 1) % n_vertices[:, None],
-            columns[None, :],
+            columns < n_vertices[:, None],
+            (columns + 1) % n_vertices[:, None],
+            columns,
         )
         next_next_col = np.where(
-            columns[None, :] < n_vertices[:, None],
-            (columns[None, :] + 2) % n_vertices[:, None],
-            columns[None, :],
+            columns < n_vertices[:, None],
+            (columns + 2) % n_vertices[:, None],
+            columns,
         )
 
-        v_curr = vertices
         v_next = vertices[rows, next_col]
         v_next_next = vertices[rows, next_next_col]
+        del rows, next_col, next_next_col
 
-        edges1 = v_next - v_curr
-        del v_curr
+        edges1 = v_next - vertices
         edges2 = v_next_next - v_next
         del v_next, v_next_next
 
-        # Work out if each cell is convex or concave
+        # Work out whether each cell is convex
         if self.spherical:
             valid_3d = ~mask[:, :, None]
             centroids = (vertices * valid_3d).sum(axis=1) / n_vertices[:, None]
@@ -622,26 +700,29 @@ class PolygonWindow:
             dots = (crosses_3d * centroids[:, None, :]).sum(axis=2)
             del crosses_3d, centroids
 
-            is_pos = np.all((dots > self.atol) | mask, axis=1)
-            is_neg = np.all((dots < -self.atol) | mask, axis=1)
+            anticlockwise = np.all((dots > atol) | mask, axis=1)
+            clockwise = np.all((dots < -atol) | mask, axis=1)
             del dots
         else:
             del vertices
 
-            crosses = (
+            crosses_2d = (
                 edges1[:, :, 0] * edges2[:, :, 1]
                 - edges1[:, :, 1] * edges2[:, :, 0]
             )
             del edges1, edges2
 
-            is_pos = np.all((crosses > self.atol) | mask, axis=1)
-            is_neg = np.all((crosses < -self.atol) | mask, axis=1)
-            del crosses
+            anticlockwise = np.all((crosses_2d > atol) | mask, axis=1)
+            clockwise = np.all((crosses_2d < -atol) | mask, axis=1)
+            del crosses_2d
 
-        non_zero = is_pos | is_neg
-        del is_pos, is_neg
+        is_convex = anticlockwise | clockwise
+        del anticlockwise, clockwise
 
-        return non_zero & (n_vertices >= 3)
+        # Exclude degenerate cells
+        is_convex &= n_vertices >= 3
+
+        return is_convex
 
     def _convert_from_latlon(self, lat, lon):
         """Convert lat/lon points to y/x points in a different CRS.
@@ -674,7 +755,8 @@ class PolygonWindow:
             import pyproj
         except Exception:
             raise ImportError(
-                "Can't locate points: Must install the 'pyproj' library"
+                "Can't locate points that need converting from latlon: "
+                "Must install the 'pyproj' library"
             )
 
         from .mixin.utils.grid_mapping import create_projection_CRS
@@ -753,7 +835,7 @@ class PolygonWindow:
 
         return y, x
 
-    def _ear_clip(self, face_vertices):
+    def _ear_clip(self, face_vertices, atol):
         """Ear clipping algorithm for individual concave polygons.
 
         Decomposes the concave polygon into sub-triangles.
@@ -816,7 +898,7 @@ class PolygonWindow:
         def is_convex(a, b, c):
             v1 = face_vertices[b] - face_vertices[a]
             v2 = face_vertices[c] - face_vertices[a]
-            return sign * cross_scalar(v1, v2) > self.atol
+            return sign * cross_scalar(v1, v2) > atol
 
         def contains_no_other_points(a, b, c, idx_list):
             pa, pb, pc = face_vertices[a], face_vertices[b], face_vertices[c]
@@ -828,7 +910,7 @@ class PolygonWindow:
                 c1 = sign * cross_scalar(pb - pa, pt - pa)
                 c2 = sign * cross_scalar(pc - pb, pt - pb)
                 c3 = sign * cross_scalar(pa - pc, pt - pc)
-                if c1 >= -self.atol and c2 >= -self.atol and c3 >= -self.atol:
+                if c1 >= -atol and c2 >= -atol and c3 >= -atol:
                     return False
 
             return True
@@ -875,7 +957,7 @@ class PolygonWindow:
 
         return np.array(triangles)
 
-    def _point_in_triangle(self, triangle, point):
+    def _point_in_triangle(self, triangle, point, anticlockwise, atol):
         """True if a point is inside a triangle.
 
         .. versionadded:: NEXTVERSION
@@ -883,15 +965,22 @@ class PolygonWindow:
         :Parameters:
 
             triangle: array_like
-                The coordinates of the triangle's vertices. Must be a
-                2-d array with shape ``(3, N)`` where ``N`` is the
-                dimensionality of the node coordinates: either 2
-                (Cartesian) or 3 (spherical).
+
+                The coordinates of the triangle's vertices. Must have
+                shape ``(3, N)`` for N-d coordinates.
 
             point: array_like
+
                 The coordinates of the point to test for containment
-                in the triangle. Must be a 1-d array of shape
-                ``(N,)``.
+                in the triangle. Must have shape ``(N,)`` for N-d
+                coordinates.
+
+            anticlockwise: `bool`
+
+                True if the triangle vertices are ordered
+                anticlockwise, otherwise False.
+
+              atol: `float` TODO
 
         :Returns:
 
@@ -901,17 +990,23 @@ class PolygonWindow:
         """
         if self.spherical:
             crosses = np.cross(triangle, np.roll(triangle, -1, axis=0))
-            is_inside = np.all(np.dot(crosses, point) >= -self.atol)
+            values = np.dot(crosses, point)
+            del crosses
         else:
             t_next = np.roll(triangle, -1, axis=0)
             crosses = (t_next[:, 0] - triangle[:, 0]) * (
                 point[1] - triangle[:, 1]
             ) - (t_next[:, 1] - triangle[:, 1]) * (point[0] - triangle[:, 0])
-            is_inside = np.all(crosses >= -self.atol)
+            values = crosses
+
+        if anticlockwise:
+            is_inside = np.all(values >= -atol)
+        else:
+            is_inside = np.all(values <= atol)
 
         return is_inside
 
-    def locate(self, y, x, latlon=True, unique=True, n_sub_triangles=12):
+    def locate(self, y, x, latlon=True, unique=True, k_initial=12):
         """Locate UGRID cells containing points.
 
         The cells are defined by a horizontal UGRID discrete axis that
@@ -927,8 +1022,10 @@ class PolygonWindow:
 
         :Method:
 
+        TODO
+
         Grid cells are internally decomposed into non-overlapping
-        sub-triangles. For each target point, the *n_sub_triangles*
+        sub-triangles. For each target point, the *k_initial*
         sub-triangles whose centroids are closest to the point are
         initially retrieved and tested for containment. If no match is
         found, and the point has not been identified as being
@@ -1004,37 +1101,31 @@ class PolygonWindow:
                 is the size of the discrete axis, which is always a
                 non-valid index.
 
-            n_sub_triangles: `int`, optional
+            k_initial: `int`, optional
 
-                The initial number of sub-triangles queried for each
-                point, selected in order of nearest centroid distance
-                to the point.
-
+                The number of nearest sub-triangle centroids to query
+                in the initial k-d tree search when locating a point.
                 Grid cells are internally decomposed into
-                non-overlapping sub-triangles. For each target point,
-                the initial number of sub-triangles whose centroids
+                non-overlapping sub-triangles. For each point to
+                locate, the *k_initial* sub-triangles whose centroids
                 are closest to the point are retrieved and tested for
-                containment. If no match is found, and the point has
-                not been identified as being out-of-domain, then more
-                sub-triangles with farther-away centroids are
-                included, until a match is found or the point has been
-                identified as not lying in any cell.
+                containment. If no match is found from those
+                sub-triangles, and the point has not been identified as
+                being out-of-domain, then sub-triangles with more
+                distant centroids are progressively included until a
+                match is found or the point is confirmed not to lie in
+                any cell.
 
-                The value of *n_sub_triangles* only affects the
-                performance of the location operation, not the indices
-                of the located cells. For any given mesh, there will
-                be an optimal value that finds the requested points
-                the fastest. By default *n_sub_triangles* is
-                ``12``. This is usually sufficient for locating,
-                without needing to widen the search radius, any point
-                in a mesh composed of low-aspect-ratio triangles,
-                quadrilaterals, pentagons, or hexagons (because for
-                such meshes it is likely that the point lies in one of
-                the face cells which share the mesh node closest to
-                the point, and that there are at most twelve
-                sub-triangles which share that same mesh node), but it
-                smaller or larger numbers may give better performance
-                in individual cases.
+                By default, *k_initial* is ``12``. This is usually
+                sufficient for locating, without needing to widen the
+                search radius, any point in a mesh composed of
+                low-aspect-ratio triangles, quadrilaterals, pentagons,
+                or hexagons (because for such meshes it is likely both
+                that the point lies in one of the face cells which
+                share the mesh node closest to the point, and that
+                there are at most twelve sub-triangles which share
+                that same mesh node), but smaller or larger numbers
+                may give better performance in individual cases.
 
         :Returns:
 
@@ -1064,13 +1155,18 @@ class PolygonWindow:
 
         if not y.size or not x.size:
             # Return an empty index list if there are no x or y coordinates
-            return np.array([], dtype=int)
+            return np.array([], dtype=np.int32)
+
+        y = y.astype(np.float64)
+        x = x.astype(np.float64)
 
         # Initialise the output array of indices. It is important that
-        # it is initialised to -self.n_faces (i.e. a negative value
+        # it is initialised to -self.n_cells (i.e. a negative value
         # that is not a valid index of the cells).
         n_points = y.size
-        result = np.full(n_points, -self.n_faces, dtype=int)
+        result = np.full(
+            n_points, -self.n_cells, dtype=integer_dtype(self.n_cells)
+        )
 
         n_triangles = len(self.triangle_nodes)
         if not n_triangles:
@@ -1078,13 +1174,12 @@ class PolygonWindow:
             # them
             return result
 
-        # Parse n_sub_triangles
+        # Parse k_initial
         k_start = 0
-        k_stop = int(n_sub_triangles)
+        k_stop = int(k_initial)
         if k_stop < 1:
             raise ValueError(
-                "n_sub_triangles must be a positive integer. "
-                f"Got: {n_sub_triangles!r}"
+                f"k_initial must be a positive integer. Got: {k_initial!r}"
             )
 
         # ------------------------------------------------------------
@@ -1132,7 +1227,7 @@ class PolygonWindow:
         # Initialise the list of points that have not been resolved,
         # i.e. those points for which it is not yet known whether or
         # not they lie inside a cell.
-        unresolved_points = np.arange(n_points)
+        unresolved_points = np.arange(n_points, dtype=integer_dtype(n_points))
 
         # Get the theoretical maximum distance that a point can be
         # from a sub-triangle centroid and still be inside the parent
@@ -1140,7 +1235,7 @@ class PolygonWindow:
         # sub-triangle centroid, then the point cannot lie in the
         # parent cell.
         max_cell_radius = self.max_cell_radius
-
+        count = 0
         while len(unresolved_points) > 0:
             Q_unmatched = Q[unresolved_points]
 
@@ -1210,8 +1305,10 @@ class PolygonWindow:
                 for t_index in triangles:
                     # Coordinates of this triangle's vertices (shape (3, N))
                     triangle = self.nodes[self.triangle_nodes[t_index]]
-
-                    if self._point_in_triangle(triangle, point):
+                    count += 1
+                    if self._point_in_triangle(
+                        triangle, point, True, self.atol
+                    ):
                         # The point is inside this triangle => it lies
                         # inside a cell.
                         result[p_index] = self.parent_face_ids[t_index]

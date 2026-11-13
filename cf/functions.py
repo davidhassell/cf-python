@@ -3340,6 +3340,30 @@ def locate(
 
             .. versionadded:: NEXTVERSION
 
+        atol: `float`, optional
+
+            The absolute tolerance used for geometric orientation and
+            degeneracy tests during sub-triangle decomposition, and
+            for point-in-triangle location checks. Specifically,
+            *atol* resolves the sign (positive, negative, or zero) for
+            small values of the cross-product (2-d planar) or scalar
+            triple-product (3-d spherical) of two vectors that share a
+            vertex. Small values arise when a sub-triangle is
+            degenerate or has collinear edges, or when a point to
+            locate lies on or very close to a sub-triangle edge. The
+            default value is set by the `cf.atol` function. Note that all
+            internal floating-point calculations are carried out at
+            64-bit precision.
+
+            .. note:: Ignored for HEALPix grids. This is because
+                      locating points in HEALPix cells is done
+                      functionally based on the underlying
+                      mathematical formulation of the grid, without
+                      the need to analyse and check independently
+                      defined cells.
+
+            .. versionadded:: NEXTVERSION
+
         return_domain_operator: `bool`, optional
 
             If True then do not locate cells, but return a callable
@@ -3382,7 +3406,7 @@ def locate(
 
             If *return_domain_operator* is True then a function is
             returned that, for the field or domain defined by *f*,
-            calculates cell indices for given (Y, X) locations.
+            calculates cell indices for the given (Y, X) locations.
 
     **Examples**
 
