@@ -195,7 +195,9 @@ def _ugrid_locate(
                     )
             elif cr.identity("") == "grid_mapping_name:latitude_longitude":
                 cr_latlon = c
+    import time
 
+    s = time.time()
     # Initialise a polygon locator instance
     locator = PolygonWindow(
         nodes_y.array,
@@ -207,6 +209,7 @@ def _ugrid_locate(
         units_y=nodes_y.Units,
         units_x=nodes_x.Units,
     )
+    print(time.time() - s)
 
     if return_domain_operator:
         return locator.locate
@@ -422,6 +425,7 @@ class PolygonWindow:
 
         # Find out if each face is concave or convex
         is_convex = self._check_convexity(face_nodes, mask, self.atol)
+        all_cells_are_convex = is_convex.all()
 
         triangle_list = []
         parent_list = []
@@ -431,46 +435,53 @@ class PolygonWindow:
 
         # Triangulation of convex polygons using fan triangulation
         # (https://en.wikipedia.org/wiki/Fan_triangulation)
-        convex_faces = face_nodes[is_convex]
-        convex_mask = mask[is_convex]
-        convex_parents = parents_base[is_convex]
+        convex_faces = face_nodes
+        convex_mask = mask
+        convex_parents = parents_base
+        if not all_cells_are_convex:
+            convex_faces = convex_faces[is_convex]
+            convex_mask = convex_mask[is_convex]
+            convex_parents = convex_parents[is_convex]
+
+        convex_cells_have_same_number_of_vertices = not convex_mask.any()
 
         k = 0
         vertex_0 = convex_faces[:, 0]
         vertex_k1 = convex_faces[:, k + 1]
 
-        mask_0 = ~convex_mask[:, 0]
-        mask_k1 = ~convex_mask[:, k + 1]
+        if not convex_cells_have_same_number_of_vertices:
+            mask_0 = ~convex_mask[:, 0]
+            mask_k1 = ~convex_mask[:, k + 1]
 
         for k in range(1, self.max_vertices - 1):
             vertex_k = vertex_k1
             vertex_k1 = convex_faces[:, k + 1]
 
-            mask_k = mask_k1
-            mask_k1 = ~convex_mask[:, k + 1]
+            triangles_k = np.column_stack([vertex_0, vertex_k, vertex_k1])
+            parents_k = convex_parents
+            if not convex_cells_have_same_number_of_vertices:
+                mask_k = mask_k1
+                mask_k1 = ~convex_mask[:, k + 1]
+                valid_k = mask_0 & mask_k & mask_k1
 
-            valid_k = mask_0 & mask_k & mask_k1
-
-            triangles_k = np.column_stack([vertex_0, vertex_k, vertex_k1])[
-                valid_k
-            ]
-            parents_k = convex_parents[valid_k]
+                triangles_k = triangles_k[valid_k]
+                parents_k = convex_parents[valid_k]
 
             triangle_list.append(triangles_k)
             parent_list.append(parents_k)
 
         del (
+            convex_faces,
+            convex_mask,
+            convex_parents,
             vertex_0,
             vertex_k,
             vertex_k1,
-            mask_0,
-            mask_k,
-            mask_k1,
             triangles_k,
             parents_k,
-            valid_k,
         )
-        del convex_faces, convex_mask, convex_parents
+        if not convex_cells_have_same_number_of_vertices:
+            del mask_0, mask_k, mask_k1, valid_k
 
         # Triangulation of concave polygons using the ear clipping
         # algorithm
@@ -480,8 +491,8 @@ class PolygonWindow:
         # previously registered as being convex, and so it is possible
         # for a polygon that is actually convex to end up going
         # through the ear clipping algorithm.
-        if is_convex.all():
-            concave_indices = []
+        if all_cells_are_convex:
+            concave_indices = ()
         else:
             concave_indices = np.where(~is_convex)[0]
 
@@ -505,22 +516,19 @@ class PolygonWindow:
             local_triangle_nodes = valid_node_ids[local_triangles]
 
             if local_triangle_nodes.size:
-                triangle_list.append(np.array(local_triangle_nodes, dtype=int))
+                triangle_list.append(
+                    np.array(local_triangle_nodes, dtype=face_nodes.dtype)
+                )
                 parent_list.append(
-                    np.full(len(local_triangles), f_index, dtype=int)
+                    np.full(
+                        len(local_triangles), f_index, dtype=parents_base.dtype
+                    )
                 )
 
         del mask, concave_indices
 
         # Build sub-triangle data structures and cKDTree spatial index
-        if triangle_list:
-            triangle_nodes = np.vstack(triangle_list)
-        else:
-            triangle_nodes = np.empty((0, 3), dtype=int)
-
-        del triangle_list
-
-        if len(triangle_nodes):
+        if len(triangle_list):
             # The node indices for each sub-triangle, with shape
             # (n_cells, 3).
             #
@@ -528,8 +536,8 @@ class PolygonWindow:
             # into a total of 5 sub-triangles, then triangle_nodes
             # could be [[2, 3, 1], [4, 5, 3], [6, 1, 3], [2, 1, 0],
             # [4, 3, 2]]
-            self.triangle_nodes = np.vstack(triangle_nodes)
-            del triangle_nodes
+            self.triangle_nodes = np.vstack(triangle_list, dtype=np.intp)
+            del triangle_list
 
             # The cell index for each sub-triangle, which shape
             # (n_triangles,).
@@ -549,14 +557,26 @@ class PolygonWindow:
 
             # The centroid coordinates for each sub-triangle, with
             # shape (n_triangles, N) for N-d coordinates.
-            centroids = triangle_vertices.mean(axis=1)
+            v0 = self.nodes[self.triangle_nodes[:, 0]]
+            v1 = self.nodes[self.triangle_nodes[:, 1]]
+            v2 = self.nodes[self.triangle_nodes[:, 2]]
+            centroids = v0 + v1 + v2
+            if self.spherical:
+                # The centroid calculated above lies in the sphere's
+                # interior, so move it to the sphere's surface.
+                centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
+            else:
+                centroids /= 3.0
+
             if self.spherical:
                 # The centroid calculated above lies in the sphere's
                 # interior, so move it to the sphere's surface.
                 centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
             # The kd-tree used for nearest-triangle lookups
-            self.kdtree = cKDTree(centroids)
+            self.kdtree = cKDTree(
+                centroids, compact_nodes=True, balanced_tree=False
+            )
 
             # Compute the maximum cell radius across the entire mesh,
             # i.e. the maximum over all triangles of the straight-line
@@ -575,15 +595,18 @@ class PolygonWindow:
             # We add the square root of atol because atol is defined
             # with implicit units of distance squared, and
             # max_cell_radius has units of just distance.
-            self.max_cell_radius = (
-                float(
-                    np.linalg.norm(
-                        triangle_vertices - centroids[:, None, :], axis=2
-                    ).max()
+            max_square = 0.0
+            for v in (v0, v1, v2):
+                diff = v - centroids
+                max_square = max(
+                    max_square, float(np.einsum("ij,ij->i", diff, diff).max())
                 )
-            ) + self.atol**0.5
 
-            del centroids, triangle_vertices
+            max_cell_radius = max_square**0.5
+            self.max_cell_radius = max_cell_radius + self.atol**0.5
+
+            del v0, v1, v2, diff, centroids
+
         else:
             self.triangle_nodes = np.empty((0, 3), dtype=int)
             self.parent_face_ids = np.empty((0,), dtype=int)
@@ -643,8 +666,7 @@ class PolygonWindow:
         """
         if self.max_vertices <= 3:
             # All cells are triangles (or degenerate)
-            is_convex = (~mask).all(axis=1)
-            return is_convex
+            return (~mask).all(axis=1)
 
         # Coordinates of cell's vertices, with shape (n_cells,
         # max_vertices, N) for N-d coordinates.
@@ -654,39 +676,40 @@ class PolygonWindow:
         # ignored later on by applying the 'mask' Boolean array.
         vertices = self.nodes[face_nodes]
 
-        # Number of vertices for each cell. Array with shape (n_cells,
-        # max_vertices).
-        n_vertices = (~mask).sum(
-            axis=1, dtype=np.min_scalar_type(mask.shape[1])
-        )
+        cells_have_same_number_of_vertices = not mask.any()
+        if cells_have_same_number_of_vertices:
+            v_next = np.roll(vertices, -1, axis=1)
+            v_next_next = np.roll(vertices, -2, axis=1)
+        else:
+            # Number of vertices for each cell. Array with shape
+            # (n_cells,).
+            dtype = np.min_scalar_type(self.max_vertices + 1)
+            n_vertices = (~mask).sum(axis=1, dtype=dtype)
 
-        # Column indices. Array with shape (1, max_vertices).
-        dtype = np.result_type(
-            n_vertices.dtype, np.min_scalar_type(self.max_vertices + 1)
-        )
-        columns = np.arange(self.max_vertices, dtype=dtype)
-        columns = columns[None, :]
+            # Column indices. Array with shape (1, max_vertices).
+            columns = np.arange(self.max_vertices, dtype=dtype)
+            nv_table = np.arange(self.max_vertices + 1, dtype=dtype)[:, None]
+            safe_nv = np.maximum(nv_table, 1)
+            valid_cell = columns < nv_table
 
-        # Row indices. Array with shape (n_cells, 1).
-        rows = np.arange(self.n_cells, dtype=np.intp)
-        rows = rows[:, None]
+            next_table = np.where(
+                valid_cell,
+                (columns + np.ones((), dtype=dtype)) % safe_nv,
+                columns,
+            ).astype(dtype)
+            next2_table = np.where(
+                valid_cell,
+                (columns + np.asarray(2, dtype=dtype)) % safe_nv,
+                columns,
+            ).astype(dtype)
+            del columns
 
-        column_mask = columns < n_vertices[:, None]
-        next_col = np.where(
-            column_mask,
-            (columns + 1) % n_vertices[:, None],
-            columns,
-        )
-        next_next_col = np.where(
-            column_mask,
-            (columns + 2) % n_vertices[:, None],
-            columns,
-        )
-        del columns, column_mask
+            # Row indices. Array with shape (n_cells, 1).
+            rows = np.arange(self.n_cells, dtype=np.intp)[:, None]
 
-        v_next = vertices[rows, next_col]
-        v_next_next = vertices[rows, next_next_col]
-        del rows, next_col, next_next_col
+            v_next = vertices[rows, next_table[n_vertices]]
+            v_next_next = vertices[rows, next2_table[n_vertices]]
+            del rows, next_table, next2_table
 
         edges1 = v_next - vertices
         edges2 = v_next_next - v_next
@@ -694,38 +717,62 @@ class PolygonWindow:
 
         # Work out whether each cell is convex
         if self.spherical:
-            valid_3d = ~mask[:, :, None]
-            centroids = (vertices * valid_3d).sum(axis=1) / n_vertices[:, None]
-            del valid_3d, vertices
-            centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
+            if cells_have_same_number_of_vertices:
+                centroids = vertices.sum(axis=1)
+            else:
+                centroids = np.where(mask[:, :, None], 0.0, vertices).sum(
+                    axis=1
+                )
 
-            crosses_3d = np.cross(edges1, edges2)
-            del edges1, edges2
-
-            dots = (crosses_3d * centroids[:, None, :]).sum(axis=2)
-            del crosses_3d, centroids
-
-            anticlockwise = np.all((dots > atol) | mask, axis=1)
-            clockwise = np.all((dots < -atol) | mask, axis=1)
-            del dots
-        else:
             del vertices
 
-            crosses_2d = (
+            norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+            norms = np.where(norms == 0.0, 1.0, norms)
+            centroids /= norms
+            del norms
+
+            # Scalar triple products ((edges1 x edges2) . centroids)
+            # without allocating a 3-d cross-product array
+            c0 = centroids[:, 0:1]
+            c1 = centroids[:, 1:2]
+            c2 = centroids[:, 2:3]
+            del centroids
+
+            turns = (
+                (
+                    edges1[:, :, 1] * edges2[:, :, 2]
+                    - edges1[:, :, 2] * edges2[:, :, 1]
+                )
+                * c0
+                + (
+                    edges1[:, :, 2] * edges2[:, :, 0]
+                    - edges1[:, :, 0] * edges2[:, :, 2]
+                )
+                * c1
+                + (
+                    edges1[:, :, 0] * edges2[:, :, 1]
+                    - edges1[:, :, 1] * edges2[:, :, 0]
+                )
+                * c2
+            )
+            del c0, c1, c2
+        else:
+            del vertices
+            turns = (
                 edges1[:, :, 0] * edges2[:, :, 1]
                 - edges1[:, :, 1] * edges2[:, :, 0]
             )
-            del edges1, edges2
 
-            anticlockwise = np.all((crosses_2d > atol) | mask, axis=1)
-            clockwise = np.all((crosses_2d < -atol) | mask, axis=1)
-            del crosses_2d
+        del edges1, edges2
 
-        is_convex = anticlockwise | clockwise
-        del anticlockwise, clockwise
-
-        # Exclude degenerate cells
-        is_convex &= n_vertices >= 3
+        if cells_have_same_number_of_vertices:
+            anticlockwise = np.all(turns > atol, axis=1)
+            clockwise = np.all(turns < -atol, axis=1)
+            is_convex = anticlockwise | clockwise
+        else:
+            anticlockwise = np.all((turns > atol) | mask, axis=1)
+            clockwise = np.all((turns < -atol) | mask, axis=1)
+            is_convex = (anticlockwise | clockwise) & (n_vertices >= 3)
 
         return is_convex
 
@@ -1318,13 +1365,15 @@ class PolygonWindow:
 
             y = np.radians(y)
             x = np.radians(x)
+            cos_y = np.cos(y)
             Q = np.column_stack(
                 [
-                    np.cos(y) * np.cos(x),
-                    np.cos(y) * np.sin(x),
+                    cos_y * np.cos(x),
+                    cos_y * np.sin(x),
                     np.sin(y),
                 ]
             )
+            del cos_y
         else:
             # 2-d Cartesian point coordinates. Array shape is
             # (n_nodes, 2).
@@ -1359,7 +1408,7 @@ class PolygonWindow:
             #            maximum cell radius.
             #
             # triangle_indices: For each point, the indices of the
-            #                   triangles with the nearest
+            #                   sub-triangles with the nearest
             #                   centroids[*] (ordered by proximity to
             #                   the point). Encodes 'n_triangles' for
             #                   distances greater than or equal to the
@@ -1370,7 +1419,7 @@ class PolygonWindow:
             #     previous iteration.
             #
             # Note: triangle_indices will contain the value
-            #       n_triangles for any triangle whose centroid is
+            #       n_triangles for any sub-triangle whose centroid is
             #       farther than the maximum cell radius away from its
             #       corresponding point.
             #
@@ -1382,38 +1431,39 @@ class PolygonWindow:
                 distance_upper_bound=max_cell_radius,
             )
 
-            # Define the M active points = the currently unresolved
-            # points. They are defined by their index positions in the
+            # Define the M active points (i.e. the currently
+            # unresolved points) as their index positions in the
             # 'unresolved_points' array.
             #
-            # Note the size of the array is always M, even as the
-            # value of M changes as we iterate through the following
-            # for-loop.
+            # Note the size of the array reduces as we iterate through
+            # the following for-loop.
             active = np.arange(
                 unresolved_points.size, dtype=unresolved_points.dtype
             )
 
-            #
+            # Boolean array indicating which of the initial active
+            # points are still unresolved. It starts out with values
+            # of all True (i.e. all active points are unresolved), but
+            # progressively acquires False elements as we iterate
+            # through the following for-loop.
             still_unresolved = np.ones(unresolved_points.size, dtype=bool)
-            #            print("active=", active)
-            #            print("still_unresolved=", still_unresolved)
-            #            print("triangle_indices=", triangle_indices)
+
             for j in range(triangle_indices.shape[1]):
                 # Get the index of the j-th nearest triangle to each
                 # of the M active points. An integer array with shape
                 # (M,).
                 t_indices = triangle_indices[active, j]
 
-                # Mask of triangles whose centroids are within the
+                # Mask of sub-triangles whose centroids are within the
                 # maximum cell radius of their correponding active
                 # points. A Boolean array with shape (M,).
                 max_cell_radius_mask = t_indices < n_triangles
 
                 # Any point for which the distance to the j-th nearest
                 # centroid exceeds the maximum cell radius cannot lie
-                # in any remaining triangle => that point can be
+                # in any remaining sub-triangle => that point can be
                 # resolved as being out-of-domain without needing to
-                # check any more triangles.
+                # check any more sub-triangles.
                 if not np.all(max_cell_radius_mask):
                     # Update the list of active points that are still
                     # unresolved.
@@ -1434,7 +1484,7 @@ class PolygonWindow:
 
                 if inside.any():
                     # At least one active point was found to be inside
-                    # its corresponding triangle.
+                    # its corresponding sub-triangle.
                     hits = active[inside]
                     # Update the result array,
                     result[unresolved_points[hits]] = self.parent_face_ids[
@@ -1708,7 +1758,7 @@ class PolygonWindow:
         # parent cell.
         max_cell_radius = self.max_cell_radius
         count = 0
-        #        print(len(unresolved_points))
+
         while len(unresolved_points) > 0:
             Q_unmatched = Q[unresolved_points]
 
@@ -1742,7 +1792,6 @@ class PolygonWindow:
 
             # The number distances
             n_distances = distances.shape[1]
-            print(distances.shape)
 
             # List of points that lie inside a cell
             matched = []
