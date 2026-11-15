@@ -3254,7 +3254,8 @@ def locate(
     """Locate cells containing points.
 
     The cells must be defined by a horizontal discrete axis that has
-    1-d coordinates.
+    1-d coordinates. The discrete axis indices of the cell containing
+    the points are returned.
 
     The points are defined either within the domain's
     latitude_longitude coordinate system (*latlon* is True), or else
@@ -3269,13 +3270,11 @@ def locate(
     :Parameters:
 
         y: array_like or `None`
-
             The Y coordinates of the points to locate, either in units
             of degrees north within the domain's (implied)
             latitude_longitude coordinate system (``latlon=True``), or
-            in the same units as the Y cell coordinates within the
-            coordinate system of the discrete axis cell coordinates
-            (``latlon=False``).
+            in the same units and coordinate system as the discrete
+            axis Y cell coordinates (``latlon=False``).
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *y* has size 1 and *x* has size greater than 1
@@ -3283,13 +3282,11 @@ def locate(
             *x*. `None` is equivalent to an empty list.
 
         x: array_like or `None`
-
             The X coordinates of the points to locate, either in units
             of degrees east within the domain's (implied)
             latitude_longitude coordinate system (``latlon=True``), or
-            in the same units as the X cell coordinates within the
-            coordinate system of the discrete axis cell coordinates
-            (``latlon=False``).
+            in the same units and coordinate system as the discrete
+            axis X cell coordinates (``latlon=False``).
 
             A scalar or multi-dimensional array is flattened to
             1-d. If *x* has size 1 and *y* has size greater than 1
@@ -3301,15 +3298,15 @@ def locate(
 
             If `None` (the default) then a callable function is
             returned, which when called with a field or domain as its
-            positional argument returns the indices for that field,
-            i.e ``cf.locate(y, x, f)`` is equivalent to ``cf.locate(y,
-            x)(f)``. This returned function may be used as a condition
-            in a field or domain's `subspace` and `indices` methods,
-            for instance ``f.subspace(X=cf.locate(0, 45))`` is
-            equivalent to ``f.subspace(X=cf.locate(0, 45, f))``.
+            only positional argument returns the indices for that
+            field, i.e ``cf.locate(y, x, f)`` is equivalent to
+            ``cf.locate(y, x)(f)``. This returned function may be used
+            as a condition in the field or domain's `subspace` and
+            `indices` methods, for instance
+            ``f.subspace(X=cf.locate(0, 45))`` is equivalent to
+            ``f.subspace(X=cf.locate(0, 45, f))``.
 
-        latlon: `bool`, option
-
+        latlon: `bool`, optional
             If True (the default) then *y* and *x* are points in the
             latitude_longitude coordinate system that is explicitly or
             implicitly defined by the domain. If False then *y* and
@@ -3317,22 +3314,24 @@ def locate(
             axis cell coordinates.
 
             When the discrete axis cell coordinates have a
+            latitude_longitude coordinate system, *latlon* must be
+            True.
+
+            When the discrete axis cell coordinates have a
             non-latitude_longitude coordinate system, it is still
             allowed to provide *y* and *x* points in latitude and
-            longitude (by setting *latlon* to True). In this case, the
+            longitude by setting *latlon* to True. In this case, the
             latitude and longitude points will be automatically
             converted to equivalent points in the coordinate system of
             the discrete axis cell coordinates.
 
-            .. versionadded:: NEXTVERSION
-
         unique: `bool`, optional
-
-            If True (the default) then return sorted cell indices
-            without duplicates, and without placeholders for points
-            that are out-of-domain (i.e that do not lie inside any
-            cell). If False then an index is returned for every point,
-            including placeholders for out-of-domain points.
+            If True (the default) then return cell indices without
+            duplicates, without placeholders for points that are
+            out-of-domain (i.e that do not lie inside any cell), and
+            sorted into ascending order. If False then an index is
+            returned for every point, including placeholders for
+            out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
@@ -3341,7 +3340,6 @@ def locate(
             .. versionadded:: NEXTVERSION
 
         atol: `float`, optional
-
             The absolute tolerance used for geometric orientation and
             degeneracy tests during sub-triangle decomposition, and
             for point-in-triangle location checks. Specifically,
@@ -3350,10 +3348,10 @@ def locate(
             triple-product (3-d spherical) of two vectors that share a
             vertex. Small values arise when a sub-triangle is
             degenerate or has collinear edges, or when a point to
-            locate lies on or very close to a sub-triangle edge. The
-            default value is set by the `cf.atol` function. Note that all
-            internal floating-point calculations are carried out at
-            64-bit precision.
+            locate lies on a sub-triangle edge. The default value is
+            set by the `cf.atol` function. Note that all internal
+            floating-point calculations are carried out at 64-bit
+            precision.
 
             .. note:: Ignored for HEALPix grids. This is because
                       locating points in HEALPix cells is done
@@ -3364,36 +3362,26 @@ def locate(
 
             .. versionadded:: NEXTVERSION
 
-        return_domain_operator: `bool`, optional
+            .. versionadded:: NEXTVERSION
 
+        return_domain_operator: `bool`, optional
             If True then do not locate cells, but return a callable
             operator that is able to do the locating for the domain
             defined by *f*. The operator is a function that takes the
             same *y*, *x*, *latlon*, and *unique* arguments as this
-            function, and may also have extra configuration
-            parameters. When multiple `cf.locate` calls for the same
-            field or domain are expected, using the domain operator to
-            do the locating can be much faster. In this case, the *y*
-            and *x* parameters are ignored (so may both be set to
-            `None`), and the *latlon* and *unique* parameters are also
-            ignored.
+            function, and also the extra *k_initial* configuration
+            parameter. When multiple `_ugrid_locate` calls for the
+            same field or domain are expected, using the domain
+            operator to do the locating can be much faster. When
+            *return_domain_operator* is True, the *y* and *x*
+            parameters are ignored (so may both be set to `None`), and
+            the *latlon* and *unique* parameters are also ignored.
 
-            For HEALPix cells, using a domain operator gives the same
-            performance as repeated `cf.locate` calls. However, for
-            UGRID cells the performance benefits can be large, because
-            the kd-tree used to in the location of the points is
-            cached inside the domain operator, and so does not need to
-            be recreated each time a set of points is located. For
-            instance, in one test with a UGRID domain with ~5 million
-            faces, locating one point with `cf.locate` takes ~20
-            seconds, which is nearly all taken up with defining the
-            sub-triangles and storing them in the kd-tree, and only 50
-            microseconds is for locating the cell after that. In this
-            case, creating the domain operator takes ~20 seconds (it
-            needs to cache the kd-tree), but all subsequent uses of
-            the operator are very fast.
-
-            .. versionadded:: NEXTVERSION
+            Using a domain operator can give a large increase in
+            performance over repeated `_ugrid_locate` calls, because
+            the kd-tree used in the location of the points is cached
+            inside the domain operator, and so does not need to be
+            recreated each time a set of points is located.
 
     :Returns:
 

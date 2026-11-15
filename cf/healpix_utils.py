@@ -523,7 +523,8 @@ def _healpix_locate(
     """Locate HEALPix cells containing points.
 
     The cells must be defined by a horizontal HEALPix discrete axis
-    that has 1-d coordinates.
+    that has 1-d coordinates. The discrete axis indices of the cell
+    containing the points are returned.
 
     The points are defined within the domain's latitude_longitude
     coordinate system.
@@ -537,7 +538,6 @@ def _healpix_locate(
     :Parameters:
 
         y: array_like or `None`
-
             The Y coordinates of the points to locate, in units of
             degrees north within the domain's (implied)
             latitude_longitude coordinate system (``latlon=True``),.
@@ -548,7 +548,6 @@ def _healpix_locate(
             *x*. `None` is equivalent to an empty list.
 
         x: array_like or `None`
-
             The X coordinates of the points to locate, in units of
             degrees east within the domain's (implied)
             latitude_longitude coordinate system (``latlon=True``).
@@ -558,11 +557,21 @@ def _healpix_locate(
             then *x* is automatically broadcast to the shape of
             *y*. `None` is equivalent to an empty list.
 
-        f: `Field` or `Domain`
-            The Field or Domain containing the horizontal HEALPix grid.
+        f: `Field` or `Domain` or `None`, optional
+            The field or domain containing the horizontal HEALPix
+            grid.
+
+            If `None` (the default) then a callable function is
+            returned, which when called with a field or domain as its
+            only positional argument returns the indices for that
+            field, i.e ``cf.locate(y, x, f)`` is equivalent to
+            ``cf.locate(y, x)(f)``. This returned function may be used
+            as a condition in the field or domain's `subspace` and
+            `indices` methods, for instance
+            ``f.subspace(X=cf.locate(0, 45))`` is equivalent to
+            ``f.subspace(X=cf.locate(0, 45, f))``.
 
         latlon: `bool`, option
-
             If True (the default) then *y* and *x* are points in the
             latitude_longitude coordinate system that is explicitly or
             implicitly defined by the domain. If False then an
@@ -571,12 +580,12 @@ def _healpix_locate(
             .. versionadded:: NEXTVERSION
 
         unique: `bool`, optional
-
-            If True (the default) then return sorted cell indices
-            without duplicates, and without placeholders for points
-            that are out-of-domain (i.e that do not lie inside any
-            cell). If False then an index is returned for every point,
-            including placeholders for out-of-domain points.
+            If True (the default) then return cell indices without
+            duplicates, without placeholders for points that are
+            out-of-domain (i.e that do not lie inside any cell), and
+            sorted into ascending order. If False then an index is
+            returned for every point, including placeholders for
+            out-of-domain points.
 
             The out-of-domain placeholder is ``-N``, where ``N`` is
             the size of the discrete axis, which is always a non-valid
@@ -585,14 +594,15 @@ def _healpix_locate(
             .. versionadded:: NEXTVERSION
 
         return_domain_operator: `bool`, optional
-
             If True then do not locate cells, but return a callable
             operator that is able to do the locating for the domain
             defined by *f*. The operator is a function that takes the
-            same *y*, *x*, *latlon*, and *unique* arguments. When
-            multiple `cf.locate` calls for the same field or domain
-            are expected, using the domain operator to do the locating
-            can be much faster. In this case, the *y* and *x*
+            same *y*, *x*, *latlon*, and *unique* arguments as this
+            function, and also the extra *k_initial* configuration
+            parameter. When multiple `_ugrid_locate` calls for the
+            same field or domain are expected, using the domain
+            operator to do the locating can be much faster. When
+            *return_domain_operator* is True, the *y* and *x*
             parameters are ignored (so may both be set to `None`), and
             the *latlon* and *unique* parameters are also ignored.
 
@@ -815,7 +825,6 @@ class HEALPixLocator:
         :Parameters:
 
             y: array_like or `None`
-
                 The Y coordinates of the points to locate, in units of
                 degrees north within the domain's latitude_longitude
                 coordinate system (``latlon=True``),.
@@ -826,7 +835,6 @@ class HEALPixLocator:
                 *x*. `None` is equivalent to an empty list.
 
             x: array_like or `None`
-
                 The X coordinates of the points to locate, in units of
                 degrees east within the domain's latitude_longitude
                 coordinate system (``latlon=True``).
@@ -837,20 +845,18 @@ class HEALPixLocator:
                 *y*. `None` is equivalent to an empty list.
 
             latlon: `bool`, optional
-
                 If True (the default) then *y* and *x* are points in
                 the latitude_longitude coordinate system that is
                 explicitly or implicitly defined by the domain. If
                 False then an exception is raised.
 
             unique: `bool`, optional
-
-                If True (the default) then return sorted cell indices
-                without duplicates, and without placeholders for
-                points that are out-of-domain (i.e that do not lie
-                inside any cell). If False then an index is returned
-                for every point, including placeholders for
-                out-of-domain points.
+                If True (the default) then return cell indices without
+                duplicates, without placeholders for points that are
+                out-of-domain (i.e that do not lie inside any cell),
+                and sorted into ascending order. If False then an
+                index is returned for every point, including
+                placeholders for out-of-domain points.
 
                 The out-of-domain placeholder is ``-N``, where ``N``
                 is the size of the discrete axis, which is always a
@@ -865,11 +871,11 @@ class HEALPixLocator:
         """
         if not unique:
             raise NotImplementedError(
-                "Can't yet set unique=False for a HEALPix domain."
+                "Can't yet set unique=False for a HEALPix grid."
             )
 
         if not latlon:
-            raise ValueError("Can't set latlon=False for a HEALPix domain.")
+            raise ValueError("Can't set latlon=False for a HEALPix grid.")
 
         import dask.array as da
 

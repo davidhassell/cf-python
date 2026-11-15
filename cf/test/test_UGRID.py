@@ -409,6 +409,10 @@ class UGRIDTest(unittest.TestCase):
             cf.locate(lat, lon, f, unique=False).tolist(), [0, -3]
         )
 
+        from cf.ugrid_utils import PolygonWindow
+
+        # ------------------------------------------------------------
+        #
         # An upside down "U" shaped cell interlocking with a "W" a
         # shaped cell. The numbers in bracket at the vertices are the
         # node indices.
@@ -432,8 +436,8 @@ class UGRIDTest(unittest.TestCase):
         #
         # Test some left-to-right rows of points that cut through the
         # mesh at various Y values.
-        from cf.ugrid_utils import PolygonWindow
-
+        #
+        # ------------------------------------------------------------
         locator = PolygonWindow(
             nodes_y=[
                 300,
@@ -476,7 +480,6 @@ class UGRIDTest(unittest.TestCase):
             ),
             cr="Cartesian",  # Dummy, non-latitude_longitude CRS
             atol=cf.atol(),
-            _test=True,  # _test=True to allow the dummy CRS
         )
 
         x = [99, 101, 199, 201, 299, 301, 399, 401, 499, 501, 599, 601]
@@ -598,6 +601,58 @@ class UGRIDTest(unittest.TestCase):
 
         result = cf.locate(rlat, rlon, g, latlon=False, unique=False).tolist()
         self.assertEqual(result.count(-g.size), f.size - N)
+
+    def test_UGRID_locate_5(self):
+        """Test cf.locate with a triangles-only mesh."""
+        from cf.ugrid_utils import PolygonWindow
+
+        # ------------------------------------------------------------
+        #
+        # y=300              2-------------------3
+        #                   / \                 / \
+        #                  /   \               /   \
+        #                 /     \     [3]     /     \
+        #                /       \           /       \
+        # y=200         /         \         /         \
+        #              /    [2]    \       /    [4]    \
+        #             /             \     /             \
+        #            /               \   /               \
+        #           /                 \ /                 \
+        # y=100    0===================1-------------------4
+        #           \___            __/ \                 /
+        #        [0]: [0,1,1] (0-area)   \               /
+        #        [1]: [0,1,--] (masked)   \     [5]     /
+        #                                  \           /
+        # y=0                               \         /
+        #                                    \       /
+        #                                     \     /
+        #                                      \   /
+        # y=-100                                \ /
+        #                                        5
+        #         x=100    x=150     x=200     x=250     x=300
+        #
+        # ------------------------------------------------------------
+        locator = PolygonWindow(
+            nodes_y=[100, 100, 300, 300, 100, -100],
+            nodes_x=[100, 200, 150, 250, 300, 250],
+            face_nodes=np.ma.masked_equal(
+                [
+                    [0, 1, 1],  # Degenerate cell
+                    [0, 1, -1],  # Degenerate cell
+                    [0, 1, 2],
+                    [2, 1, 3],
+                    [1, 4, 3],
+                    [4, 1, 5],
+                ],
+                -1,
+            ),
+            cr="Cartesian",  # Dummy, non-latitude_longitude CRS
+            atol=cf.atol(),
+        )
+        index = locator.locate(
+            200, [100, 150, 200, 250, 300], latlon=False, unique=False
+        )
+        self.assertEqual(index.tolist(), [-6, 2, 3, 4, -6])
 
 
 if __name__ == "__main__":
