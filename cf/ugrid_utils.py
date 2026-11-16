@@ -575,51 +575,27 @@ class PolygonWindow:
             self.kdtree = None
             return
 
-        # Build sub-triangle data structures and cKDTree spatial index
-        # The node indices for each sub-triangle, with shape (n_cells,
-        # 3).
-        #
-        # E.g if there are 3 cells with 7 unique nodes decomposed into
-        # a total of 5 sub-triangles, then triangle_nodes could be
-        # [[2, 3, 1], [4, 5, 3], [6, 1, 3], [2, 1, 0], [4, 3, 2]]
-        #        print()
-        #         print('triangle_list=',triangle_list)
-        #         self.triangle_nodes = np.vstack(triangle_list, dtype=np.intp)
-        #        print('triangle_nodes=',self.triangle_nodes,self.triangle_nodes.dtype )
-        #         del triangle_list
-
-        # The cell index for each sub-triangle, which shape
-        # (n_triangles,).
-        #
-        # E.g. if triangle_parents is [0, 1, 2, 0, 1] then there are 3
-        # cells (0, 1, and 2). Cell 0 contains the two sub-triangles
-        # with sub-triangle indices 0 and 3, cell 1 contains the two
-        # sub-triangles with sub-triangle indices 1 and 4, and cell 2
-        # contains the one sub-triangle with sub-triangle index 2.
-        #        print('triangle_parents=',self.triangle_parents)
-        #         self.triangle_parents = np.concatenate(parent_list)
-        #         del parent_list
-
-        # The vertex coordinates for each sub-triangle, with shape
-        # (n_triangles, 3, N) for N-d coordinates.
-        #        triangle_vertices = self.nodes[self.triangle_nodes]
-
         # ------------------------------------------------------------
         # Find the centroid coordinates for each sub-triangle, with
         # shape (n_triangles, N) for N-d coordinates.
+        #
+        # In the 2-d Cartesian case the centroid​=(v1+v2+v3)/3
+        #
+        # In the 3-d spherical case we use the projected planar
+        # centroid, rather than the true spherical area centroid,
+        # becuase it is fast to calculate and guarantted to lie inside
+        # the triangle (which is the main requirement here):
+        # centroid​=(v1+v2+v3)/∥v1​+v2​+v3​∥. np.einsum("ij,ij->i", s, s)
+        # is an efficient way of calulating ∥s∥=∥v1​+v2​+v3​∥.
         # ------------------------------------------------------------
-        # v0 = self.nodes[self.triangle_nodes[:, 0]]
-        # v1 = self.nodes[self.triangle_nodes[:, 1]]
-        # v2 = self.nodes[self.triangle_nodes[:, 2]]
         centroids = self.nodes[self.triangle_nodes[:, 0]]
         centroids += self.nodes[self.triangle_nodes[:, 1]]
         centroids += self.nodes[self.triangle_nodes[:, 2]]
 
-        #        centroids = v0 + v1 + v2
         if self.spherical:
-            # The centroid calculated above lies in the sphere's
-            # interior, so move it to the sphere's surface.
-            centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
+            norm = np.einsum("ij,ij->i", centroids, centroids)
+            norm = np.sqrt(norm, out=norm)
+            centroids /= norm[:, None]
         else:
             centroids /= 3.0
 
@@ -630,41 +606,34 @@ class PolygonWindow:
         # ------------------------------------------------------------
         # Compute the maximum cell radius across the entire mesh,
         # i.e. the maximum over all triangles of the straight-line
-        # (Euclidean) distance from the triangle centroid to any one
+        # (Euclidean) distance from the triangle's centroid to any one
         # of its three vertices.
         #
-        # Note: In the spherical case, each straight-line chord lies
-        # in the sphere's interior, and is not an arc on the sphere's
-        # surface.
+        # Note: In the 3-d spherical case, each straight-line chord
+        # lies in the sphere's interior, and is not an arc on the
+        # sphere's surface.
         #
         # If a point is greater than this Euclidean distance away from
         # all triangle centroids, then it is impossible for it to lie
         # in any sub-triangle, and therefore it can't lie in any cell.
         #
+        # Method: Calculate d = ∥v_i-centroid∥ for i=0,1,2, and take
+        # the largest of the elements of d.
+        #
         # We add the square root of atol because atol is defined with
         # implicit units of distance squared, and max_cell_radius has
         # units of just distance.
         # ------------------------------------------------------------
-        v = self.nodes[self.triangle_nodes[:, 0]] - centroids
-        max_r2 = float(np.einsum("ij,ij->i", v, v).max())
-        for j in (1, 2):
-            v = self.nodes[self.triangle_nodes[:, j]] - centroids
-            r2 = float(np.einsum("ij,ij->i", v, v).max())
-            max_r2 = max(max_r2, r2)
+        max_norm_2 = np.float64(0.0)
+        for k in range(3):
+            v = self.nodes[self.triangle_nodes[:, k]] - centroids
+            max_norm_2 = np.maximum(
+                max_norm_2,
+                np.einsum("ij,ij->i", v, v).max(initial=0.0),
+            )
 
-        self.max_cell_radius = np.sqrt(max_r2)
-        del v, r2
-        # max_square = 0.0
-        # for v in (v0, v1, v2):
-        #    diff = v - centroids
-        #    max_square = max(
-        #        max_square, float(np.einsum("ij,ij->i", diff, diff).max())
-        #    )
-        #
-        # max_cell_radius = max_square**0.5
-        # self.max_cell_radius = max_cell_radius + self.atol**0.5
-        #
-        # del v0, v1, v2, diff
+        self.max_cell_radius = np.sqrt(max_norm_2) + self.atol**0.5
+        del v
 
         if timer:
             print("max_cell_radius calculation", time() - s)
