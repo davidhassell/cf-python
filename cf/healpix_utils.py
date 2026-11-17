@@ -805,15 +805,23 @@ class HEALPixLocator:
                 The Field or Domain containing the HEALPix grid.
 
         """
-        self.f = f.copy()
-        self.hp = f.healpix_info()
-
-        healpix_index = self.hp.get("healpix_index")
-        if healpix_index is None:
+        hp = f.healpix_info()
+        if hp.get("healpix_index") is None:
             raise ValueError(
                 f"Can't locate HEALPix cells for {f!r}: There are no "
                 "healpix_index coordinates"
             )
+
+        if hp['indexing_scheme'] == 'zuniq':
+            # Currently, we can only locate zuniq-indexed cells by
+            # converting them to nuniq-indexed cells.
+            f = f.healpix_change_indexing_scheme('nuniq')
+            hp = f.healpix_info()
+        else:
+            f = f.copy()
+                               
+        self.f = f
+        self.hp = hp
 
     def locate(self, y, x, latlon=True, unique=True):
         """Find the indices HEALPix face cells containing locations.
@@ -888,38 +896,53 @@ class HEALPixLocator:
                 "to allow the location of HEALPix cells"
             )
 
-        # Make sure that 'lat' and 'lon' are 1-d numpy arrays with the
-        # same number of elements
+        # ------------------------------------------------------------
+        # Parse the y and x points into 1-d float64 numpy arrays with
+        # the same number of elements
+        # ------------------------------------------------------------
         if y is None:
-            y = np.array([])
+            y = []
 
         if x is None:
-            x = np.array([])
+            x = []
 
-        y = np.atleast_1d(y).reshape(-1)
-        x = np.atleast_1d(x).reshape(-1)
-        if y.size == 1 and x.size > 1:
-            y = np.full_like(x, y, dtype=y.dtype)
-        elif x.size == 1 and y.size > 1:
-            x = np.full_like(y, x, dtype=x.dtype)
-        elif y.size != x.size:
-            raise ValueError(
-                f"Incompatible lat and lon sizes: {y.size} != {x.size}"
-            )
+        y = np.ravel(y)
+        x = np.ravel(x)
 
         if not y.size or not x.size:
-            # Return an empty index list if there are no lat or lon
+            if y.size != x.size:
+                # Return an empty index list if there are no x or y
+                # coordinates
+                raise ValueError(
+                    f"Incompatible y and x sizes: {y.size} != {x.size}"
+                )
+
+            # Return an empty index list if there are no x or y
             # coordinates
-            return np.array([], dtype=int)
+            return np.array([], dtype=np.int32)
+
+        if np.abs(y).max() > 90:
+            # Spherical polar latitudes (possibly rotated) must be in
+            # the range [-90, 90]
+            raise ValueError(
+                "Can't find cell locations: Latitudes must be in "
+                f"the range [-90, 90]. Got a value of {np.abs(y).max()}"
+            )
+
+        if y.size == 1 and x.size > 1:
+            y = np.full_like(x, y, dtype=np.float64)
+        elif x.size == 1 and y.size > 1:
+            x = np.full_like(y, x, dtype=np.float64)
+        elif y.size != x.size:
+            raise ValueError(
+                f"Incompatible y and x sizes: {y.size} != {x.size}"
+            )
+        else:
+            y = y.astype(np.float64, copy=False)
+            x = x.astype(np.float64, copy=False)
 
         lat = y
         lon = x
-
-        if np.abs(lat).max() > 90:
-            raise ValueError(
-                f"Can't find cell locations for {self.f!r}: Latitudes must "
-                f"be in the range [-90, 90]. Got: {lat}"
-            )
 
         indexing_scheme = self.hp.get("indexing_scheme")
         healpix_index = self.hp.get("healpix_index")
@@ -929,6 +952,8 @@ class HEALPixLocator:
                 # nuniq indexing scheme
                 index = []
                 healpix_index = healpix_index.array
+                print('nuniq')
+                print('healpix_index=', healpix_index)
                 orders = healpix.uniq2pix(healpix_index, nest=True)[0]
                 orders = np.unique(orders)
                 for order in orders:
@@ -939,13 +964,21 @@ class HEALPixLocator:
                     pix = healpix.ang2pix(
                         nside, lon, lat, nest=True, lonlat=True
                     )
+                    print('pix1', pix)
                     # Remove duplicate indices
-                    pix = np.unique(pix)
+#                    pix = np.unique(pix)
+                    print('pix2', pix)
                     # Convert back to HEALPix nuniq indices
                     pix = healpix._chp.nest2uniq(order, pix, pix)
+                    print('pix3', pix)
                     # Find where these HEALPix indices are located in the
                     # healpix_index coordinates
-                    index.append(da.where(da.isin(healpix_index, pix))[0])
+                    index.append(healpix_index[pix])
+#                    index.append(da.where(da.isin(healpix_index, pix))[0])
+                    print('index=',index) #[0].compute())
+
+                index = np.concatenate(index)
+                print(index)
 
                 index = da.unique(da.concatenate(index, axis=0))
 

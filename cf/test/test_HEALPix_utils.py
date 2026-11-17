@@ -94,6 +94,22 @@ class DataTest(unittest.TestCase):
 
         self.assertTrue(np.array_equal(z, self.zuniq_indices))
 
+    def test_HEALPIX_locate_1(self):
+        """Test cf.locate with a HEALPix grid."""
+        f = cf.example_field(12)
+
+        # Get the location for every point HEALPix
+        g = f.create_latlon_coordinates()
+        y = g.coordinate("Y").array[::-1]
+        x = g.coordinate("X").array[::-1]
+
+        for scheme in ('nested', 'ring', 'nuniq', 'zuniq'):
+           f = f.healpix_change_indexing_scheme(scheme)
+           self.assertEqual(cf.locate(y, x, f).tolist(), list(range(y.size)))
+
+        f = cf.example_field(13)
+        self.assertEqual(cf.locate([-78, 34, 34], [200, 48, 48], f[:, :15]).tolist(), [0, 40])
+
 
 if __name__ == "__main__":
     print("Run date:", datetime.datetime.now())

@@ -319,6 +319,9 @@ class UGRIDTest(unittest.TestCase):
         node_lat = f.construct("latitude").array[::-1]
         node_lon = f.construct("longitude").array[::-1]
         self.assertEqual(cf.locate(node_lat, node_lon, f).tolist(), [0, 1, 2])
+        self.assertEqual(
+            cf.locate(node_lat, node_lon, f, unique=False).tolist(), [2, 1, 0]
+        )
 
         # Get the indices for a subset of points in the mesh
         lat = [34, 32]

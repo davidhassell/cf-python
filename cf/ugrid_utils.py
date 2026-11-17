@@ -1321,14 +1321,6 @@ class PolygonWindow:
         y = np.ravel(y)
         x = np.ravel(x)
 
-        if self.spherical and np.abs(y).max() > 90:
-            # Spherical polar latitudes (possibly rotated) must be in
-            # the range [-90, 90]
-            raise ValueError(
-                "Can't find cell locations: Latitudes must be in "
-                f"the range [-90, 90]. Got a value of {np.abs(y).max()}"
-            )
-
         if not y.size or not x.size:
             if y.size != x.size:
                 # Return an empty index list if there are no x or y coordinates
@@ -1338,6 +1330,14 @@ class PolygonWindow:
 
             # Return an empty index list if there are no x or y coordinates
             return np.array([], dtype=np.int32)
+
+        if self.spherical and y.size and np.abs(y).max() > 90:
+            # Spherical polar latitudes (possibly rotated) must be in
+            # the range [-90, 90]
+            raise ValueError(
+                "Can't find cell locations: Latitudes must be in "
+                f"the range [-90, 90]. Got a value of {np.abs(y).max()}"
+            )
 
         if y.size == 1 and x.size > 1:
             y = np.full_like(x, y, dtype=np.float64)
