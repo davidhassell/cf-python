@@ -335,7 +335,10 @@ class FieldDomainList:
     def to_xarray(self, group=True):
         """Convert the list elements to an `xarray` Dataset.
 
-        {{cf_xarray description}}
+        If the `cf_xarray` package (https://cf-xarray.readthedocs.io)
+        is installed then the `cf_xarray` accessors that allow some
+        interpretation of CF attributes will be present on
+        `xarray.DataArray` and `xarray.Dataset` objects.
 
         Note that ``ds = fl.to_xarray()`` is identical to ``ds =
         cf.write(fl, fmt='XARRAY')``. Also, `cfdm.write` allows a

@@ -3939,12 +3939,11 @@ class FieldDomain:
         same `xarray` dataset.
 
         An `xarray` dataset can be converted to one or more fields
-        with ``f = {{package}}.read(ds)``, or domains with ``f =
-        {{package}}.read(ds, domain=True)``.
+        with ``f = {{package}}.from_xarray(ds)``.
 
         .. versionadded:: 3.21.0
 
-        .. seealso:: `cf.{{class}}List.to_xarray`, `cf.write`
+        .. seealso:: `{{package}}.from_xarray, `cf.{{class}}List.to_xarray`
 
         :Parameter:
 

@@ -3337,6 +3337,9 @@ def locate(
             the size of the discrete axis, which is always a non-valid
             index.
 
+            For HEALPix grids with nuniq or zuniq indexing schemes,
+            *unique* must be True.
+
             .. versionadded:: NEXTVERSION
 
         atol: `float`, optional

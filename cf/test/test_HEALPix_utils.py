@@ -94,21 +94,89 @@ class DataTest(unittest.TestCase):
 
         self.assertTrue(np.array_equal(z, self.zuniq_indices))
 
-    def test_HEALPIX_locate_1(self):
+    def test_HEALPix_locate_1(self):
         """Test cf.locate with a HEALPix grid."""
+        # ------------------------------------------------------------
+        # nested/ring/nuniq/zuniq with one order
+        # ------------------------------------------------------------
         f = cf.example_field(12)
 
-        # Get the location for every point HEALPix
+        # Get the location for every HEALPix cell
         g = f.create_latlon_coordinates()
         y = g.coordinate("Y").array[::-1]
         x = g.coordinate("X").array[::-1]
 
-        for scheme in ('nested', 'ring', 'nuniq', 'zuniq'):
-           f = f.healpix_change_indexing_scheme(scheme)
-           self.assertEqual(cf.locate(y, x, f).tolist(), list(range(y.size)))
+        for scheme in ("nested", "ring", "nuniq", "zuniq"):
+            g = g.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(cf.locate(y, x, g).tolist(), list(range(y.size)))
 
+        for scheme in ("nested", "ring"):
+            f = f.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(y, x, f, unique=False).tolist(),
+                list(range(y.size - 1, -1, -1)),
+            )
+
+        for scheme in ("nested", "ring"):
+            f = f.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(y, x, f[:, :15], unique=True).tolist(),
+                list(range(15)),
+            )
+
+        for scheme in ("nested", "ring"):
+            f = f.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(y, x, f[:, :15], unique=False).tolist(),
+                [-15] * (y.size - 15) + list(range(15 - 1, -1, -1)),
+            )
+
+        for scheme in ("nested", "ring"):
+            f = f.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate([-78, 34, 34], [200, 48, 48], f).tolist(),
+                [0, 40],
+            )
+
+        for scheme in ("nested", "ring"):
+            f = f.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(
+                    [-78, 34, 34], [200, 48, 48], f, unique=False
+                ).tolist(),
+                [40, 0, 0],
+            )
+
+        # unique=False not implemented for nuniq/zuniq
+        for scheme in ("nuniq", "zuniq"):
+            g = g.healpix_change_indexing_scheme(scheme)
+            with self.assertRaises(NotImplementedError):
+                cf.locate(y, x, g, unique=False)
+
+        # ------------------------------------------------------------
+        # nuniq/zuniq with multiple orders
+        # ------------------------------------------------------------
         f = cf.example_field(13)
-        self.assertEqual(cf.locate([-78, 34, 34], [200, 48, 48], f[:, :15]).tolist(), [0, 40])
+
+        # Get the location for every HEALPix cell
+        g = f.create_latlon_coordinates()
+        y = g.coordinate("Y").array[::-1]
+        x = g.coordinate("X").array[::-1]
+
+        for scheme in ("nuniq", "zuniq"):
+            g = g.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(y, x, g).tolist(),
+                list(range(y.size)),
+            )
+
+        i = 40
+        for scheme in ("nuniq", "zuniq"):
+            g = g.healpix_change_indexing_scheme(scheme)
+            self.assertEqual(
+                cf.locate(y, x, g[:, -i:]).tolist(),
+                list(range(i)),
+            )
 
 
 if __name__ == "__main__":
