@@ -242,6 +242,7 @@ class PolygonWindow:
         atol=None,
         units_y=None,
         units_x=None,
+        grid_type='mesh',
         timer=False,
     ):
         """**Initialisation**
